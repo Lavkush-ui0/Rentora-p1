@@ -19,8 +19,9 @@ const categoriesData = [
 
 const seed = async () => {
   try {
-    console.log('[Seed Script] Connecting to database...');
-    await mongoose.connect(config.MONGODB_URI);
+    await mongoose.connect(config.MONGODB_URI, {
+      serverSelectionTimeoutMS: 5000,
+    });
     console.log('[Seed Script] Connected. Cleaning collections...');
 
     await User.deleteMany({});

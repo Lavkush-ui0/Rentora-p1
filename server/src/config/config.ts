@@ -1,7 +1,10 @@
 import dotenv from 'dotenv';
 import path from 'path';
 
-// Load .env file
+// Load .env file (supports running commands from either root or server directory)
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+dotenv.config({ path: path.resolve(process.cwd(), '../.env') });
+dotenv.config({ path: path.join(__dirname, '../../../.env') });
 dotenv.config({ path: path.join(__dirname, '../../.env') });
 
 export const config = {

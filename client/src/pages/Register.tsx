@@ -39,7 +39,11 @@ export const Register: React.FC = () => {
       await registerUser({ ...form, year: parseInt(form.year) });
       navigate('/home', { replace: true });
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Registration failed. Please try again.');
+      if (!err.response) {
+        setError('Cannot connect to Rentora server. Make sure the backend server (npm run dev) is running on port 5000.');
+      } else {
+        setError(err.response.data?.message || err.response.data?.error || 'Registration failed. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
