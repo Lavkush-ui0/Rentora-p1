@@ -1,0 +1,296 @@
+import React, { useEffect, useState, useRef } from 'react';
+import { useParams, Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { useSocket } from '../context/SocketContext';
+import { chatService } from '../services/chatService';
+import { Send, MessageCircle, ArrowLeft } from 'lucide-react';
+
+export const Messages: React.FC = () => {
+  const { conversationId } = useParams<{ conversationId?: string }>();
+  const { user } = useAuth();
+  const { socket } = useSocket();
+
+  const [conversations, setConversations] = useState<any[]>([]);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [text, setText] = useState('');
+  const [loadingConvos, setLoadingConvos] = useState(true);
+  const [loadingMsgs, setLoadingMsgs] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [typingUser, setTypingUser] = useState<string | null>(null);
+  const [activeConvo, setActiveConvo] = useState<any>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const typingTimeout = useRef<any>(null);
+
+  // Fetch conversations list
+  useEffect(() => {
+    const fetchConversations = async () => {
+      try {
+        const res = await chatService.getConversations();
+        if (res.data?.success) setConversations(res.data.conversations);
+      } catch (err) { console.error(err); }
+      finally { setLoadingConvos(false); }
+    };
+    fetchConversations();
+  }, []);
+
+  // Load messages when conversation changes
+  useEffect(() => {
+    if (!conversationId) return;
+
+    const convo = conversations.find(c => c._id === conversationId);
+    if (convo) setActiveConvo(convo);
+
+    const fetchMessages = async () => {
+      setLoadingMsgs(true);
+      try {
+        const res = await chatService.getMessages(conversationId);
+        if (res.data?.success) {
+          setMessages(res.data.messages);
+          await chatService.markAsRead(conversationId);
+        }
+      } catch (err) { console.error(err); }
+      finally { setLoadingMsgs(false); }
+    };
+    fetchMessages();
+  }, [conversationId, conversations]);
+
+  // Socket: join conversation room
+  useEffect(() => {
+    if (socket && conversationId) {
+      socket.emit('joinConversation', conversationId);
+
+      socket.on('receiveMessage', (msg: any) => {
+        setMessages(prev => [...prev, msg]);
+        chatService.markAsRead(conversationId).catch(() => {});
+      });
+
+      socket.on('typing', ({ userName }: any) => {
+        setTypingUser(userName);
+        clearTimeout(typingTimeout.current);
+        typingTimeout.current = setTimeout(() => setTypingUser(null), 3000);
+      });
+
+      socket.on('stopTyping', () => setTypingUser(null));
+
+      return () => {
+        socket.off('receiveMessage');
+        socket.off('typing');
+        socket.off('stopTyping');
+      };
+    }
+  }, [socket, conversationId]);
+
+  // Scroll to bottom on new messages
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const handleTyping = () => {
+    if (!socket || !conversationId || !user) return;
+    socket.emit('typing', { conversationId, userName: user.fullName });
+    clearTimeout(typingTimeout.current);
+    typingTimeout.current = setTimeout(() => {
+      socket.emit('stopTyping', { conversationId });
+    }, 2000);
+  };
+
+  const handleSend = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!text.trim() || !conversationId || sending) return;
+    setSending(true);
+    try {
+      await chatService.sendMessage(conversationId, text.trim());
+      setText('');
+      if (socket) socket.emit('stopTyping', { conversationId });
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to send message.');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const getOtherParticipant = (convo: any) => {
+    return convo.participants?.find((p: any) => p._id !== user?.id);
+  };
+
+  const formatTime = (date: string) => {
+    return new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  return (
+    <div className="flex h-[calc(100vh-5rem)] bg-white dark:bg-slate-900 rounded-3xl border border-gray-100 dark:border-slate-800 overflow-hidden">
+
+      {/* Conversations Sidebar */}
+      <div className={`flex flex-col border-r border-gray-100 dark:border-slate-800 ${conversationId ? 'hidden md:flex w-80 flex-shrink-0' : 'flex w-full md:w-80'}`}>
+        <div className="p-4 border-b border-gray-100 dark:border-slate-800">
+          <h2 className="text-lg font-black font-outfit text-gray-900 dark:text-gray-100">Messages</h2>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{conversations.length} conversations</p>
+        </div>
+
+        <div className="flex-1 overflow-y-auto">
+          {loadingConvos ? (
+            <div className="space-y-1 p-3">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="animate-pulse flex items-center space-x-3 p-3 rounded-2xl">
+                  <div className="h-11 w-11 rounded-full bg-gray-100 dark:bg-slate-800 flex-shrink-0"></div>
+                  <div className="flex-1 space-y-2">
+                    <div className="h-3.5 bg-gray-100 dark:bg-slate-800 rounded-full w-2/3"></div>
+                    <div className="h-3 bg-gray-100 dark:bg-slate-800 rounded-full w-1/2"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : conversations.length > 0 ? (
+            <div className="p-2">
+              {conversations.map((convo) => {
+                const other = getOtherParticipant(convo);
+                const isActive = conversationId === convo._id;
+                const hasUnread = convo.lastMessage && !convo.lastMessage.readAt && convo.lastMessage.sender !== user?.id;
+                return (
+                  <Link
+                    key={convo._id}
+                    to={`/messages/${convo._id}`}
+                    className={`flex items-center space-x-3 p-3 rounded-2xl transition-all mb-1 ${
+                      isActive
+                        ? 'bg-primary-50 dark:bg-primary-950/30'
+                        : 'hover:bg-gray-50 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    <div className="relative">
+                      <img src={other?.avatar} alt={other?.fullName} className="h-11 w-11 rounded-full border border-gray-100 dark:border-slate-700 object-cover flex-shrink-0" />
+                      {hasUnread && (
+                        <span className="absolute -top-0.5 -right-0.5 h-3 w-3 bg-primary-500 rounded-full border-2 border-white dark:border-slate-900"></span>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm font-bold truncate ${isActive ? 'text-primary-700 dark:text-primary-400' : 'text-gray-900 dark:text-gray-100'}`}>
+                        {other?.fullName}
+                      </p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 truncate mt-0.5">
+                        {convo.listing?.title || 'Direct message'}
+                      </p>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-16 px-4">
+              <MessageCircle className="h-12 w-12 mx-auto text-gray-200 dark:text-gray-700 mb-3" />
+              <p className="text-sm font-bold text-gray-500 dark:text-gray-400">No conversations yet</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Send a rental request to start chatting</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Chat Window */}
+      {conversationId ? (
+        <div className="flex flex-col flex-1 min-w-0">
+          {/* Chat Header */}
+          <div className="flex items-center space-x-3 p-4 border-b border-gray-100 dark:border-slate-800">
+            <Link to="/messages" className="md:hidden p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-slate-800">
+              <ArrowLeft className="h-5 w-5" />
+            </Link>
+            {activeConvo && (() => {
+              const other = getOtherParticipant(activeConvo);
+              return (
+                <>
+                  <img src={other?.avatar} alt={other?.fullName} className="h-10 w-10 rounded-full border border-gray-100 dark:border-slate-700 object-cover" />
+                  <div>
+                    <p className="font-bold text-gray-900 dark:text-gray-100 text-sm">{other?.fullName}</p>
+                    {activeConvo.listing?.title && (
+                      <p className="text-xs text-gray-400 dark:text-gray-500 truncate">re: {activeConvo.listing.title}</p>
+                    )}
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+
+          {/* Messages */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            {loadingMsgs ? (
+              <div className="flex justify-center py-8">
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"></div>
+              </div>
+            ) : messages.length > 0 ? messages.map((msg) => {
+              const isMe = msg.sender?._id === user?.id || msg.sender === user?.id;
+              return (
+                <div key={msg._id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                  {!isMe && (
+                    <img src={msg.sender?.avatar} alt="" className="h-7 w-7 rounded-full border border-gray-100 dark:border-slate-700 mr-2 self-end flex-shrink-0" />
+                  )}
+                  <div className={`max-w-[70%] ${isMe ? 'items-end' : 'items-start'} flex flex-col`}>
+                    <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
+                      isMe
+                        ? 'bg-primary-600 text-white rounded-br-md'
+                        : 'bg-gray-100 dark:bg-slate-800 text-gray-900 dark:text-gray-100 rounded-bl-md'
+                    }`}>
+                      {msg.text}
+                    </div>
+                    <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1 px-1">
+                      {formatTime(msg.createdAt)}
+                      {isMe && msg.readAt && <span className="ml-1 text-primary-500">✓ read</span>}
+                    </p>
+                  </div>
+                </div>
+              );
+            }) : (
+              <div className="text-center py-8 text-gray-400 dark:text-gray-500 text-sm">
+                Start the conversation!
+              </div>
+            )}
+
+            {/* Typing Indicator */}
+            {typingUser && (
+              <div className="flex items-center space-x-2">
+                <div className="flex space-x-1 bg-gray-100 dark:bg-slate-800 px-4 py-2.5 rounded-2xl">
+                  <div className="h-2 w-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                  <div className="h-2 w-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '100ms' }}></div>
+                  <div className="h-2 w-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '200ms' }}></div>
+                </div>
+                <span className="text-xs text-gray-400">{typingUser} is typing...</span>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Message Input */}
+          <div className="p-4 border-t border-gray-100 dark:border-slate-800">
+            <form onSubmit={handleSend} className="flex items-center space-x-3">
+              <input
+                type="text"
+                placeholder="Type a message..."
+                value={text}
+                onChange={(e) => { setText(e.target.value); handleTyping(); }}
+                className="flex-1 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 px-4 py-3 rounded-2xl border border-gray-200 dark:border-slate-700 focus:outline-none focus:border-primary-500 text-sm"
+              />
+              <button
+                type="submit"
+                disabled={!text.trim() || sending}
+                className="h-11 w-11 flex-shrink-0 bg-primary-600 hover:bg-primary-700 text-white rounded-2xl flex items-center justify-center transition-all disabled:opacity-40"
+              >
+                {sending ? (
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                ) : (
+                  <Send className="h-4.5 w-4.5" />
+                )}
+              </button>
+            </form>
+          </div>
+        </div>
+      ) : (
+        <div className="hidden md:flex flex-1 items-center justify-center">
+          <div className="text-center space-y-3">
+            <div className="h-20 w-20 mx-auto bg-gray-100 dark:bg-slate-800 rounded-3xl flex items-center justify-center">
+              <MessageCircle className="h-10 w-10 text-gray-300 dark:text-gray-600" />
+            </div>
+            <p className="font-bold text-gray-500 dark:text-gray-400">Select a conversation to chat</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+export default Messages;
