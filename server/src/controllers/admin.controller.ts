@@ -3,6 +3,8 @@ import { User } from '../models/user.model';
 import { Listing } from '../models/listing.model';
 import { Report } from '../models/report.model';
 import { Category } from '../models/category.model';
+import { RentalRequest } from '../models/rentalRequest.model';
+import { Conversation } from '../models/chat.model';
 import { CustomRequest } from '../types';
 import CustomError from '../utils/customError';
 
@@ -173,9 +175,25 @@ export const getReports = async (req: CustomRequest, res: Response, next: NextFu
       .sort({ createdAt: -1 })
       .populate('reportedBy', 'fullName email');
 
+    // Manually populate target details based on targetType
+    const populatedReports = await Promise.all(reports.map(async (report) => {
+      const reportObj: any = report.toObject();
+      if (report.targetType === 'LISTING') {
+        const listing = await Listing.findById(report.targetId)
+          .select('title owner')
+          .populate('owner', 'fullName email');
+        reportObj.targetDetails = listing;
+      } else if (report.targetType === 'USER') {
+        const user = await User.findById(report.targetId)
+          .select('fullName email avatar ratingAverage');
+        reportObj.targetDetails = user;
+      }
+      return reportObj;
+    }));
+
     return res.json({
       success: true,
-      reports,
+      reports: populatedReports,
     });
   } catch (error) {
     return next(error);
@@ -232,6 +250,86 @@ export const createReport = async (req: CustomRequest, res: Response, next: Next
       success: true,
       message: 'Report submitted successfully to administrators',
       report,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+// 5. Admin Dashboard Statistics & Graphs
+export const getDashboardStats = async (req: CustomRequest, res: Response, next: NextFunction) => {
+  try {
+    const totalUsers = await User.countDocuments({ role: { $ne: 'ADMIN' } });
+    const totalListings = await Listing.countDocuments({ status: { $ne: 'REMOVED' } });
+    const totalCompletedRentals = await RentalRequest.countDocuments({ status: 'COMPLETED' });
+    const totalActiveChats = await Conversation.countDocuments({});
+
+    // Top rated products
+    const topRatedListings = await Listing.find({ status: 'ACTIVE' })
+      .sort({ rating: -1, viewCount: -1 })
+      .limit(5)
+      .populate('owner', 'fullName email');
+
+    // Top enquiry products (most requested)
+    const topEnquiryListings = await Listing.find({ status: 'ACTIVE' })
+      .sort({ requestCount: -1 })
+      .limit(5)
+      .populate('owner', 'fullName email');
+
+    // Aggregated stats over last 7 days for the Line Chart
+    const statsStartDate = new Date();
+    statsStartDate.setDate(statsStartDate.getDate() - 7);
+    statsStartDate.setHours(0, 0, 0, 0);
+
+    const listingsPerDay = await Listing.aggregate([
+      { $match: { createdAt: { $gte: statsStartDate } } },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    const requestsPerDay = await RentalRequest.aggregate([
+      { $match: { createdAt: { $gte: statsStartDate } } },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    // Build perfect sequential 7-day stats list
+    const dailyStats = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+
+      const listingsCount = listingsPerDay.find(l => l._id === dateStr)?.count || 0;
+      const requestsCount = requestsPerDay.find(r => r._id === dateStr)?.count || 0;
+
+      dailyStats.push({
+        date: dateStr,
+        dayLabel: d.toLocaleDateString('en-US', { weekday: 'short' }),
+        listings: listingsCount,
+        requests: requestsCount,
+      });
+    }
+
+    return res.json({
+      success: true,
+      stats: {
+        totalUsers,
+        totalListings,
+        totalCompletedRentals,
+        totalActiveChats,
+        topRatedListings,
+        topEnquiryListings,
+        dailyStats,
+      },
     });
   } catch (error) {
     return next(error);

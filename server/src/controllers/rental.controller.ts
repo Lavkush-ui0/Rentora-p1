@@ -2,9 +2,10 @@ import { Response, NextFunction } from 'express';
 import { RentalRequest } from '../models/rentalRequest.model';
 import { Listing } from '../models/listing.model';
 import { User } from '../models/user.model';
-import { Conversation } from '../models/chat.model';
+import { Conversation, Message } from '../models/chat.model';
 import { CustomRequest } from '../types';
 import { createNotification } from '../services/notification.service';
+import { getIO } from '../services/socket.service';
 import CustomError from '../utils/customError';
 
 export const createRentalRequest = async (req: CustomRequest, res: Response, next: NextFunction) => {
@@ -68,19 +69,58 @@ export const createRentalRequest = async (req: CustomRequest, res: Response, nex
     listing.requestCount += 1;
     await listing.save();
 
-    // Create notification for listing owner
+    // Auto-create or find conversation thread between Renter & Owner for this listing
+    let conversation = await Conversation.findOne({
+      participants: { $all: [req.user._id, listing.owner] },
+      listing: listingId,
+    });
+
+    if (!conversation) {
+      conversation = await Conversation.create({
+        participants: [req.user._id, listing.owner],
+        listing: listingId,
+        rentalRequest: request._id,
+      });
+    } else {
+      conversation.rentalRequest = request._id as any;
+      await conversation.save();
+    }
+
+    // Create initial chat message so owner sees the user's message in the chat
+    const requestMessageText = message?.trim()
+      ? message.trim()
+      : `Hi! I've sent a request to rent "${listing.title}" from ${start.toLocaleDateString()} to ${end.toLocaleDateString()}.`;
+
+    const initialMessage = await Message.create({
+      conversation: conversation._id,
+      sender: req.user._id,
+      text: requestMessageText,
+    });
+
+    conversation.lastMessage = initialMessage._id as any;
+    await conversation.save();
+
+    // Broadcast live socket message event to conversation room
+    const io = getIO();
+    if (io) {
+      const populatedMsg = await initialMessage.populate('sender', 'fullName avatar');
+      io.to(conversation._id.toString()).emit('receiveMessage', populatedMsg);
+    }
+
+    // Create notification for listing owner (pointing to the conversation ID)
     await createNotification(
       listing.owner,
       'RENTAL_REQUEST',
       'New Rental Request',
-      `${req.user.fullName} has requested to rent "${listing.title}".`,
-      request._id
+      `${req.user.fullName} requested "${listing.title}": "${requestMessageText.substring(0, 60)}${requestMessageText.length > 60 ? '...' : ''}"`,
+      conversation._id
     );
 
     return res.status(201).json({
       success: true,
-      message: 'Rental request sent successfully',
+      message: 'Rental request sent & chat initiated successfully',
       request,
+      conversationId: conversation._id,
     });
   } catch (error) {
     return next(error);
@@ -237,7 +277,7 @@ export const acceptRentalRequest = async (req: CustomRequest, res: Response, nex
       'REQUEST_ACCEPTED',
       'Rental Request Accepted',
       `Your request to rent "${listing.title}" has been accepted! You can now chat to coordinate pickup.`,
-      request._id
+      conversation._id
     );
 
     return res.json({

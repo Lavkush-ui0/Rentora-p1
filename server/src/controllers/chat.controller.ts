@@ -38,9 +38,14 @@ export const createConversation = async (req: CustomRequest, res: Response, next
       });
     }
 
+    const populatedConvo = await Conversation.findById(conversation._id)
+      .populate('participants', 'fullName avatar ratingAverage isBlocked')
+      .populate('listing', 'title images rentalPrice priceUnit status')
+      .populate('lastMessage');
+
     return res.status(201).json({
       success: true,
-      conversation,
+      conversation: populatedConvo,
     });
   } catch (error) {
     return next(error);

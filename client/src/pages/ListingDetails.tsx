@@ -4,9 +4,11 @@ import { useAuth } from '../context/AuthContext';
 import { useWishlist } from '../context/WishlistContext';
 import { listingService } from '../services/listingService';
 import { rentalService } from '../services/rentalService';
+import { chatService } from '../services/chatService';
+import { getImageUrl } from '../utils/imageUrl';
+import { adminService } from '../services/adminService';
 import {
-  Star, Eye, Repeat, ChevronLeft, ChevronRight,
-  Calendar, MessageCircle, Tag, AlertTriangle, Package, User, Share2, Heart, ShoppingBag
+  Star, Eye, Repeat, ChevronLeft, ChevronRight, Calendar, MessageCircle, Tag, AlertTriangle, Package, User, Share2, Heart, ShoppingBag, Flag
 } from 'lucide-react';
 
 const conditionColors: Record<string, string> = {
@@ -32,6 +34,36 @@ export const ListingDetails: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [requestError, setRequestError] = useState('');
 
+  // Report/Flag state
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState('Inappropriate Content');
+  const [reportDesc, setReportDesc] = useState('');
+  const [reporting, setReporting] = useState(false);
+
+  const handleReportSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    setReporting(true);
+    try {
+      await adminService.submitReport({
+        targetType: 'LISTING',
+        targetId: listing._id,
+        reason: reportReason,
+        description: reportDesc,
+      });
+      alert('Thank you. The report has been submitted to the platform administrators for review.');
+      setReportOpen(false);
+      setReportDesc('');
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to submit report. Please try again.');
+    } finally {
+      setReporting(false);
+    }
+  };
+
   useEffect(() => {
     const fetchListing = async () => {
       try {
@@ -52,18 +84,42 @@ export const ListingDetails: React.FC = () => {
     setRequestError('');
     setSubmitting(true);
     try {
-      await rentalService.createRentalRequest({
+      const res = await rentalService.createRentalRequest({
         listing: listing._id,
         startDate,
         endDate,
         message,
       });
       setRequestOpen(false);
-      navigate('/my-rentals');
+      if (res.data?.conversationId) {
+        navigate(`/messages/${res.data.conversationId}`);
+      } else {
+        navigate('/rentals');
+      }
     } catch (err: any) {
       setRequestError(err.response?.data?.message || 'Failed to send rental request. Please try again.');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleDirectMessage = async () => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    try {
+      const res = await chatService.createConversation({
+        recipientId: listing.owner._id,
+        listingId: listing._id,
+      });
+      if (res.data?.success && res.data.conversation?._id) {
+        navigate(`/messages/${res.data.conversation._id}`);
+      } else {
+        navigate(`/messages?recipient=${listing.owner._id}&listing=${listing._id}`);
+      }
+    } catch (err) {
+      navigate(`/messages?recipient=${listing.owner._id}&listing=${listing._id}`);
     }
   };
 
@@ -112,7 +168,7 @@ export const ListingDetails: React.FC = () => {
         <div className="space-y-3">
           <div className="relative aspect-[4/3] bg-gray-100 dark:bg-slate-800 rounded-3xl overflow-hidden group">
             <img
-              src={listing.images[currentImg] || 'https://picsum.photos/600/400'}
+              src={getImageUrl(listing.images[currentImg])}
               alt={listing.title}
               className="h-full w-full object-cover transition-all duration-500"
             />
@@ -145,7 +201,7 @@ export const ListingDetails: React.FC = () => {
                   onClick={() => setCurrentImg(i)}
                   className={`h-16 w-16 rounded-xl overflow-hidden border-2 transition-all ${i === currentImg ? 'border-primary-500' : 'border-transparent'}`}
                 >
-                  <img src={img} alt="" className="h-full w-full object-cover" />
+                  <img src={getImageUrl(img)} alt="" className="h-full w-full object-cover" />
                 </button>
               ))}
             </div>
@@ -157,16 +213,28 @@ export const ListingDetails: React.FC = () => {
 
           {/* Title & Stats */}
           <div>
-            <div className="flex items-start justify-between">
+            <div className="flex items-center justify-between">
               <h1 className="text-2xl font-black font-outfit text-gray-900 dark:text-gray-100 leading-tight flex-1 pr-3">
                 {listing.title}
               </h1>
-              <button
-                onClick={() => navigator.share?.({ title: listing.title, url: window.location.href })}
-                className="p-2 rounded-xl text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800"
-              >
-                <Share2 className="h-4.5 w-4.5" />
-              </button>
+              <div className="flex items-center space-x-1">
+                <button
+                  onClick={() => navigator.share?.({ title: listing.title, url: window.location.href })}
+                  className="p-2 rounded-xl text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800"
+                  title="Share Item"
+                >
+                  <Share2 className="h-4.5 w-4.5" />
+                </button>
+                {user && !isOwner && (
+                  <button
+                    onClick={() => setReportOpen(true)}
+                    className="p-2 rounded-xl text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20"
+                    title="Flag / Report Item"
+                  >
+                    <Flag className="h-4.5 w-4.5" />
+                  </button>
+                )}
+              </div>
             </div>
             <div className="flex items-center space-x-4 mt-2 text-xs text-gray-400 dark:text-gray-500">
               <span className="flex items-center space-x-1"><Eye className="h-3.5 w-3.5" /><span>{listing.viewCount} views</span></span>
@@ -267,6 +335,14 @@ export const ListingDetails: React.FC = () => {
                         <span>Request to Rent</span>
                       </button>
                     </div>
+
+                    <button
+                      onClick={handleDirectMessage}
+                      className="w-full border border-primary-300 dark:border-primary-800 text-primary-700 dark:text-primary-400 font-bold px-5 py-3.5 rounded-2xl flex items-center justify-center space-x-2 hover:bg-primary-50 dark:hover:bg-primary-950/30 transition-all"
+                    >
+                      <MessageCircle className="h-5 w-5" />
+                      <span>Message Owner</span>
+                    </button>
                   </div>
                 ) : (
                   <button disabled className="w-full bg-gray-200 dark:bg-slate-800 text-gray-500 dark:text-gray-400 font-bold py-3.5 rounded-2xl cursor-not-allowed">
@@ -371,6 +447,66 @@ export const ListingDetails: React.FC = () => {
                   <>
                     <MessageCircle className="h-5 w-5" />
                     <span>Send Request</span>
+                  </>
+                )}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* Flag/Report Modal */}
+      {reportOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 w-full max-w-md shadow-2xl border border-gray-100 dark:border-slate-800 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-lg font-black font-outfit flex items-center space-x-2 text-red-600">
+                <Flag className="h-5 w-5 fill-current" />
+                <span>Report Listing</span>
+              </h3>
+              <button onClick={() => setReportOpen(false)} className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-slate-800">
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleReportSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Reason</label>
+                <select
+                  value={reportReason}
+                  onChange={(e) => setReportReason(e.target.value)}
+                  className="w-full bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-gray-100 px-4 py-3 rounded-2xl border border-gray-200 dark:border-slate-700 focus:outline-none focus:border-primary-500 text-sm"
+                >
+                  <option value="Inappropriate Content">Inappropriate Content</option>
+                  <option value="Prohibited/Illegal Item">Prohibited/Illegal Item</option>
+                  <option value="Incorrect Description">Incorrect Description</option>
+                  <option value="Fraudulent owner">Fraudulent Owner</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Explanation</label>
+                <textarea
+                  required
+                  placeholder="Tell us why this listing violates guidelines..."
+                  rows={4}
+                  value={reportDesc}
+                  onChange={(e) => setReportDesc(e.target.value)}
+                  className="w-full bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 px-4 py-3 rounded-2xl border border-gray-200 dark:border-slate-700 focus:outline-none focus:border-primary-500 text-sm resize-none"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={reporting}
+                className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-2xl flex items-center justify-center space-x-2 disabled:opacity-50 shadow-lg shadow-red-500/20 transition-all"
+              >
+                {reporting ? (
+                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                ) : (
+                  <>
+                    <Flag className="h-5 w-5" />
+                    <span>Submit Report</span>
                   </>
                 )}
               </button>

@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Star, Heart, ShoppingBag, Check } from 'lucide-react';
 import { useWishlist, ListingSummary } from '../context/WishlistContext';
+import { getImageUrl } from '../utils/imageUrl';
 
 interface ProductCardProps {
   listing: {
@@ -41,7 +42,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ listing }) => {
 
   const isFavorited = isInWishlist(_id);
   const inCart = isInCart(_id);
-  const displayImage = images?.[0] || 'https://picsum.photos/600/400';
+  const displayImage = getImageUrl(images?.[0]);
 
   const handleWishlistClick = (e: React.MouseEvent) => {
     e.preventDefault();

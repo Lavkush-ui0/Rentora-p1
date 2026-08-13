@@ -85,3 +85,7 @@ out/
 *.njsproj
 *.sln
 *.sw?
+
+# Local MongoDB data
+data/
+

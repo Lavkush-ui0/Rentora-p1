@@ -26,6 +26,8 @@ import Wishlist from './pages/Wishlist';
 
 // Admin pages
 import AdminDashboard from './pages/AdminDashboard';
+import AdminLogin from './pages/AdminLogin';
+import AdminLayout from './layouts/AdminLayout';
 
 const App: React.FC = () => {
   return (
@@ -193,23 +195,58 @@ const App: React.FC = () => {
                 />
 
                 {/* Admin-only routes */}
+                <Route path="/admin/login" element={<AdminLogin />} />
                 <Route
                   path="/admin"
+                  element={<Navigate to="/admin/dashboard" replace />}
+                />
+                <Route
+                  path="/admin/dashboard"
                   element={
                     <ProtectedRoute allowedRoles={['ADMIN']}>
-                      <MainLayout>
+                      <AdminLayout>
                         <AdminDashboard />
-                      </MainLayout>
+                      </AdminLayout>
                     </ProtectedRoute>
                   }
                 />
                 <Route
-                  path="/admin/*"
+                  path="/admin/users"
                   element={
                     <ProtectedRoute allowedRoles={['ADMIN']}>
-                      <MainLayout>
+                      <AdminLayout>
                         <AdminDashboard />
-                      </MainLayout>
+                      </AdminLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin/listings"
+                  element={
+                    <ProtectedRoute allowedRoles={['ADMIN']}>
+                      <AdminLayout>
+                        <AdminDashboard />
+                      </AdminLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin/categories"
+                  element={
+                    <ProtectedRoute allowedRoles={['ADMIN']}>
+                      <AdminLayout>
+                        <AdminDashboard />
+                      </AdminLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin/reports"
+                  element={
+                    <ProtectedRoute allowedRoles={['ADMIN']}>
+                      <AdminLayout>
+                        <AdminDashboard />
+                      </AdminLayout>
                     </ProtectedRoute>
                   }
                 />

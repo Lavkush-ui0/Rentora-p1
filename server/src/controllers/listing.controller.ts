@@ -23,7 +23,7 @@ export const createListing = async (req: CustomRequest, res: Response, next: Nex
     const imageUrls: string[] = [];
     if (req.files && Array.isArray(req.files)) {
       const uploadPromises = (req.files as Express.Multer.File[]).map(file =>
-        uploadImage(file.buffer, 'rentora/listings')
+        uploadImage(file.buffer, 'rentora/listings', file.mimetype)
       );
       const results = await Promise.all(uploadPromises);
       imageUrls.push(...results);
@@ -210,7 +210,7 @@ export const updateListing = async (req: CustomRequest, res: Response, next: Nex
     if (req.files && Array.isArray(req.files) && req.files.length > 0) {
       // Option to upload new ones and append/replace
       const uploadPromises = (req.files as Express.Multer.File[]).map(file =>
-        uploadImage(file.buffer, 'rentora/listings')
+        uploadImage(file.buffer, 'rentora/listings', file.mimetype)
       );
       const results = await Promise.all(uploadPromises);
       

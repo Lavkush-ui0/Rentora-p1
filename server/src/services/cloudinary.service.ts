@@ -2,15 +2,20 @@ import { cloudinary, isCloudinaryConfigured } from '../config/cloudinary';
 import CustomError from '../utils/customError';
 
 /**
- * Uploads an image buffer to Cloudinary, or returns a placeholder URL if not configured.
+ * Uploads an image buffer to Cloudinary, or encodes it directly to a Base64 Data URI for MongoDB storage.
  * @param fileBuffer The file buffer from Multer
  * @param folder The folder name inside Cloudinary
+ * @param mimeType The file MIME type (default 'image/jpeg')
  */
-export const uploadImage = async (fileBuffer: Buffer, folder: string): Promise<string> => {
+export const uploadImage = async (
+  fileBuffer: Buffer,
+  folder: string,
+  mimeType: string = 'image/jpeg'
+): Promise<string> => {
   if (!isCloudinaryConfigured) {
-    console.log('[Cloudinary Service] Cloudinary is not configured. Returning random mockup image.');
-    const randomId = Math.floor(Math.random() * 1000);
-    return `https://picsum.photos/id/${randomId}/600/400`;
+    console.log(`[Image Service] Cloudinary not configured. Converting image to Base64 Data URI for MongoDB storage (${mimeType}).`);
+    const base64Data = fileBuffer.toString('base64');
+    return `data:${mimeType};base64,${base64Data}`;
   }
 
   return new Promise((resolve, reject) => {
@@ -38,20 +43,20 @@ export const uploadImage = async (fileBuffer: Buffer, folder: string): Promise<s
 };
 
 /**
- * Deletes an image from Cloudinary based on its URL, or does nothing if not configured.
- * @param imageUrl The full secure URL of the image
+ * Deletes an image from Cloudinary or handles Base64 data URIs.
+ * @param imageUrl The secure URL or Base64 data URI of the image
  */
 export const deleteImage = async (imageUrl: string): Promise<void> => {
+  if (!imageUrl || imageUrl.startsWith('data:')) return;
+
   if (!isCloudinaryConfigured) {
     console.log('[Cloudinary Service] Cloudinary is not configured. Mocking deletion of:', imageUrl);
     return;
   }
 
   try {
-    // Extract public_id from secure_url
-    // Example: https://res.cloudinary.com/cloud_name/image/upload/v1234567/folder/image_name.jpg
     const parts = imageUrl.split('/');
-    const lastParts = parts.slice(parts.indexOf('upload') + 2); // gets ['folder', 'image_name.jpg']
+    const lastParts = parts.slice(parts.indexOf('upload') + 2);
     const publicIdWithExtension = lastParts.join('/');
     const publicId = publicIdWithExtension.substring(0, publicIdWithExtension.lastIndexOf('.'));
 
@@ -59,6 +64,5 @@ export const deleteImage = async (imageUrl: string): Promise<void> => {
     console.log('[Cloudinary Service] Deleted image publicId:', publicId);
   } catch (error) {
     console.error('[Cloudinary Service] Deletion error:', error);
-    // We don't fail the request if deletion of old image fails, just log it.
   }
 };

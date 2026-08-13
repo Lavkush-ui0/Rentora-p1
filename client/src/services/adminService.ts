@@ -16,6 +16,7 @@ export const adminService = {
   updateReportStatus: (id: string, status: string) => api.patch(`/admin/reports/${id}`, { status }),
   submitReport: (data: { targetType: string; targetId: string; reason: string; description?: string }) =>
     api.post('/reports', data),
+  getDashboardStats: () => api.get('/admin/stats'),
 };
 
 export default adminService;

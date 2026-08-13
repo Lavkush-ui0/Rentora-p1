@@ -1,3 +1,4 @@
+import path from 'path';
 import express from 'express';
 import http from 'http';
 import cors from 'cors';
@@ -41,7 +42,7 @@ app.use(
   })
 );
 
-// Rate Limiting (100 requests per 15 minutes per IP)
+// Rate Limiting (Skipped in development mode to prevent 429 errors during local testing)
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
@@ -52,6 +53,7 @@ const limiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  skip: () => process.env.NODE_ENV === 'development',
 });
 app.use('/api', limiter);
 

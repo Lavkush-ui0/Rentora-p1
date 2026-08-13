@@ -10,6 +10,7 @@ import {
   updateCategory,
   getReports,
   updateReportStatus,
+  getDashboardStats,
 } from '../controllers/admin.controller';
 import { authenticateUser, requireAdmin } from '../middleware/auth.middleware';
 
@@ -35,5 +36,8 @@ router.patch('/categories/:id', updateCategory);
 // Reports Management
 router.get('/reports', getReports);
 router.patch('/reports/:id', updateReportStatus);
+
+// Statistics
+router.get('/stats', getDashboardStats);
 
 export default router;

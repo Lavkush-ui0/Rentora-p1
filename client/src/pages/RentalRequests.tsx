@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { rentalService } from '../services/rentalService';
 import { reviewService } from '../services/reviewService';
-import { Link } from 'react-router-dom';
+import { chatService } from '../services/chatService';
+import { Link, useNavigate } from 'react-router-dom';
 import { Clock, CheckCircle2, XCircle, Package, Star, MessageCircle, ArrowRight } from 'lucide-react';
 
 const statusColors: Record<string, string> = {
@@ -14,6 +15,7 @@ const statusColors: Record<string, string> = {
 };
 
 export const RentalRequests: React.FC = () => {
+  const navigate = useNavigate();
   const [tab, setTab] = useState<'incoming' | 'sent'>('incoming');
   const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -22,6 +24,19 @@ export const RentalRequests: React.FC = () => {
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
   const [reviewLoading, setReviewLoading] = useState(false);
+
+  const handleStartChat = async (recipientId: string, listingId?: string) => {
+    try {
+      const res = await chatService.createConversation({ recipientId, listingId });
+      if (res.data?.success && res.data.conversation?._id) {
+        navigate(`/messages/${res.data.conversation._id}`);
+      } else {
+        navigate(`/messages?recipient=${recipientId}&listing=${listingId || ''}`);
+      }
+    } catch (err) {
+      navigate(`/messages?recipient=${recipientId}&listing=${listingId || ''}`);
+    }
+  };
 
   const fetchRequests = async () => {
     setLoading(true);
@@ -163,14 +178,14 @@ export const RentalRequests: React.FC = () => {
                 <span>Leave Review</span>
               </button>
             )}
-            {(req.status === 'ACCEPTED' || req.status === 'ACTIVE') && (
-              <Link
-                to="/messages"
+            {otherUser && (
+              <button
+                onClick={() => handleStartChat(otherUser._id, listing?._id)}
                 className="flex items-center space-x-1.5 px-3 py-1.5 border border-primary-200 dark:border-primary-800 text-primary-600 dark:text-primary-400 text-xs font-bold rounded-xl hover:bg-primary-50 dark:hover:bg-primary-950/20 transition-all"
               >
                 <MessageCircle className="h-3.5 w-3.5" />
                 <span>Chat</span>
-              </Link>
+              </button>
             )}
           </div>
         </div>

@@ -16,10 +16,16 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   useEffect(() => {
     if (isAuthenticated && user) {
-      // Connect socket
-      const socketUrl = (import.meta.env.VITE_SOCKET_URL as string) || 'http://localhost:5000';
+      const getSocketUrl = () => {
+        if (import.meta.env.VITE_SOCKET_URL) return import.meta.env.VITE_SOCKET_URL as string;
+        if (import.meta.env.VITE_API_URL) {
+          return (import.meta.env.VITE_API_URL as string).replace(/\/api\/?$/, '');
+        }
+        return 'http://localhost:5001';
+      };
+      const socketUrl = getSocketUrl();
       const newSocket = io(socketUrl, {
-        transports: ['websocket'],
+        transports: ['websocket', 'polling'],
       });
 
       setSocket(newSocket);
