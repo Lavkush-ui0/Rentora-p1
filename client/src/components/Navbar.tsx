@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { useWishlist } from '../context/WishlistContext';
 import { 
   Search, Sun, Moon, Bell, MessageSquare, Menu, X, 
-  LogOut, User, PlusCircle, Settings, LayoutDashboard, Briefcase, List
+  LogOut, User, PlusCircle, Settings, LayoutDashboard, List,
+  Heart, ShoppingBag, Home, Compass, Package
 } from 'lucide-react';
 import notificationService from '../services/notificationService';
 import chatService from '../services/chatService';
@@ -12,7 +14,9 @@ import chatService from '../services/chatService';
 export const Navbar: React.FC = () => {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const { wishlistCount, cartCount } = useWishlist();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchQuery, setSearchQuery] = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
@@ -32,7 +36,6 @@ export const Navbar: React.FC = () => {
 
           const chatRes = await chatService.getConversations();
           if (chatRes.data?.success) {
-            // Count conversations where last message exists, is unread, and sender is not current user
             const unreadChats = chatRes.data.conversations.filter((c: any) => 
               c.lastMessage && !c.lastMessage.readAt && c.lastMessage.sender !== user.id
             ).length;
@@ -61,14 +64,16 @@ export const Navbar: React.FC = () => {
     navigate('/login');
   };
 
+  const isNavActive = (path: string) => location.pathname === path;
+
   return (
-    <nav className="sticky top-0 z-40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-gray-100 dark:border-slate-800 transition-colors duration-200">
+    <nav className="sticky top-0 z-40 bg-white/85 dark:bg-slate-900/85 backdrop-blur-md border-b border-gray-100 dark:border-slate-800 transition-colors duration-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
           
-          {/* Logo */}
-          <div className="flex items-center">
-            <Link to="/home" className="flex items-center space-x-2">
+          {/* Logo & Primary Links */}
+          <div className="flex items-center space-x-6">
+            <Link to="/home" className="flex items-center space-x-2.5">
               <span className="h-9 w-9 rounded-xl bg-gradient-to-tr from-primary-600 to-indigo-500 flex items-center justify-center text-white font-extrabold text-xl shadow-md shadow-primary-500/20">
                 R
               </span>
@@ -76,14 +81,50 @@ export const Navbar: React.FC = () => {
                 Rentora
               </span>
             </Link>
+
+            {/* Desktop Navigation Links */}
+            <div className="hidden lg:flex items-center space-x-1">
+              <Link
+                to="/home"
+                className={`px-3 py-1.5 rounded-full text-sm font-semibold transition-all ${
+                  isNavActive('/home')
+                    ? 'bg-primary-50 text-primary-700 dark:bg-primary-950/40 dark:text-primary-400'
+                    : 'text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400'
+                }`}
+              >
+                Home
+              </Link>
+              <Link
+                to="/explore"
+                className={`px-3 py-1.5 rounded-full text-sm font-semibold transition-all ${
+                  isNavActive('/explore')
+                    ? 'bg-primary-50 text-primary-700 dark:bg-primary-950/40 dark:text-primary-400'
+                    : 'text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400'
+                }`}
+              >
+                Explore
+              </Link>
+              {user && (
+                <Link
+                  to="/my-rentals"
+                  className={`px-3 py-1.5 rounded-full text-sm font-semibold transition-all ${
+                    isNavActive('/my-rentals')
+                      ? 'bg-primary-50 text-primary-700 dark:bg-primary-950/40 dark:text-primary-400'
+                      : 'text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400'
+                  }`}
+                >
+                  My Orders / Rentals
+                </Link>
+              )}
+            </div>
           </div>
 
           {/* Search bar (desktop) */}
-          <div className="flex-1 max-w-md mx-8 hidden md:block">
+          <div className="flex-1 max-w-sm mx-4 hidden md:block">
             <form onSubmit={handleSearchSubmit} className="relative">
               <input
                 type="text"
-                placeholder="Search rentals (e.g. lab coat, calculator)..."
+                placeholder="Search rentals (e.g. calculator, lab coat)..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full bg-gray-50 text-gray-900 dark:bg-slate-800 dark:text-gray-100 placeholder-gray-400 pl-10 pr-4 py-2 rounded-full border border-gray-200 dark:border-slate-700 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-all text-sm"
@@ -93,12 +134,40 @@ export const Navbar: React.FC = () => {
           </div>
 
           {/* Right menu (desktop) */}
-          <div className="hidden md:flex items-center space-x-4">
+          <div className="hidden md:flex items-center space-x-3">
             
+            {/* Wishlist / Saved Items */}
+            <Link
+              to="/wishlist"
+              className="p-2 rounded-full text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-slate-800 relative transition-all"
+              title="Wishlist & Cart"
+            >
+              <Heart className={`h-5 w-5 ${wishlistCount > 0 ? 'text-red-500 fill-red-500' : ''}`} />
+              {wishlistCount > 0 && (
+                <span className="absolute top-0.5 right-0.5 h-4 min-w-[16px] px-1 rounded-full bg-red-500 text-white font-extrabold text-[9px] flex items-center justify-center border-2 border-white dark:border-slate-900">
+                  {wishlistCount}
+                </span>
+              )}
+            </Link>
+
+            {/* Cart Icon */}
+            {cartCount > 0 && (
+              <Link
+                to="/wishlist"
+                className="p-2 rounded-full text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-slate-800 relative transition-all"
+                title="Rental Cart"
+              >
+                <ShoppingBag className="h-5 w-5 text-primary-600 dark:text-primary-400" />
+                <span className="absolute top-0.5 right-0.5 h-4 min-w-[16px] px-1 rounded-full bg-primary-600 text-white font-extrabold text-[9px] flex items-center justify-center border-2 border-white dark:border-slate-900">
+                  {cartCount}
+                </span>
+              </Link>
+            )}
+
             {/* Theme Toggle */}
             <button
               onClick={toggleTheme}
-              className="p-2 rounded-full text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-slate-800"
+              className="p-2 rounded-full text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-slate-800 transition-all"
               title="Toggle Theme"
             >
               {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
@@ -109,9 +178,9 @@ export const Navbar: React.FC = () => {
                 {/* List Item Button */}
                 <Link
                   to="/list-item"
-                  className="inline-flex items-center space-x-1.5 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-full text-sm font-semibold shadow-sm hover:shadow transition-all"
+                  className="inline-flex items-center space-x-1.5 bg-primary-600 hover:bg-primary-700 text-white px-3.5 py-1.5 rounded-full text-sm font-semibold shadow-sm hover:shadow transition-all"
                 >
-                  <PlusCircle className="h-4.5 w-4.5" />
+                  <PlusCircle className="h-4 w-4" />
                   <span>List Item</span>
                 </Link>
 
@@ -123,7 +192,7 @@ export const Navbar: React.FC = () => {
                 >
                   <MessageSquare className="h-5 w-5" />
                   {unreadMessages > 0 && (
-                    <span className="absolute top-1 right-1 h-5 w-5 rounded-full bg-red-500 text-white font-extrabold text-[10px] flex items-center justify-center border-2 border-white dark:border-slate-900">
+                    <span className="absolute top-0.5 right-0.5 h-4 min-w-[16px] px-1 rounded-full bg-red-500 text-white font-extrabold text-[9px] flex items-center justify-center border-2 border-white dark:border-slate-900">
                       {unreadMessages}
                     </span>
                   )}
@@ -137,7 +206,7 @@ export const Navbar: React.FC = () => {
                 >
                   <Bell className="h-5 w-5" />
                   {unreadNotifications > 0 && (
-                    <span className="absolute top-1 right-1 h-5 w-5 rounded-full bg-red-500 text-white font-extrabold text-[10px] flex items-center justify-center border-2 border-white dark:border-slate-900">
+                    <span className="absolute top-0.5 right-0.5 h-4 min-w-[16px] px-1 rounded-full bg-red-500 text-white font-extrabold text-[9px] flex items-center justify-center border-2 border-white dark:border-slate-900">
                       {unreadNotifications}
                     </span>
                   )}
@@ -157,14 +226,14 @@ export const Navbar: React.FC = () => {
                       alt={user.fullName}
                       className="h-8 w-8 rounded-full border border-gray-200 dark:border-slate-700 object-cover"
                     />
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300 hidden lg:block">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300 hidden xl:block">
                       {user.fullName.split(' ')[0]}
                     </span>
                   </button>
 
                   {dropdownOpen && (
-                    <div className="absolute right-0 mt-2 w-52 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-gray-100 dark:border-slate-800 py-1 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
-                      <div className="px-4 py-2 border-b border-gray-100 dark:border-slate-800">
+                    <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-gray-100 dark:border-slate-800 py-1.5 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+                      <div className="px-4 py-2.5 border-b border-gray-100 dark:border-slate-800">
                         <p className="text-sm font-bold text-gray-900 dark:text-gray-100">{user.fullName}</p>
                         <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{user.email}</p>
                       </div>
@@ -179,6 +248,15 @@ export const Navbar: React.FC = () => {
                           <span>Admin Panel</span>
                         </Link>
                       )}
+
+                      <Link
+                        to="/home"
+                        onClick={() => setDropdownOpen(false)}
+                        className="flex items-center space-x-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-800"
+                      >
+                        <Home className="h-4.5 w-4.5" />
+                        <span>Home</span>
+                      </Link>
 
                       <Link
                         to="/profile"
@@ -203,8 +281,17 @@ export const Navbar: React.FC = () => {
                         onClick={() => setDropdownOpen(false)}
                         className="flex items-center space-x-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-800"
                       >
-                        <Briefcase className="h-4.5 w-4.5" />
-                        <span>My Rentals</span>
+                        <Package className="h-4.5 w-4.5 text-primary-500" />
+                        <span className="font-semibold text-primary-600 dark:text-primary-400">My Orders / Rentals</span>
+                      </Link>
+
+                      <Link
+                        to="/wishlist"
+                        onClick={() => setDropdownOpen(false)}
+                        className="flex items-center space-x-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-800"
+                      >
+                        <Heart className="h-4.5 w-4.5 text-red-500" />
+                        <span>Saved / Wishlist</span>
                       </Link>
 
                       <Link
@@ -252,6 +339,13 @@ export const Navbar: React.FC = () => {
 
           {/* Mobile menu trigger */}
           <div className="md:hidden flex items-center space-x-2">
+            <Link to="/wishlist" className="p-2 rounded-full text-gray-500 dark:text-gray-400 relative">
+              <Heart className={`h-5 w-5 ${wishlistCount > 0 ? 'text-red-500 fill-red-500' : ''}`} />
+              {wishlistCount > 0 && (
+                <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-red-500"></span>
+              )}
+            </Link>
+
             <button
               onClick={toggleTheme}
               className="p-2 rounded-full text-gray-500 dark:text-gray-400"
@@ -293,79 +387,105 @@ export const Navbar: React.FC = () => {
             <Search className="absolute left-3.5 top-2.5 h-4.5 w-4.5 text-gray-400" />
           </form>
 
-          {user ? (
-            <div className="space-y-1">
-              {user.role === 'ADMIN' && (
+          <div className="space-y-1">
+            <Link
+              to="/home"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center space-x-2 p-2 rounded-xl text-gray-700 dark:text-gray-300"
+            >
+              <Home className="h-5 w-5 text-primary-500" />
+              <span className="text-sm font-semibold">Home</span>
+            </Link>
+            <Link
+              to="/explore"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center space-x-2 p-2 rounded-xl text-gray-700 dark:text-gray-300"
+            >
+              <Compass className="h-5 w-5 text-indigo-500" />
+              <span className="text-sm font-semibold">Explore All Items</span>
+            </Link>
+            <Link
+              to="/wishlist"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center space-x-2 p-2 rounded-xl text-gray-700 dark:text-gray-300"
+            >
+              <Heart className="h-5 w-5 text-red-500" />
+              <span className="text-sm font-semibold">Wishlist ({wishlistCount})</span>
+            </Link>
+            {user ? (
+              <>
+                {user.role === 'ADMIN' && (
+                  <Link
+                    to="/admin"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center space-x-2 p-2 rounded-xl text-primary-600 dark:text-primary-400"
+                  >
+                    <LayoutDashboard className="h-5 w-5" />
+                    <span className="font-semibold text-sm">Admin Panel</span>
+                  </Link>
+                )}
                 <Link
-                  to="/admin"
+                  to="/my-rentals"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center space-x-2 p-2 rounded-xl text-primary-600 dark:text-primary-400"
+                  className="flex items-center space-x-2 p-2 rounded-xl text-gray-700 dark:text-gray-300"
                 >
-                  <LayoutDashboard className="h-5 w-5" />
-                  <span className="font-semibold text-sm">Admin Panel</span>
+                  <Package className="h-5 w-5 text-blue-500" />
+                  <span className="text-sm font-semibold">My Orders / Rentals</span>
                 </Link>
-              )}
-              <Link
-                to="/list-item"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center space-x-2 p-2 rounded-xl text-gray-700 dark:text-gray-300"
-              >
-                <PlusCircle className="h-5 w-5" />
-                <span className="text-sm">List an Item</span>
-              </Link>
-              <Link
-                to="/my-listings"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center space-x-2 p-2 rounded-xl text-gray-700 dark:text-gray-300"
-              >
-                <List className="h-5 w-5" />
-                <span className="text-sm">My Listings</span>
-              </Link>
-              <Link
-                to="/my-rentals"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center space-x-2 p-2 rounded-xl text-gray-700 dark:text-gray-300"
-              >
-                <Briefcase className="h-5 w-5" />
-                <span className="text-sm">My Rentals</span>
-              </Link>
-              <Link
-                to="/settings"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center space-x-2 p-2 rounded-xl text-gray-700 dark:text-gray-300"
-              >
-                <Settings className="h-5 w-5" />
-                <span className="text-sm">Settings</span>
-              </Link>
-              <button
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  handleLogout();
-                }}
-                className="w-full text-left flex items-center space-x-2 p-2 rounded-xl text-red-600 dark:text-red-400"
-              >
-                <LogOut className="h-5 w-5" />
-                <span className="text-sm">Logout</span>
-              </button>
-            </div>
-          ) : (
-            <div className="flex flex-col space-y-2 pt-2">
-              <Link
-                to="/login"
-                onClick={() => setMobileMenuOpen(false)}
-                className="w-full py-2.5 rounded-full text-center font-semibold text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-slate-800"
-              >
-                Login
-              </Link>
-              <Link
-                to="/register"
-                onClick={() => setMobileMenuOpen(false)}
-                className="w-full py-2.5 rounded-full text-center font-semibold bg-primary-600 text-white"
-              >
-                Register
-              </Link>
-            </div>
-          )}
+                <Link
+                  to="/list-item"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center space-x-2 p-2 rounded-xl text-gray-700 dark:text-gray-300"
+                >
+                  <PlusCircle className="h-5 w-5 text-green-500" />
+                  <span className="text-sm">List an Item</span>
+                </Link>
+                <Link
+                  to="/my-listings"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center space-x-2 p-2 rounded-xl text-gray-700 dark:text-gray-300"
+                >
+                  <List className="h-5 w-5" />
+                  <span className="text-sm">My Listings</span>
+                </Link>
+                <Link
+                  to="/settings"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center space-x-2 p-2 rounded-xl text-gray-700 dark:text-gray-300"
+                >
+                  <Settings className="h-5 w-5" />
+                  <span className="text-sm">Settings</span>
+                </Link>
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    handleLogout();
+                  }}
+                  className="w-full text-left flex items-center space-x-2 p-2 rounded-xl text-red-600 dark:text-red-400"
+                >
+                  <LogOut className="h-5 w-5" />
+                  <span className="text-sm font-semibold">Logout</span>
+                </button>
+              </>
+            ) : (
+              <div className="flex flex-col space-y-2 pt-2">
+                <Link
+                  to="/login"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="w-full py-2.5 rounded-full text-center font-semibold text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-slate-800"
+                >
+                  Login
+                </Link>
+                <Link
+                  to="/register"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="w-full py-2.5 rounded-full text-center font-semibold bg-primary-600 text-white"
+                >
+                  Register
+                </Link>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </nav>

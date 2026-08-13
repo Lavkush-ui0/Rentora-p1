@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useWishlist } from '../context/WishlistContext';
 import { listingService } from '../services/listingService';
 import { rentalService } from '../services/rentalService';
 import {
   Star, Eye, Repeat, ChevronLeft, ChevronRight,
-  Calendar, MessageCircle, Tag, AlertTriangle, Package, User, Share2
+  Calendar, MessageCircle, Tag, AlertTriangle, Package, User, Share2, Heart, ShoppingBag
 } from 'lucide-react';
 
 const conditionColors: Record<string, string> = {
@@ -18,6 +19,7 @@ const conditionColors: Record<string, string> = {
 export const ListingDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
+  const { isInWishlist, toggleWishlist, isInCart, addToCart, removeFromCart } = useWishlist();
   const navigate = useNavigate();
 
   const [listing, setListing] = useState<any>(null);
@@ -225,25 +227,71 @@ export const ListingDetails: React.FC = () => {
             <div className="space-y-3">
               {user ? (
                 isAvailable ? (
-                  <button
-                    onClick={() => setRequestOpen(true)}
-                    className="w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-3.5 rounded-2xl flex items-center justify-center space-x-2 shadow-lg shadow-primary-500/20 transition-all"
-                  >
-                    <Calendar className="h-5 w-5" />
-                    <span>Request to Rent</span>
-                  </button>
+                  <div className="space-y-3">
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => toggleWishlist(listing)}
+                        className={`p-3.5 rounded-2xl border transition-all flex items-center justify-center ${
+                          isInWishlist(listing._id)
+                            ? 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800 text-red-500 shadow-sm'
+                            : 'border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-300 hover:text-red-500'
+                        }`}
+                        title={isInWishlist(listing._id) ? 'Remove from wishlist' : 'Save to wishlist'}
+                      >
+                        <Heart className={`h-5 w-5 ${isInWishlist(listing._id) ? 'fill-current' : ''}`} />
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          if (isInCart(listing._id)) {
+                            removeFromCart(listing._id);
+                          } else {
+                            addToCart(listing);
+                          }
+                        }}
+                        className={`p-3.5 rounded-2xl border transition-all flex items-center justify-center ${
+                          isInCart(listing._id)
+                            ? 'bg-primary-50 dark:bg-primary-950/30 border-primary-300 dark:border-primary-700 text-primary-600 font-bold'
+                            : 'border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-300 hover:text-primary-600'
+                        }`}
+                        title={isInCart(listing._id) ? 'Remove from bag' : 'Add to rent bag'}
+                      >
+                        <ShoppingBag className="h-5 w-5" />
+                      </button>
+
+                      <button
+                        onClick={() => setRequestOpen(true)}
+                        className="flex-1 bg-primary-600 hover:bg-primary-700 text-white font-bold py-3.5 rounded-2xl flex items-center justify-center space-x-2 shadow-lg shadow-primary-500/20 transition-all"
+                      >
+                        <Calendar className="h-5 w-5" />
+                        <span>Request to Rent</span>
+                      </button>
+                    </div>
+                  </div>
                 ) : (
                   <button disabled className="w-full bg-gray-200 dark:bg-slate-800 text-gray-500 dark:text-gray-400 font-bold py-3.5 rounded-2xl cursor-not-allowed">
                     Currently Unavailable
                   </button>
                 )
               ) : (
-                <Link
-                  to="/login"
-                  className="block w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-3.5 rounded-2xl text-center shadow-lg shadow-primary-500/20"
-                >
-                  Login to Request Rental
-                </Link>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => toggleWishlist(listing)}
+                    className={`p-3.5 rounded-2xl border transition-all flex items-center justify-center ${
+                      isInWishlist(listing._id)
+                        ? 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800 text-red-500 shadow-sm'
+                        : 'border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-300 hover:text-red-500'
+                    }`}
+                  >
+                    <Heart className={`h-5 w-5 ${isInWishlist(listing._id) ? 'fill-current' : ''}`} />
+                  </button>
+                  <Link
+                    to="/login"
+                    className="flex-1 bg-primary-600 hover:bg-primary-700 text-white font-bold py-3.5 rounded-2xl text-center shadow-lg shadow-primary-500/20"
+                  >
+                    Login to Request Rental
+                  </Link>
+                </div>
               )}
 
               <div className="p-3 bg-gray-50 dark:bg-slate-800/50 rounded-xl text-center">

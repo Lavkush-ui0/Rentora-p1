@@ -65,13 +65,18 @@ export const createListing = async (req: CustomRequest, res: Response, next: Nex
 
 export const getListings = async (req: CustomRequest, res: Response, next: NextFunction) => {
   try {
-    const { category, minPrice, maxPrice, condition, priceUnit, status, search, sort, page, limit } = req.query as any;
+    const { category, minPrice, maxPrice, condition, priceUnit, status, search, sort, page, limit, owner } = req.query as any;
 
     const pageNum = parseInt(page) || 1;
     const limitNum = parseInt(limit) || 10;
     const skip = (pageNum - 1) * limitNum;
 
     const filter: any = {};
+
+    // Filter by owner if provided
+    if (owner) {
+      filter.owner = owner;
+    }
 
     // Standard filter matches
     if (category) filter.category = category;

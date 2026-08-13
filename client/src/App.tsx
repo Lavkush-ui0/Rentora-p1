@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { SocketProvider } from './context/SocketContext';
+import { WishlistProvider } from './context/WishlistContext';
 import { ProtectedRoute } from './routes/ProtectedRoute';
 import MainLayout from './layouts/MainLayout';
 
@@ -21,6 +22,7 @@ import Messages from './pages/Messages';
 import Profile from './pages/Profile';
 import Notifications from './pages/Notifications';
 import Settings from './pages/Settings';
+import Wishlist from './pages/Wishlist';
 
 // Admin pages
 import AdminDashboard from './pages/AdminDashboard';
@@ -30,191 +32,207 @@ const App: React.FC = () => {
     <BrowserRouter>
       <ThemeProvider>
         <AuthProvider>
-          <SocketProvider>
-            <Routes>
-              {/* Public auth routes */}
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
+          <WishlistProvider>
+            <SocketProvider>
+              <Routes>
+                {/* Public auth routes */}
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
 
-              {/* Redirect root to home */}
-              <Route path="/" element={<Navigate to="/home" replace />} />
+                {/* Redirect root to home */}
+                <Route path="/" element={<Navigate to="/home" replace />} />
 
-              {/* Protected routes wrapped in MainLayout */}
-              <Route
-                path="/home"
-                element={
-                  <MainLayout>
-                    <Home />
-                  </MainLayout>
-                }
-              />
-
-              <Route
-                path="/explore"
-                element={
-                  <MainLayout>
-                    <Explore />
-                  </MainLayout>
-                }
-              />
-
-              <Route
-                path="/listing/:id"
-                element={
-                  <MainLayout>
-                    <ListingDetails />
-                  </MainLayout>
-                }
-              />
-
-              <Route
-                path="/list-item"
-                element={
-                  <ProtectedRoute>
+                {/* Main marketplace routes */}
+                <Route
+                  path="/home"
+                  element={
                     <MainLayout>
-                      <ListItem />
+                      <Home />
                     </MainLayout>
-                  </ProtectedRoute>
-                }
-              />
+                  }
+                />
 
-              <Route
-                path="/my-listings"
-                element={
-                  <ProtectedRoute>
+                <Route
+                  path="/explore"
+                  element={
                     <MainLayout>
-                      <MyListings />
+                      <Explore />
                     </MainLayout>
-                  </ProtectedRoute>
-                }
-              />
+                  }
+                />
 
-              <Route
-                path="/my-rentals"
-                element={
-                  <ProtectedRoute>
+                <Route
+                  path="/wishlist"
+                  element={
                     <MainLayout>
-                      <RentalRequests />
+                      <Wishlist />
                     </MainLayout>
-                  </ProtectedRoute>
-                }
-              />
+                  }
+                />
 
-              <Route
-                path="/rental-requests"
-                element={
-                  <ProtectedRoute>
+                <Route
+                  path="/cart"
+                  element={<Navigate to="/wishlist" replace />}
+                />
+
+                <Route
+                  path="/listing/:id"
+                  element={
                     <MainLayout>
-                      <RentalRequests />
+                      <ListingDetails />
                     </MainLayout>
-                  </ProtectedRoute>
-                }
-              />
+                  }
+                />
 
-              <Route
-                path="/messages"
-                element={
-                  <ProtectedRoute>
-                    <MainLayout>
-                      <Messages />
-                    </MainLayout>
-                  </ProtectedRoute>
-                }
-              />
+                <Route
+                  path="/list-item"
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout>
+                        <ListItem />
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
 
-              <Route
-                path="/messages/:conversationId"
-                element={
-                  <ProtectedRoute>
-                    <MainLayout>
-                      <Messages />
-                    </MainLayout>
-                  </ProtectedRoute>
-                }
-              />
+                <Route
+                  path="/my-listings"
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout>
+                        <MyListings />
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
 
-              <Route
-                path="/profile"
-                element={
-                  <ProtectedRoute>
+                <Route
+                  path="/my-rentals"
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout>
+                        <RentalRequests />
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/rental-requests"
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout>
+                        <RentalRequests />
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/messages"
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout>
+                        <Messages />
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/messages/:conversationId"
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout>
+                        <Messages />
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/profile"
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout>
+                        <Profile />
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/profile/:id"
+                  element={
                     <MainLayout>
                       <Profile />
                     </MainLayout>
-                  </ProtectedRoute>
-                }
-              />
+                  }
+                />
 
-              <Route
-                path="/profile/:id"
-                element={
-                  <MainLayout>
-                    <Profile />
-                  </MainLayout>
-                }
-              />
+                <Route
+                  path="/notifications"
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout>
+                        <Notifications />
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
 
-              <Route
-                path="/notifications"
-                element={
-                  <ProtectedRoute>
-                    <MainLayout>
-                      <Notifications />
-                    </MainLayout>
-                  </ProtectedRoute>
-                }
-              />
+                <Route
+                  path="/settings"
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout>
+                        <Settings />
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
 
-              <Route
-                path="/settings"
-                element={
-                  <ProtectedRoute>
-                    <MainLayout>
-                      <Settings />
-                    </MainLayout>
-                  </ProtectedRoute>
-                }
-              />
+                {/* Admin-only routes */}
+                <Route
+                  path="/admin"
+                  element={
+                    <ProtectedRoute allowedRoles={['ADMIN']}>
+                      <MainLayout>
+                        <AdminDashboard />
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin/*"
+                  element={
+                    <ProtectedRoute allowedRoles={['ADMIN']}>
+                      <MainLayout>
+                        <AdminDashboard />
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
 
-              {/* Admin-only routes */}
-              <Route
-                path="/admin"
-                element={
-                  <ProtectedRoute allowedRoles={['ADMIN']}>
-                    <MainLayout>
-                      <AdminDashboard />
-                    </MainLayout>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/*"
-                element={
-                  <ProtectedRoute allowedRoles={['ADMIN']}>
-                    <MainLayout>
-                      <AdminDashboard />
-                    </MainLayout>
-                  </ProtectedRoute>
-                }
-              />
-
-              {/* 404 fallback */}
-              <Route
-                path="*"
-                element={
-                  <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 dark:bg-slate-950">
-                    <div className="text-center">
-                      <p className="text-8xl font-black text-primary-200 dark:text-primary-900 font-outfit">404</p>
-                      <h2 className="text-2xl font-black font-outfit text-gray-900 dark:text-gray-100 mt-2">Page Not Found</h2>
-                      <p className="text-gray-400 dark:text-gray-500 mt-2 mb-6">This page doesn't exist on Rentora.</p>
-                      <a href="/home" className="bg-primary-600 hover:bg-primary-700 text-white font-bold px-6 py-3 rounded-2xl shadow-sm transition-all inline-block">
-                        Back to Home
-                      </a>
+                {/* 404 fallback */}
+                <Route
+                  path="*"
+                  element={
+                    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 dark:bg-slate-950">
+                      <div className="text-center">
+                        <p className="text-8xl font-black text-primary-200 dark:text-primary-900 font-outfit">404</p>
+                        <h2 className="text-2xl font-black font-outfit text-gray-900 dark:text-gray-100 mt-2">Page Not Found</h2>
+                        <p className="text-gray-400 dark:text-gray-500 mt-2 mb-6">This page doesn't exist on Rentora.</p>
+                        <a href="/home" className="bg-primary-600 hover:bg-primary-700 text-white font-bold px-6 py-3 rounded-2xl shadow-sm transition-all inline-block">
+                          Back to Home
+                        </a>
+                      </div>
                     </div>
-                  </div>
-                }
-              />
-            </Routes>
-          </SocketProvider>
+                  }
+                />
+              </Routes>
+            </SocketProvider>
+          </WishlistProvider>
         </AuthProvider>
       </ThemeProvider>
     </BrowserRouter>

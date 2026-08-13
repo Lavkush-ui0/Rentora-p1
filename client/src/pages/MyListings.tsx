@@ -18,6 +18,7 @@ export const MyListings: React.FC = () => {
   const [actionLoading, setActionLoading] = useState('');
 
   const fetchListings = async () => {
+    if (!user?.id) return;
     setLoading(true);
     try {
       // Fetch all listings for current user across all statuses
@@ -25,21 +26,34 @@ export const MyListings: React.FC = () => {
       const allListings: any[] = [];
       for (const status of statuses) {
         try {
-          const res = await listingService.getListings({ limit: 100, status });
-          if (res.data?.success) {
-            const ownListings = res.data.listings.filter((l: any) =>
-              l.owner?._id === user?.id || l.owner === user?.id
-            );
-            allListings.push(...ownListings);
+          const res = await listingService.getListings({ owner: user.id, limit: 100, status });
+          if (res.data?.success && Array.isArray(res.data.listings)) {
+            allListings.push(...res.data.listings);
           }
-        } catch {}
+        } catch (err) {
+          console.warn('[MyListings] Error fetching status:', status, err);
+        }
       }
-      setListings(allListings);
-    } catch (err) { console.error(err); }
-    finally { setLoading(false); }
+      // Ensure unique listings and strictly owned by user
+      const uniqueListings = Array.from(new Map(allListings.map(l => [l._id, l])).values());
+      const strictlyOwnListings = uniqueListings.filter((l: any) => {
+        const ownerId = l.owner?._id || l.owner;
+        return String(ownerId) === String(user.id);
+      });
+      strictlyOwnListings.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+      setListings(strictlyOwnListings);
+    } catch (err) {
+      console.error('[MyListings] Error:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  useEffect(() => { fetchListings(); }, []);
+  useEffect(() => {
+    if (user?.id) {
+      fetchListings();
+    }
+  }, [user?.id]);
 
   const handleTogglePause = async (id: string) => {
     setActionLoading(id + 'pause');

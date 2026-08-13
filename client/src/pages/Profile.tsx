@@ -25,14 +25,24 @@ export const Profile: React.FC = () => {
       try {
         const [profileRes, listingsRes, reviewsRes] = await Promise.all([
           authService.getProfileById(profileId),
-          listingService.getListings({ owner: profileId, status: 'ACTIVE', limit: 6 }),
+          listingService.getListings({ owner: profileId, status: 'ACTIVE', limit: 20 }),
           reviewService.getUserReviews(profileId),
         ]);
         if (profileRes.data?.success) setProfile(profileRes.data.user);
-        if (listingsRes.data?.success) setListings(listingsRes.data.listings);
+        if (listingsRes.data?.success && Array.isArray(listingsRes.data.listings)) {
+          // Strict owner filter check
+          const filtered = listingsRes.data.listings.filter((l: any) => {
+            const ownerId = l.owner?._id || l.owner;
+            return String(ownerId) === String(profileId);
+          });
+          setListings(filtered);
+        }
         if (reviewsRes.data?.success) setReviews(reviewsRes.data.reviews);
-      } catch (err) { console.error(err); }
-      finally { setLoading(false); }
+      } catch (err) {
+        console.error('[Profile] Error fetching data:', err);
+      } finally {
+        setLoading(false);
+      }
     };
     fetchAll();
   }, [profileId]);
