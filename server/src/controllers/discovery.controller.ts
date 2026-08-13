@@ -89,6 +89,19 @@ export const getHomepageData = async (req: Request, res: Response, next: NextFun
       topStudents = [...topStudents, ...extraStudents];
     }
 
+    // 5. Top Rated Products (Daily Refresh from Top 20 rated items)
+    const topRatedListings = await Listing.find({ status: 'ACTIVE', availability: true })
+      .sort({ rating: -1, requestCount: -1, viewCount: -1 })
+      .limit(20)
+      .populate('owner', 'fullName avatar ratingAverage');
+
+    const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / (24 * 60 * 60 * 1000));
+    let topRatedProducts = [...topRatedListings];
+    if (topRatedProducts.length > 8) {
+      const startIndex = dayOfYear % (topRatedProducts.length - 7);
+      topRatedProducts = topRatedProducts.slice(startIndex, startIndex + 8);
+    }
+
     return res.json({
       success: true,
       data: {
@@ -96,6 +109,7 @@ export const getHomepageData = async (req: Request, res: Response, next: NextFun
         topDemanded,
         trendingProducts,
         topStudents,
+        topRatedProducts,
       },
     });
   } catch (error) {

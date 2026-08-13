@@ -27,7 +27,6 @@ import Wishlist from './pages/Wishlist';
 // Admin pages
 import AdminDashboard from './pages/AdminDashboard';
 import AdminLogin from './pages/AdminLogin';
-import AdminLayout from './layouts/AdminLayout';
 
 const App: React.FC = () => {
   return (
@@ -204,9 +203,7 @@ const App: React.FC = () => {
                   path="/admin/dashboard"
                   element={
                     <ProtectedRoute allowedRoles={['ADMIN']}>
-                      <AdminLayout>
-                        <AdminDashboard />
-                      </AdminLayout>
+                      <AdminDashboard />
                     </ProtectedRoute>
                   }
                 />
@@ -214,9 +211,7 @@ const App: React.FC = () => {
                   path="/admin/users"
                   element={
                     <ProtectedRoute allowedRoles={['ADMIN']}>
-                      <AdminLayout>
-                        <AdminDashboard />
-                      </AdminLayout>
+                      <AdminDashboard />
                     </ProtectedRoute>
                   }
                 />
@@ -224,9 +219,7 @@ const App: React.FC = () => {
                   path="/admin/listings"
                   element={
                     <ProtectedRoute allowedRoles={['ADMIN']}>
-                      <AdminLayout>
-                        <AdminDashboard />
-                      </AdminLayout>
+                      <AdminDashboard />
                     </ProtectedRoute>
                   }
                 />
@@ -234,9 +227,7 @@ const App: React.FC = () => {
                   path="/admin/categories"
                   element={
                     <ProtectedRoute allowedRoles={['ADMIN']}>
-                      <AdminLayout>
-                        <AdminDashboard />
-                      </AdminLayout>
+                      <AdminDashboard />
                     </ProtectedRoute>
                   }
                 />
@@ -244,9 +235,7 @@ const App: React.FC = () => {
                   path="/admin/reports"
                   element={
                     <ProtectedRoute allowedRoles={['ADMIN']}>
-                      <AdminLayout>
-                        <AdminDashboard />
-                      </AdminLayout>
+                      <AdminDashboard />
                     </ProtectedRoute>
                   }
                 />
