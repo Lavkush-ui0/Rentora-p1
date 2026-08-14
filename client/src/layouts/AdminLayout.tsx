@@ -6,7 +6,7 @@ import {
   FileText, LogOut, ShieldCheck, Sun, Moon, Home
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
-import logoLetter from '../assets/logo-letter.png';
+import logoLetterWhite from '../assets/logo-letter-white.png';
 import logoNameWhite from '../assets/logo-name-white.png';
 
 interface AdminLayoutProps {
@@ -41,9 +41,10 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       {/* Sidebar */}
       <aside className="w-64 bg-white dark:bg-slate-900 border-r border-gray-100 dark:border-slate-800 flex flex-col justify-between flex-shrink-0">
         <div>
-          {/* Logo */}
           <div className="p-6 border-b border-gray-100 dark:border-slate-800 flex items-center space-x-2.5">
-            <img src={logoLetter} alt="R" className="h-9 w-9 object-contain" />
+            <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-red-600 to-rose-500 flex items-center justify-center p-2 shadow-md shadow-red-500/35">
+              <img src={logoLetterWhite} alt="R" className="h-full w-full object-contain" />
+            </div>
             <div>
               <img src={logoNameWhite} alt="Rentora" className="h-7 object-contain invert dark:invert-0" />
               <span className="text-[10px] font-extrabold text-primary-500 block leading-none uppercase tracking-widest mt-1.5">
