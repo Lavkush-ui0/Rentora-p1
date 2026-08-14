@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useWishlist } from '../context/WishlistContext';
 import logoLetter from '../assets/logo-letter.png';
+import logoNameWhite from '../assets/logo-name-white.png';
 import { 
   Search, Sun, Moon, Bell, MessageSquare, Menu, X, 
   LogOut, User, PlusCircle, Settings, LayoutDashboard, List,
@@ -97,11 +98,9 @@ export const Navbar: React.FC = () => {
           
           {/* Logo & Primary Links */}
           <div className="flex items-center space-x-4 md:space-x-6">
-            <Link to="/home" className="flex items-center space-x-2 flex-shrink-0">
+            <Link to="/home" className="flex items-center space-x-2.5 flex-shrink-0">
               <img src={logoLetter} alt="R" className="h-9 w-9 object-contain" />
-              <span className="font-outfit font-extrabold text-2xl tracking-tight bg-gradient-to-r from-primary-600 to-indigo-500 bg-clip-text text-transparent hidden sm:block">
-                Rentora
-              </span>
+              <img src={logoNameWhite} alt="Rentora" className="h-5.5 object-contain invert dark:invert-0 hidden sm:block" />
             </Link>
 
             {/* Rentomojo-style Location Selector */}
