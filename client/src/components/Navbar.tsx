@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useWishlist } from '../context/WishlistContext';
+import logoLetter from '../assets/logo-letter.png';
 import { 
   Search, Sun, Moon, Bell, MessageSquare, Menu, X, 
   LogOut, User, PlusCircle, Settings, LayoutDashboard, List,
@@ -97,9 +98,7 @@ export const Navbar: React.FC = () => {
           {/* Logo & Primary Links */}
           <div className="flex items-center space-x-4 md:space-x-6">
             <Link to="/home" className="flex items-center space-x-2 flex-shrink-0">
-              <span className="h-9 w-9 rounded-xl bg-gradient-to-tr from-red-600 to-rose-500 flex items-center justify-center text-white font-extrabold text-xl shadow-md shadow-red-500/20">
-                R
-              </span>
+              <img src={logoLetter} alt="R" className="h-9 w-9 object-contain" />
               <span className="font-outfit font-extrabold text-2xl tracking-tight bg-gradient-to-r from-primary-600 to-indigo-500 bg-clip-text text-transparent hidden sm:block">
                 Rentora
               </span>
