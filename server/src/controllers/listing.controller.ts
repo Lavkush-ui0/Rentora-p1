@@ -1,6 +1,7 @@
 import { Response, NextFunction } from 'express';
 import { Listing } from '../models/listing.model';
 import { Category } from '../models/category.model';
+import { User } from '../models/user.model';
 import { CustomRequest } from '../types';
 import { uploadImage, deleteImage } from '../services/cloudinary.service';
 import CustomError from '../utils/customError';
@@ -11,7 +12,7 @@ export const createListing = async (req: CustomRequest, res: Response, next: Nex
       throw new CustomError('Authentication required', 401, 'UNAUTHORIZED');
     }
 
-    const { title, description, category, condition, rentalPrice, priceUnit, securityDeposit } = req.body;
+    const { title, description, category, condition, rentalPrice, priceUnit, securityDeposit, location } = req.body;
 
     // Verify category exists
     const categoryExists = await Category.findById(category);
@@ -51,6 +52,7 @@ export const createListing = async (req: CustomRequest, res: Response, next: Nex
       securityDeposit: securityDeposit || 0,
       availability: true,
       status: 'ACTIVE',
+      location: location || (req.user as any).collegeName || 'NIET Plot 19',
     });
 
     return res.status(201).json({
@@ -65,7 +67,7 @@ export const createListing = async (req: CustomRequest, res: Response, next: Nex
 
 export const getListings = async (req: CustomRequest, res: Response, next: NextFunction) => {
   try {
-    const { category, minPrice, maxPrice, condition, priceUnit, status, search, sort, page, limit, owner } = req.query as any;
+    const { category, minPrice, maxPrice, condition, priceUnit, status, search, sort, page, limit, owner, location } = req.query as any;
 
     const pageNum = parseInt(page) || 1;
     const limitNum = parseInt(limit) || 10;
@@ -76,6 +78,11 @@ export const getListings = async (req: CustomRequest, res: Response, next: NextF
     // Filter by owner if provided
     if (owner) {
       filter.owner = owner;
+    }
+    
+    // Filter by location if provided
+    if (location) {
+      filter.location = location;
     }
 
     // Standard filter matches
@@ -181,7 +188,7 @@ export const updateListing = async (req: CustomRequest, res: Response, next: Nex
       throw new CustomError('You are not authorized to update this listing', 403, 'FORBIDDEN');
     }
 
-    const { title, description, category, condition, rentalPrice, priceUnit, securityDeposit, availability, status } = req.body;
+    const { title, description, category, condition, rentalPrice, priceUnit, securityDeposit, availability, status, location } = req.body;
 
     if (category) {
       const categoryExists = await Category.findById(category);
@@ -205,6 +212,7 @@ export const updateListing = async (req: CustomRequest, res: Response, next: Nex
     if (securityDeposit !== undefined) listing.securityDeposit = securityDeposit;
     if (availability !== undefined) listing.availability = availability;
     if (status) listing.status = status;
+    if (location) listing.location = location;
 
     // If new images are uploaded
     if (req.files && Array.isArray(req.files) && req.files.length > 0) {

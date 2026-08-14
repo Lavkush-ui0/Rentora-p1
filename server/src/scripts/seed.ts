@@ -20,7 +20,7 @@ const categoriesData = [
 const seed = async () => {
   try {
     await mongoose.connect(config.MONGODB_URI, {
-      serverSelectionTimeoutMS: 5000,
+      serverSelectionTimeoutMS: 30000,
     });
     console.log('[Seed Script] Connected. Cleaning collections...');
 
@@ -68,6 +68,7 @@ const seed = async () => {
       ratingCount: 2,
       completedRentals: 2,
       isVerified: true,
+      collegeName: 'NIET Plot 19',
     });
 
     const studentB = await User.create({
@@ -84,6 +85,7 @@ const seed = async () => {
       ratingCount: 1,
       completedRentals: 1,
       isVerified: true,
+      collegeName: 'NIET Plot 15',
     });
 
     const studentC = await User.create({
@@ -97,9 +99,10 @@ const seed = async () => {
       avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Aman',
       bio: 'Automobile lover. Let me know if you need mechanical tools.',
       ratingAverage: 5.0,
-      ratingCount: 0,
-      completedRentals: 0,
+      ratingCount: 1,
+      completedRentals: 2,
       isVerified: true,
+      collegeName: 'NIET Plot 14',
     });
 
     console.log('[Seed Script] Seeding listings...');
@@ -125,6 +128,7 @@ const seed = async () => {
       status: 'ACTIVE',
       viewCount: 45,
       requestCount: 3,
+      location: 'NIET Plot 19',
     });
 
     const listingCalc = await Listing.create({
@@ -142,6 +146,7 @@ const seed = async () => {
       status: 'ACTIVE',
       viewCount: 32,
       requestCount: 1,
+      location: 'NIET Plot 19',
     });
 
     // Student B listings
@@ -160,6 +165,7 @@ const seed = async () => {
       status: 'ACTIVE',
       viewCount: 12,
       requestCount: 2,
+      location: 'NIET Plot 15',
     });
 
     const listingBat = await Listing.create({
@@ -177,6 +183,7 @@ const seed = async () => {
       status: 'ACTIVE',
       viewCount: 18,
       requestCount: 0,
+      location: 'NIET Plot 15',
     });
 
     // Student C listings
@@ -195,6 +202,25 @@ const seed = async () => {
       status: 'ACTIVE',
       viewCount: 56,
       requestCount: 5,
+      location: 'NIET Plot 14',
+    });
+
+    const listingArduino = await Listing.create({
+      owner: studentC._id,
+      title: 'Arduino Uno Starter Kit',
+      slug: 'arduino-uno-starter-kit-8877',
+      description: 'Arduino Uno R3 with basic breadboard, jumper wires, LEDs, resistors, and ultrasonic sensor for first-year engineering project work.',
+      category: catElectronics,
+      images: ['https://images.unsplash.com/photo-1553406830-ef2513450d76?q=80&w=600&auto=format&fit=crop'],
+      condition: 'GOOD',
+      rentalPrice: 30,
+      priceUnit: 'WEEK',
+      securityDeposit: 400,
+      availability: true,
+      status: 'ACTIVE',
+      viewCount: 15,
+      requestCount: 1,
+      location: 'NIET Plot 14',
     });
 
     console.log('[Seed Script] Seeding rental requests...');

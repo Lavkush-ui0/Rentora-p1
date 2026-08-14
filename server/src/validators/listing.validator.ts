@@ -15,6 +15,7 @@ export const createListingSchema = z.object({
       errorMap: () => ({ message: 'Price unit must be DAY, WEEK, or MONTH' }),
     }),
     securityDeposit: z.coerce.number().min(0, 'Security deposit must be non-negative').optional(),
+    location: z.string().min(1, 'Location/Campus is required').optional(),
   }),
 });
 
@@ -32,6 +33,7 @@ export const updateListingSchema = z.object({
       z.boolean()
     ).optional(),
     status: z.enum(['ACTIVE', 'PAUSED', 'RENTED', 'REMOVED']).optional(),
+    location: z.string().optional(),
   }),
 });
 
@@ -47,5 +49,6 @@ export const getListingsSchema = z.object({
     sort: z.enum(['price_asc', 'price_desc', 'newest', 'trending', 'popular']).optional(),
     page: z.coerce.number().min(1).default(1),
     limit: z.coerce.number().min(1).max(100).default(10),
+    location: z.string().optional(),
   }),
 });

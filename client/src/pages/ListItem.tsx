@@ -1,15 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { listingService } from '../services/listingService';
 import { categoryService } from '../services/categoryService';
-import { useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { Upload, X, Image, AlertCircle } from 'lucide-react';
 
 const CONDITIONS = ['NEW', 'LIKE_NEW', 'GOOD', 'FAIR'];
 const PRICE_UNITS = ['DAY', 'WEEK', 'MONTH'];
+const CAMPUS_LOCATIONS = [
+  'NIET Plot 19',
+  'NIET Plot 15',
+  'NIET Plot 14'
+];
 
 export const ListItem: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [categories, setCategories] = useState<any[]>([]);
   const [images, setImages] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
@@ -24,7 +30,15 @@ export const ListItem: React.FC = () => {
     rentalPrice: '',
     priceUnit: 'DAY',
     securityDeposit: '0',
+    location: user?.collegeName || 'NIET Plot 19',
   });
+
+  // Keep form location in sync if user profile loads after initial mount
+  useEffect(() => {
+    if (user?.collegeName) {
+      setForm(f => ({ ...f, location: user.collegeName }));
+    }
+  }, [user]);
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -80,6 +94,7 @@ export const ListItem: React.FC = () => {
       formData.append('rentalPrice', form.rentalPrice);
       formData.append('priceUnit', form.priceUnit);
       formData.append('securityDeposit', form.securityDeposit || '0');
+      formData.append('location', form.location);
       images.forEach(img => formData.append('images', img));
 
       const res = await listingService.createListing(formData);
@@ -184,6 +199,21 @@ export const ListItem: React.FC = () => {
             <option value="">Select a category</option>
             {categories.map(cat => <option key={cat._id} value={cat._id}>{cat.name}</option>)}
           </select>
+        </div>
+
+        {/* Campus Location */}
+        <div>
+          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Available Campus / Location</label>
+          <select
+            name="location"
+            required
+            value={form.location}
+            onChange={handleChange}
+            className="w-full bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-gray-100 px-4 py-3 rounded-2xl border border-gray-200 dark:border-slate-700 focus:outline-none focus:border-primary-500 text-sm font-medium appearance-none"
+          >
+            {CAMPUS_LOCATIONS.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Specify which campus this item is available for exchange.</p>
         </div>
 
         {/* Condition */}

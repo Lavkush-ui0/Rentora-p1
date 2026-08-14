@@ -16,7 +16,7 @@ const cookieOptions = {
 
 export const register = async (req: CustomRequest, res: Response, next: NextFunction) => {
   try {
-    const { fullName, email, password, course, branch, year } = req.body;
+    const { fullName, email, password, course, branch, year, collegeName } = req.body;
 
     // Check email domain restriction
     const restrictedDomain = config.ALLOWED_EMAIL_DOMAIN;
@@ -50,6 +50,7 @@ export const register = async (req: CustomRequest, res: Response, next: NextFunc
       course,
       branch,
       year,
+      collegeName,
       avatar: `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(fullName)}`, // Dynamic avatar fallback
       isVerified: true, // Auto verify for phase 1 NIET marketplace
     });
@@ -73,6 +74,7 @@ export const register = async (req: CustomRequest, res: Response, next: NextFunc
         course: newUser.course,
         branch: newUser.branch,
         year: newUser.year,
+        collegeName: newUser.collegeName,
         avatar: newUser.avatar,
         bio: newUser.bio,
         ratingAverage: newUser.ratingAverage,
@@ -121,6 +123,7 @@ export const login = async (req: CustomRequest, res: Response, next: NextFunctio
         course: user.course,
         branch: user.branch,
         year: user.year,
+        collegeName: user.collegeName,
         avatar: user.avatar,
         bio: user.bio,
         ratingAverage: user.ratingAverage,
@@ -182,6 +185,7 @@ export const refreshToken = async (req: CustomRequest, res: Response, next: Next
         course: user.course,
         branch: user.branch,
         year: user.year,
+        collegeName: user.collegeName,
         avatar: user.avatar,
         bio: user.bio,
         ratingAverage: user.ratingAverage,
@@ -214,6 +218,7 @@ export const getProfile = async (req: CustomRequest, res: Response, next: NextFu
         course: user.course,
         branch: user.branch,
         year: user.year,
+        collegeName: user.collegeName,
         avatar: user.avatar,
         bio: user.bio,
         ratingAverage: user.ratingAverage,
@@ -241,6 +246,7 @@ export const getProfileById = async (req: CustomRequest, res: Response, next: Ne
         course: user.course,
         branch: user.branch,
         year: user.year,
+        collegeName: user.collegeName,
         avatar: user.avatar,
         bio: user.bio,
         ratingAverage: user.ratingAverage,
@@ -258,7 +264,7 @@ export const updateProfile = async (req: CustomRequest, res: Response, next: Nex
       throw new CustomError('Authentication required', 401, 'UNAUTHORIZED');
     }
 
-    const { fullName, bio, avatar, course, branch, year } = req.body;
+    const { fullName, bio, avatar, course, branch, year, collegeName } = req.body;
 
     const user = await User.findById(req.user._id);
     if (!user) {
@@ -271,6 +277,7 @@ export const updateProfile = async (req: CustomRequest, res: Response, next: Nex
     if (course) user.course = course;
     if (branch) user.branch = branch;
     if (year) user.year = year;
+    if (collegeName) user.collegeName = collegeName;
 
     await user.save();
 
@@ -285,6 +292,7 @@ export const updateProfile = async (req: CustomRequest, res: Response, next: Nex
         course: user.course,
         branch: user.branch,
         year: user.year,
+        collegeName: user.collegeName,
         avatar: user.avatar,
         bio: user.bio,
         ratingAverage: user.ratingAverage,

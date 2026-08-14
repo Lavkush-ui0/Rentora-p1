@@ -16,6 +16,7 @@ export interface IListing extends Document {
   viewCount: number;
   requestCount: number;
   rating: number;
+  location: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -95,6 +96,13 @@ const ListingSchema = new Schema<IListing>(
     rating: {
       type: Number,
       default: 0,
+    },
+    location: {
+      type: String,
+      required: [true, 'Location/Campus is required'],
+      trim: true,
+      index: true,
+      default: 'NIET Plot 19',
     },
   },
   {

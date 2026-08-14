@@ -12,12 +12,9 @@ import notificationService from '../services/notificationService';
 import chatService from '../services/chatService';
 
 const CAMPUS_LOCATIONS = [
-  'NIET Noida Campus',
-  'Knowledge Park III',
-  'NIET Hostels',
-  'Galgotias Campus',
-  'GL Bajaj Campus',
-  'Sharda Campus'
+  'NIET Plot 19',
+  'NIET Plot 15',
+  'NIET Plot 14'
 ];
 
 export const Navbar: React.FC = () => {
@@ -33,7 +30,7 @@ export const Navbar: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const [selectedLocation, setSelectedLocation] = useState(
-    localStorage.getItem('rentora_location') || 'NIET Noida Campus'
+    localStorage.getItem('rentora_location') || 'NIET Plot 19'
   );
   const [locationDropdownOpen, setLocationDropdownOpen] = useState(false);
 
@@ -130,6 +127,7 @@ export const Navbar: React.FC = () => {
                       onClick={() => {
                         setSelectedLocation(loc);
                         localStorage.setItem('rentora_location', loc);
+                        window.dispatchEvent(new Event('rentora_location_changed'));
                         setLocationDropdownOpen(false);
                       }}
                       className={`w-full text-left px-4 py-2 text-xs md:text-sm transition-colors hover:bg-gray-50 dark:hover:bg-slate-800 flex items-center justify-between ${

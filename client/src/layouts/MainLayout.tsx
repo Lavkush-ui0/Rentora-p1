@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import MobileBottomNav from '../components/MobileBottomNav';
+import TestimonialPopup from '../components/TestimonialPopup';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -171,6 +172,9 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
       {/* Mobile bottom bar shortcut */}
       <MobileBottomNav />
+
+      {/* Classmate testimonials dynamic popups */}
+      <TestimonialPopup />
     </div>
   );
 };

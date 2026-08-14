@@ -14,6 +14,7 @@ export const registerSchema = z.object({
     course: z.string().min(1, 'Course is required'),
     branch: z.string().min(1, 'Branch is required'),
     year: z.coerce.number().min(1, 'Year must be at least 1').max(5, 'Year cannot exceed 5'),
+    collegeName: z.string().min(1, 'College name is required'),
   }),
 });
 

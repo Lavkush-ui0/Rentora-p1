@@ -5,6 +5,11 @@ import { Mail, Lock, User, BookOpen, AlertCircle, UserPlus } from 'lucide-react'
 
 const COURSES = ['B.Tech', 'M.Tech', 'MBA', 'MCA', 'BCA', 'B.Sc', 'Other'];
 const BRANCHES = ['CSE', 'ECE', 'ME', 'CE', 'EE', 'IT', 'Other'];
+const CAMPUS_LOCATIONS = [
+  'NIET Plot 19',
+  'NIET Plot 15',
+  'NIET Plot 14'
+];
 
 export const Register: React.FC = () => {
   const { registerUser } = useAuth();
@@ -19,6 +24,7 @@ export const Register: React.FC = () => {
     course: '',
     branch: '',
     year: '',
+    collegeName: '',
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -169,6 +175,21 @@ export const Register: React.FC = () => {
               onChange={handleChange}
               className="w-full bg-gray-50 text-gray-900 dark:bg-slate-800 dark:text-gray-100 placeholder-gray-400 px-4 py-3 rounded-2xl border border-gray-200 dark:border-slate-700 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-sm font-medium"
             />
+          </div>
+
+          {/* College/Campus Name */}
+          <div>
+            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">College / Campus</label>
+            <select
+              name="collegeName"
+              required
+              value={form.collegeName}
+              onChange={handleChange}
+              className="w-full bg-gray-50 text-gray-900 dark:bg-slate-800 dark:text-gray-100 px-4 py-3 rounded-2xl border border-gray-200 dark:border-slate-700 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-sm font-medium appearance-none"
+            >
+              <option value="">Select College / Campus</option>
+              {CAMPUS_LOCATIONS.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
           </div>
 
           <button

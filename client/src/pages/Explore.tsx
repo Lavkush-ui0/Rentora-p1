@@ -44,6 +44,17 @@ export const Explore: React.FC = () => {
   const [minPrice, setMinPrice] = useState(searchParams.get('minPrice') || '');
   const [maxPrice, setMaxPrice] = useState(searchParams.get('maxPrice') || '');
   const [page, setPage] = useState(parseInt(searchParams.get('page') || '1'));
+  const [location, setLocation] = useState(localStorage.getItem('rentora_location') || 'NIET Plot 19');
+
+  // Sync selected location when event is fired
+  useEffect(() => {
+    const handleLocationChange = () => {
+      setLocation(localStorage.getItem('rentora_location') || 'NIET Plot 19');
+      setPage(1);
+    };
+    window.addEventListener('rentora_location_changed', handleLocationChange);
+    return () => window.removeEventListener('rentora_location_changed', handleLocationChange);
+  }, []);
 
   const fetchCategories = useCallback(async () => {
     try {
@@ -62,6 +73,7 @@ export const Explore: React.FC = () => {
       if (priceUnit) params.priceUnit = priceUnit;
       if (minPrice) params.minPrice = minPrice;
       if (maxPrice) params.maxPrice = maxPrice;
+      if (location) params.location = location;
 
       const res = await listingService.getListings(params);
       if (res.data?.success) {
@@ -70,7 +82,7 @@ export const Explore: React.FC = () => {
       }
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
-  }, [search, selectedCategory, sort, condition, priceUnit, minPrice, maxPrice, page]);
+  }, [search, selectedCategory, sort, condition, priceUnit, minPrice, maxPrice, page, location]);
 
   useEffect(() => {
     fetchCategories();

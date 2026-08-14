@@ -9,6 +9,7 @@ export interface IUser extends Document {
   course: string;
   branch: string;
   year: number;
+  collegeName: string;
   avatar?: string;
   bio?: string;
   ratingAverage: number;
@@ -59,6 +60,13 @@ const UserSchema = new Schema<IUser>(
     year: {
       type: Number,
       required: [true, 'Year is required'],
+    },
+    collegeName: {
+      type: String,
+      required: [true, 'College name is required'],
+      trim: true,
+      index: true,
+      default: 'NIET Plot 19',
     },
     avatar: {
       type: String,

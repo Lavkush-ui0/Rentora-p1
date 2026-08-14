@@ -9,6 +9,7 @@ interface UserType {
   course: string;
   branch: string;
   year: number;
+  collegeName: string;
   avatar: string;
   bio?: string;
   ratingAverage: number;
@@ -68,6 +69,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (response.data?.success) {
         setAccessToken(response.data.accessToken);
         setUser(response.data.user);
+        if (response.data.user?.collegeName) {
+          localStorage.setItem('rentora_location', response.data.user.collegeName);
+          window.dispatchEvent(new Event('rentora_location_changed'));
+        }
       }
     } finally {
       setLoading(false);
@@ -81,6 +86,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (response.data?.success) {
         setAccessToken(response.data.accessToken);
         setUser(response.data.user);
+        if (response.data.user?.collegeName) {
+          localStorage.setItem('rentora_location', response.data.user.collegeName);
+          window.dispatchEvent(new Event('rentora_location_changed'));
+        }
       }
     } finally {
       setLoading(false);
