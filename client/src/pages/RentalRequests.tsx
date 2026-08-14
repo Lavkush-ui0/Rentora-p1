@@ -108,9 +108,16 @@ export const RentalRequests: React.FC = () => {
               {req.status}
             </span>
           </div>
-          <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
-            <img src={otherUser?.avatar} alt={otherUser?.fullName} className="h-5 w-5 rounded-full" />
-            <span>{isIncoming ? 'from' : 'to'} <strong>{otherUser?.fullName}</strong></span>
+          <div className="flex items-center flex-wrap gap-x-2 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
+            <Link to={`/profile/${otherUser?._id}`} className="flex items-center space-x-1.5 hover:text-primary-600 transition-colors">
+              <img src={otherUser?.avatar} alt={otherUser?.fullName} className="h-5 w-5 rounded-full object-cover" />
+              <span>{isIncoming ? 'from' : 'to'} <strong>{otherUser?.fullName}</strong></span>
+            </Link>
+            {otherUser?.ratingAverage !== undefined && (
+              <span className="flex items-center text-amber-500 font-bold bg-amber-50 dark:bg-amber-950/20 px-1.5 py-0.5 rounded-lg text-[10px]">
+                ★ {otherUser.ratingAverage.toFixed(1)}
+              </span>
+            )}
             <span>·</span>
             <Clock className="h-3.5 w-3.5" />
             <span>{new Date(req.startDate).toLocaleDateString()} – {new Date(req.endDate).toLocaleDateString()}</span>
@@ -171,11 +178,16 @@ export const RentalRequests: React.FC = () => {
             )}
             {req.status === 'COMPLETED' && (
               <button
-                onClick={() => setReviewModal({ id: req._id, reviewee: isIncoming ? req.renter : req.owner })}
-                className="flex items-center space-x-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-xl transition-all"
+                onClick={() => !req.hasReviewed && setReviewModal({ id: req._id, reviewee: isIncoming ? req.renter : req.owner })}
+                disabled={req.hasReviewed}
+                className={`flex items-center space-x-1.5 px-3 py-1.5 text-xs font-bold rounded-xl transition-all ${
+                  req.hasReviewed
+                    ? 'bg-gray-100 dark:bg-slate-800 text-gray-400 dark:text-gray-500 cursor-not-allowed border border-gray-200/50 dark:border-slate-700/50'
+                    : 'bg-amber-500 hover:bg-amber-600 text-white shadow-sm'
+                }`}
               >
                 <Star className="h-3.5 w-3.5" />
-                <span>Leave Review</span>
+                <span>{req.hasReviewed ? 'Reviewed' : 'Leave Review'}</span>
               </button>
             )}
             {otherUser && (

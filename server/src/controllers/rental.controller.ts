@@ -3,6 +3,7 @@ import { RentalRequest } from '../models/rentalRequest.model';
 import { Listing } from '../models/listing.model';
 import { User } from '../models/user.model';
 import { Conversation, Message } from '../models/chat.model';
+import { Review } from '../models/review.model';
 import { CustomRequest } from '../types';
 import { createNotification } from '../services/notification.service';
 import { getIO } from '../services/socket.service';
@@ -138,9 +139,24 @@ export const getIncomingRequests = async (req: CustomRequest, res: Response, nex
       .populate('renter', 'fullName avatar ratingAverage')
       .sort({ createdAt: -1 });
 
+    const requestIds = requests.map(r => r._id);
+    const reviews = await Review.find({
+      reviewer: req.user._id,
+      rentalRequest: { $in: requestIds }
+    });
+    const reviewedRequestIds = new Set(reviews.map(r => r.rentalRequest.toString()));
+
+    const requestsWithReviewStatus = requests.map(r => {
+      const obj = r.toObject();
+      return {
+        ...obj,
+        hasReviewed: reviewedRequestIds.has(r._id.toString())
+      };
+    });
+
     return res.json({
       success: true,
-      requests,
+      requests: requestsWithReviewStatus,
     });
   } catch (error) {
     return next(error);
@@ -158,9 +174,24 @@ export const getSentRequests = async (req: CustomRequest, res: Response, next: N
       .populate('owner', 'fullName avatar ratingAverage')
       .sort({ createdAt: -1 });
 
+    const requestIds = requests.map(r => r._id);
+    const reviews = await Review.find({
+      reviewer: req.user._id,
+      rentalRequest: { $in: requestIds }
+    });
+    const reviewedRequestIds = new Set(reviews.map(r => r.rentalRequest.toString()));
+
+    const requestsWithReviewStatus = requests.map(r => {
+      const obj = r.toObject();
+      return {
+        ...obj,
+        hasReviewed: reviewedRequestIds.has(r._id.toString())
+      };
+    });
+
     return res.json({
       success: true,
-      requests,
+      requests: requestsWithReviewStatus,
     });
   } catch (error) {
     return next(error);

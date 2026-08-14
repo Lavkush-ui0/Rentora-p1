@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   LayoutDashboard, Users, Package, FolderOpen,
-  FileText, LogOut, ShieldCheck, Sun, Moon
+  FileText, LogOut, ShieldCheck, Sun, Moon, Home
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 
@@ -74,6 +74,16 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                 </Link>
               );
             })}
+
+            <div className="pt-4 mt-4 border-t border-gray-100 dark:border-slate-800">
+              <Link
+                to="/home"
+                className="flex items-center space-x-3 px-4 py-3 rounded-2xl text-sm font-bold text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 hover:text-gray-900 dark:hover:text-gray-100 transition-all"
+              >
+                <Home className="h-4.5 w-4.5 animate-pulse" />
+                <span>Go to Marketplace</span>
+              </Link>
+            </div>
           </nav>
         </div>
 

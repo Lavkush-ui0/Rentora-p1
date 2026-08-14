@@ -2,6 +2,7 @@ import { Response, NextFunction } from 'express';
 import { Review } from '../models/review.model';
 import { RentalRequest } from '../models/rentalRequest.model';
 import { User } from '../models/user.model';
+import { Listing } from '../models/listing.model';
 import { CustomRequest } from '../types';
 import { createNotification } from '../services/notification.service';
 import CustomError from '../utils/customError';
@@ -101,6 +102,13 @@ export const getUserReviews = async (req: CustomRequest, res: Response, next: Ne
   try {
     const reviews = await Review.find({ reviewee: req.params.userId })
       .populate('reviewer', 'fullName avatar')
+      .populate({
+        path: 'rentalRequest',
+        populate: {
+          path: 'listing',
+          select: 'title images',
+        },
+      })
       .sort({ createdAt: -1 });
 
     return res.json({

@@ -17,6 +17,7 @@ export const Profile: React.FC = () => {
   const [listings, setListings] = useState<any[]>([]);
   const [reviews, setReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'all' | 'renter' | 'lender'>('all');
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -136,37 +137,109 @@ export const Profile: React.FC = () => {
       )}
 
       {/* Reviews */}
-      <section>
-        <h2 className="text-lg font-black font-outfit text-gray-900 dark:text-gray-100 mb-4 flex items-center space-x-2">
-          <Star className="h-5 w-5 text-amber-400" />
-          <span>Reviews</span>
-        </h2>
+      <section className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <h2 className="text-lg font-black font-outfit text-gray-900 dark:text-gray-100 flex items-center space-x-2">
+            <Star className="h-5 w-5 text-amber-400" />
+            <span>Reviews ({reviews.length})</span>
+          </h2>
+          
+          {/* Filter Tabs */}
+          {reviews.length > 0 && (
+            <div className="flex border border-gray-200 dark:border-slate-800 rounded-2xl p-1 bg-white dark:bg-slate-900 w-fit text-xs">
+              {(['all', 'renter', 'lender'] as const).map(t => {
+                const count = reviews.filter(rev => {
+                  if (t === 'all') return true;
+                  const isRenter = rev.rentalRequest && String(profile._id) === String(rev.rentalRequest.renter);
+                  if (t === 'renter') return isRenter;
+                  return !isRenter;
+                }).length;
+                return (
+                  <button
+                    key={t}
+                    onClick={() => setActiveTab(t)}
+                    className={`px-3 py-1.5 rounded-xl font-bold transition-all capitalize ${
+                      activeTab === t
+                        ? 'bg-amber-500 text-white shadow-sm'
+                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                    }`}
+                  >
+                    {t === 'lender' ? 'as Lender' : t === 'renter' ? 'as Renter' : 'All'} ({count})
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
         {reviews.length > 0 ? (
-          <div className="space-y-4">
-            {reviews.map((rev: any) => (
-              <div key={rev._id} className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 p-4">
-                <div className="flex items-start space-x-3">
-                  <img src={rev.reviewer?.avatar} alt={rev.reviewer?.fullName} className="h-9 w-9 rounded-full border border-gray-100 dark:border-slate-700 object-cover" />
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-bold text-gray-900 dark:text-gray-100">{rev.reviewer?.fullName}</p>
-                      <div className="flex text-amber-400 text-sm">
-                        {'★'.repeat(rev.rating)}
-                        <span className="text-gray-200 dark:text-gray-700">{'★'.repeat(5 - rev.rating)}</span>
+          (() => {
+            const filteredReviews = reviews.filter((rev: any) => {
+              if (activeTab === 'all') return true;
+              const isRenter = rev.rentalRequest && String(profile._id) === String(rev.rentalRequest.renter);
+              if (activeTab === 'renter') return isRenter;
+              return !isRenter;
+            });
+
+            if (filteredReviews.length === 0) {
+              return (
+                <div className="text-center py-12 text-gray-400 dark:text-gray-600 bg-white dark:bg-slate-900 rounded-3xl border border-gray-100 dark:border-slate-800">
+                  <BookOpen className="h-8 w-8 mx-auto mb-2" />
+                  <p className="text-sm">No reviews in this category.</p>
+                </div>
+              );
+            }
+
+            return (
+              <div className="space-y-4">
+                {filteredReviews.map((rev: any) => {
+                  const isRenter = rev.rentalRequest && String(profile._id) === String(rev.rentalRequest.renter);
+                  return (
+                    <div key={rev._id} className="bg-white dark:bg-slate-900 rounded-3xl border border-gray-100 dark:border-slate-800 p-5 hover:shadow-md transition-all">
+                      <div className="flex items-start space-x-3">
+                        <img src={rev.reviewer?.avatar} alt={rev.reviewer?.fullName} className="h-10 w-10 rounded-full border border-gray-100 dark:border-slate-700 object-cover flex-shrink-0" />
+                        <div className="flex-1 space-y-1.5">
+                          <div className="flex items-start justify-between flex-wrap gap-2">
+                            <div>
+                              <p className="text-sm font-black text-gray-900 dark:text-gray-100 leading-none">{rev.reviewer?.fullName}</p>
+                              {rev.rentalRequest?.listing?.title && (
+                                <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1 flex items-center gap-1.5 flex-wrap">
+                                  {isRenter ? (
+                                    <span className="px-2 py-0.5 rounded-full font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400">
+                                      Renter
+                                    </span>
+                                  ) : (
+                                    <span className="px-2 py-0.5 rounded-full font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400">
+                                      Lender
+                                    </span>
+                                  )}
+                                  <span>·</span>
+                                  <span className="font-semibold text-gray-500 dark:text-gray-455">
+                                    {rev.rentalRequest.listing.title}
+                                  </span>
+                                </p>
+                              )}
+                            </div>
+                            <div className="flex text-amber-400 text-sm">
+                              {'★'.repeat(rev.rating)}
+                              <span className="text-gray-200 dark:text-gray-700">{'★'.repeat(5 - rev.rating)}</span>
+                            </div>
+                          </div>
+                          {rev.comment && <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed font-medium">"{rev.comment}"</p>}
+                          <p className="text-[10px] text-gray-400 dark:text-gray-500 flex items-center space-x-1">
+                            <Calendar className="h-3.5 w-3.5" />
+                            <span>{new Date(rev.createdAt).toLocaleDateString()}</span>
+                          </p>
+                        </div>
                       </div>
                     </div>
-                    {rev.comment && <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{rev.comment}</p>}
-                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1.5 flex items-center space-x-1">
-                      <Calendar className="h-3 w-3" />
-                      <span>{new Date(rev.createdAt).toLocaleDateString()}</span>
-                    </p>
-                  </div>
-                </div>
+                  );
+                })}
               </div>
-            ))}
-          </div>
+            );
+          })()
         ) : (
-          <div className="text-center py-12 text-gray-400 dark:text-gray-600">
+          <div className="text-center py-12 text-gray-400 dark:text-gray-600 bg-white dark:bg-slate-900 rounded-3xl border border-gray-100 dark:border-slate-800">
             <BookOpen className="h-10 w-10 mx-auto mb-2" />
             <p className="text-sm">No reviews yet.</p>
           </div>
