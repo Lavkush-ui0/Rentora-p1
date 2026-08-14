@@ -45,7 +45,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
           <div className="p-6 border-b border-gray-100 dark:border-slate-800 flex items-center space-x-2.5">
             <img src={logoLetter} alt="R" className="h-9 w-9 object-contain" />
             <div>
-              <img src={logoNameWhite} alt="Rentora" className="h-5 object-contain invert dark:invert-0" />
+              <img src={logoNameWhite} alt="Rentora" className="h-9 object-contain invert dark:invert-0" />
               <span className="text-[10px] font-extrabold text-primary-500 block leading-none uppercase tracking-widest mt-1.5">
                 Admin Portal
               </span>
