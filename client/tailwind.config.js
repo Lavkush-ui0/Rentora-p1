@@ -8,19 +8,19 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Rentora brand red color palette
+        // Sleek modern color palette
         primary: {
-          50: '#fdf2f2',
-          100: '#fde8e8',
-          200: '#fbd5d5',
-          300: '#f8b4b4',
-          400: '#f38d8d',
-          500: '#e74c4c',
-          600: '#ac2625', // Brand Color
-          700: '#901e1d',
-          800: '#751716',
-          900: '#5b100f',
-          950: '#3f0908',
+          50: '#f5f8ff',
+          100: '#ebf1fe',
+          200: '#dde7fe',
+          300: '#c4d5fd',
+          400: '#a2bcfa',
+          500: '#7395f7',
+          600: '#466bf2',
+          700: '#274de8',
+          800: '#1b3bcf',
+          900: '#122aa7',
+          950: '#0b1666',
         },
       },
       fontFamily: {

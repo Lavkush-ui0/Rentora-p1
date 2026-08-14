@@ -27,7 +27,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             {/* Column 1: Brand & App Badges */}
             <div className="space-y-4">
               <Link to="/home" className="flex items-center space-x-2.5">
-                <span className="h-9 w-9 rounded-xl bg-gradient-to-tr from-primary-600 to-indigo-500 flex items-center justify-center text-white font-extrabold text-xl shadow-md shadow-primary-500/20">
+                <span className="h-9 w-9 rounded-xl bg-gradient-to-tr from-red-600 to-rose-500 flex items-center justify-center text-white font-extrabold text-xl shadow-md shadow-red-500/20">
                   R
                 </span>
                 <span className="font-outfit font-black text-2xl tracking-tight bg-gradient-to-r from-primary-500 to-indigo-400 bg-clip-text text-transparent">
