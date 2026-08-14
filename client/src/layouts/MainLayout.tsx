@@ -30,7 +30,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             <div className="space-y-4">
               <Link to="/home" className="flex items-center space-x-2.5">
                 <img src={logoLetter} alt="R" className="h-9 w-9 object-contain" />
-                <img src={logoNameWhite} alt="Rentora" className="h-9 object-contain" />
+                <img src={logoNameWhite} alt="Rentora" className="h-7 object-contain" />
               </Link>
               <p className="text-xs text-slate-400 leading-relaxed">
                 Rentora is the premier peer-to-peer campus rental platform. Save money by borrowing essentials from classmates or listing your own idle stuff for side cash.

@@ -100,7 +100,7 @@ export const Navbar: React.FC = () => {
           <div className="flex items-center space-x-4 md:space-x-6">
             <Link to="/home" className="flex items-center space-x-2.5 flex-shrink-0">
               <img src={logoLetter} alt="R" className="h-9 w-9 object-contain" />
-              <img src={logoNameWhite} alt="Rentora" className="h-9 object-contain invert dark:invert-0 hidden sm:block" />
+              <img src={logoNameWhite} alt="Rentora" className="h-7 object-contain invert dark:invert-0 hidden sm:block" />
             </Link>
 
             {/* Rentomojo-style Location Selector */}
