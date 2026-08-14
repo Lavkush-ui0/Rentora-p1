@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Mail, Lock, LogIn, AlertCircle } from 'lucide-react';
+import logoLetter from '../assets/logo-letter.png';
+import logoLetterWhite from '../assets/logo-letter-white.png';
 
 export const Login: React.FC = () => {
   const { login } = useAuth();
@@ -40,8 +42,9 @@ export const Login: React.FC = () => {
         
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex h-12 w-12 rounded-2xl bg-gradient-to-tr from-primary-600 to-indigo-500 items-center justify-center text-white font-extrabold text-2xl shadow-lg shadow-primary-500/20 mb-3">
-            R
+          <div className="h-16 w-auto flex items-center justify-center select-none mb-3">
+            <img src={logoLetter} alt="Rentora" className="h-14 w-auto object-contain dark:hidden" />
+            <img src={logoLetterWhite} alt="Rentora" className="h-14 w-auto object-contain hidden dark:block" />
           </div>
           <h2 className="text-2xl font-black font-outfit text-gray-900 dark:text-white">Welcome Back</h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1.5">Sign in to browse student-to-student rentals</p>

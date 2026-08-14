@@ -10,6 +10,10 @@ import {
 } from 'lucide-react';
 import notificationService from '../services/notificationService';
 import chatService from '../services/chatService';
+import logoLetter from '../assets/logo-letter.png';
+import logoLetterWhite from '../assets/logo-letter-white.png';
+import logoName from '../assets/logo-name.png';
+import logoNameWhite from '../assets/logo-name-white.png';
 
 const CAMPUS_LOCATIONS = [
   'NIET Plot 19',
@@ -96,13 +100,11 @@ export const Navbar: React.FC = () => {
           
           {/* Logo & Primary Links */}
           <div className="flex items-center space-x-4 md:space-x-6">
-            <Link to="/home" className="flex items-center space-x-2 flex-shrink-0">
-              <span className="h-9 w-9 rounded-xl bg-gradient-to-tr from-primary-600 to-indigo-500 flex items-center justify-center text-white font-extrabold text-xl shadow-md shadow-primary-500/20">
-                R
-              </span>
-              <span className="font-outfit font-extrabold text-2xl tracking-tight bg-gradient-to-r from-primary-600 to-indigo-500 bg-clip-text text-transparent hidden sm:block">
-                Rentora
-              </span>
+            <Link to="/home" className="flex items-center space-x-2.5 flex-shrink-0 select-none">
+              <img src={logoLetter} alt="Rentora" className="h-8.5 w-auto object-contain dark:hidden" />
+              <img src={logoLetterWhite} alt="Rentora" className="h-8.5 w-auto object-contain hidden dark:block" />
+              <img src={logoName} alt="Rentora" className="h-4.5 w-auto object-contain dark:hidden hidden sm:block" />
+              <img src={logoNameWhite} alt="Rentora" className="h-4.5 w-auto object-contain hidden dark:sm:block" />
             </Link>
 
             {/* Rentomojo-style Location Selector */}

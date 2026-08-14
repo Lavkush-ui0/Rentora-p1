@@ -6,6 +6,8 @@ import {
   FileText, LogOut, ShieldCheck, Sun, Moon, Home
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
+import logoLetter from '../assets/logo-letter.png';
+import logoLetterWhite from '../assets/logo-letter-white.png';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -41,8 +43,9 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         <div>
           {/* Logo */}
           <div className="p-6 border-b border-gray-100 dark:border-slate-800 flex items-center space-x-2.5">
-            <div className="h-9 w-9 rounded-xl bg-primary-600 flex items-center justify-center text-white font-black text-lg shadow-md shadow-primary-500/35">
-              R
+            <div className="h-9 w-9 flex-shrink-0 flex items-center justify-center select-none">
+              <img src={logoLetter} alt="Rentora" className="h-8.5 w-auto object-contain dark:hidden" />
+              <img src={logoLetterWhite} alt="Rentora" className="h-8.5 w-auto object-contain hidden dark:block" />
             </div>
             <div>
               <span className="font-outfit font-black text-base text-gray-900 dark:text-gray-100 leading-none">
