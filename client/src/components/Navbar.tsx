@@ -99,7 +99,7 @@ export const Navbar: React.FC = () => {
           {/* Logo & Primary Links */}
           <div className="flex items-center space-x-4 md:space-x-6">
             <Link to="/home" className="flex items-center space-x-2.5 flex-shrink-0">
-              <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-red-600 to-rose-500 flex items-center justify-center p-2 shadow-md shadow-red-500/20">
+              <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-red-600 to-rose-500 flex items-center justify-center p-1 shadow-md shadow-red-500/20">
                 <img src={logoLetterWhite} alt="R" className="h-full w-full object-contain" />
               </div>
               <img src={logoNameWhite} alt="Rentora" className="h-7 object-contain invert dark:invert-0 hidden sm:block" />

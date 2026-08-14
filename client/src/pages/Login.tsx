@@ -41,7 +41,7 @@ export const Login: React.FC = () => {
         
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex h-12 w-12 rounded-2xl bg-gradient-to-tr from-red-600 to-rose-500 items-center justify-center p-2.5 shadow-lg shadow-red-500/20 mb-3">
+          <div className="inline-flex h-12 w-12 rounded-2xl bg-gradient-to-tr from-red-600 to-rose-500 items-center justify-center p-1.5 shadow-lg shadow-red-500/20 mb-3">
             <img src={logoLetterWhite} alt="R" className="h-full w-full object-contain" />
           </div>
           <h2 className="text-2xl font-black font-outfit text-gray-900 dark:text-white">Welcome Back</h2>
