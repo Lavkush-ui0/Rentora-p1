@@ -14,6 +14,7 @@ import notificationService from '../services/notificationService';
 import chatService from '../services/chatService';
 
 const CAMPUS_LOCATIONS = [
+  'All',
   'NIET Plot 19',
   'NIET Plot 15',
   'NIET Plot 14'
@@ -32,7 +33,7 @@ export const Navbar: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const [selectedLocation, setSelectedLocation] = useState(
-    localStorage.getItem('rentora_location') || 'NIET Plot 19'
+    localStorage.getItem('rentora_location') || 'All'
   );
   const [locationDropdownOpen, setLocationDropdownOpen] = useState(false);
 

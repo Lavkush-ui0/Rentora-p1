@@ -44,12 +44,12 @@ export const Explore: React.FC = () => {
   const [minPrice, setMinPrice] = useState(searchParams.get('minPrice') || '');
   const [maxPrice, setMaxPrice] = useState(searchParams.get('maxPrice') || '');
   const [page, setPage] = useState(parseInt(searchParams.get('page') || '1'));
-  const [location, setLocation] = useState(localStorage.getItem('rentora_location') || 'NIET Plot 19');
+  const [location, setLocation] = useState(localStorage.getItem('rentora_location') || 'All');
 
   // Sync selected location when event is fired
   useEffect(() => {
     const handleLocationChange = () => {
-      setLocation(localStorage.getItem('rentora_location') || 'NIET Plot 19');
+      setLocation(localStorage.getItem('rentora_location') || 'All');
       setPage(1);
     };
     window.addEventListener('rentora_location_changed', handleLocationChange);

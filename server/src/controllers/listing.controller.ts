@@ -81,7 +81,7 @@ export const getListings = async (req: CustomRequest, res: Response, next: NextF
     }
     
     // Filter by location if provided
-    if (location) {
+    if (location && location !== 'All') {
       filter.location = location;
     }
 

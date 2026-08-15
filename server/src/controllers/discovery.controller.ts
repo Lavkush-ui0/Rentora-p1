@@ -13,7 +13,7 @@ export const getHomepageData = async (req: Request, res: Response, next: NextFun
 
     // Find active users from the same college if location is provided
     let userFilter: any = { isBlocked: false };
-    if (location) {
+    if (location && location !== 'All') {
       userFilter.collegeName = location;
     }
     const matchingUsers = await User.find(userFilter).select('_id');
@@ -21,7 +21,7 @@ export const getHomepageData = async (req: Request, res: Response, next: NextFun
 
     // Base filter for listings
     const listingFilter: any = { status: 'ACTIVE', availability: true };
-    if (location) {
+    if (location && location !== 'All') {
       listingFilter.location = location;
     }
 
@@ -54,7 +54,7 @@ export const getHomepageData = async (req: Request, res: Response, next: NextFun
         status: 'ACTIVE',
         availability: true,
       };
-      if (location) {
+      if (location && location !== 'All') {
         trendingFilter.location = location;
       }
       trendingProducts = await Listing.find(trendingFilter).populate('owner', 'fullName avatar ratingAverage');
@@ -67,7 +67,7 @@ export const getHomepageData = async (req: Request, res: Response, next: NextFun
         availability: true,
         _id: { $nin: trendingProducts.map(p => p._id) },
       };
-      if (location) {
+      if (location && location !== 'All') {
         extraFilter.location = location;
       }
       const extraListings = await Listing.find(extraFilter)
@@ -79,7 +79,7 @@ export const getHomepageData = async (req: Request, res: Response, next: NextFun
 
     // 4. Top Rated Students This Week (ratings received during current week)
     const reviewFilter: any = { createdAt: { $gte: oneWeekAgo } };
-    if (location) {
+    if (location && location !== 'All') {
       reviewFilter.reviewee = { $in: userIds };
     }
     const weeklyTopStudentsAgg = await Review.aggregate([
@@ -111,7 +111,7 @@ export const getHomepageData = async (req: Request, res: Response, next: NextFun
         completedRentals: { $gt: 0 },
         _id: { $nin: topStudents.map(s => s._id) },
       };
-      if (location) {
+      if (location && location !== 'All') {
         fallbackUserFilter.collegeName = location;
       }
       const extraStudents = await User.find(fallbackUserFilter)

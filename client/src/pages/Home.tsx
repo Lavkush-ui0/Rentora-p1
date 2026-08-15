@@ -85,7 +85,7 @@ export const Home: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [allListingsLoading, setAllListingsLoading] = useState(true);
   const [selectedLocation, setSelectedLocation] = useState(
-    localStorage.getItem('rentora_location') || 'NIET Plot 19'
+    localStorage.getItem('rentora_location') || 'All'
   );
   
   // Hero Promotion Slider Index State
@@ -94,7 +94,7 @@ export const Home: React.FC = () => {
   // Sync selected location when event is fired
   useEffect(() => {
     const handleLocationChange = () => {
-      setSelectedLocation(localStorage.getItem('rentora_location') || 'NIET Plot 19');
+      setSelectedLocation(localStorage.getItem('rentora_location') || 'All');
     };
     window.addEventListener('rentora_location_changed', handleLocationChange);
     return () => window.removeEventListener('rentora_location_changed', handleLocationChange);
