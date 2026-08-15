@@ -7,6 +7,8 @@ import { CustomRequest } from '../types';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../utils/token';
 import { config } from '../config/config';
 import CustomError from '../utils/customError';
+import { uploadImage, deleteImage } from '../services/cloudinary.service';
+
 
 // Cookie options for secure HTTP-only cookies
 const cookieOptions = {
@@ -266,16 +268,39 @@ export const updateProfile = async (req: CustomRequest, res: Response, next: Nex
       throw new CustomError('Authentication required', 401, 'UNAUTHORIZED');
     }
 
-    const { fullName, bio, avatar, course, branch, year, collegeName } = req.body;
+    const { fullName, bio, course, branch, year, collegeName } = req.body;
 
     const user = await User.findById(req.user._id);
     if (!user) {
       throw new CustomError('User not found', 404, 'NOT_FOUND');
     }
 
+    // Process file upload or Base64 image
+    if (req.file) {
+      const avatarUrl = await uploadImage(req.file.buffer, 'rentora/avatars', req.file.mimetype);
+      if (user.avatar && !user.avatar.includes('dicebear.com') && !user.avatar.includes('picsum.photos')) {
+        await deleteImage(user.avatar);
+      }
+      user.avatar = avatarUrl;
+    } else if (req.body.avatar !== undefined) {
+      if (req.body.avatar.startsWith('data:image')) {
+        const matches = req.body.avatar.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+        if (matches && matches.length === 3) {
+          const mimeType = matches[1];
+          const buffer = Buffer.from(matches[2], 'base64');
+          const avatarUrl = await uploadImage(buffer, 'rentora/avatars', mimeType);
+          if (user.avatar && !user.avatar.includes('dicebear.com') && !user.avatar.includes('picsum.photos')) {
+            await deleteImage(user.avatar);
+          }
+          user.avatar = avatarUrl;
+        }
+      } else {
+        user.avatar = req.body.avatar;
+      }
+    }
+
     if (fullName) user.fullName = fullName;
     if (bio !== undefined) user.bio = bio;
-    if (avatar) user.avatar = avatar;
     if (course) user.course = course;
     if (branch) user.branch = branch;
     if (year) user.year = year;

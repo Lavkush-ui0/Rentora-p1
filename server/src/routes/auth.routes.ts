@@ -15,6 +15,7 @@ import {
 import { authenticateUser } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validate';
 import { registerSchema, loginSchema } from '../validators/auth.validator';
+import { upload } from '../middleware/upload.middleware';
 
 const router = Router();
 
@@ -30,6 +31,6 @@ router.post('/login-verify-otp', loginVerifyOTP);
 // Protected routes
 router.get('/profile', authenticateUser, getProfile);
 router.get('/profile/:id', getProfileById);
-router.patch('/profile', authenticateUser, updateProfile);
+router.patch('/profile', authenticateUser, upload.single('avatar'), updateProfile);
 
 export default router;
