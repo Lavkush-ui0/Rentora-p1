@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { Sun, Moon, User, Save, AlertCircle, CheckCircle2, Camera, Upload, Trash2, X } from 'lucide-react';
@@ -18,12 +18,20 @@ export const Settings: React.FC = () => {
     year: user?.year?.toString() || '',
   });
 
-  const [previewUrl, setPreviewUrl] = useState<string>(user?.avatar || '');
+  const [previewUrl, setPreviewUrl] = useState<string>(user?.avatar && user.avatar !== 'data:,' ? user.avatar : '');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [cameraActive, setCameraActive] = useState(false);
   const [webcamImage, setWebcamImage] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+
+  useEffect(() => {
+    if (user?.avatar && user.avatar !== 'data:,') {
+      setPreviewUrl(user.avatar);
+    } else {
+      setPreviewUrl('');
+    }
+  }, [user?.avatar]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -80,15 +88,19 @@ export const Settings: React.FC = () => {
     if (videoRef.current) {
       const video = videoRef.current;
       const canvas = document.createElement('canvas');
-      const size = Math.min(video.videoWidth, video.videoHeight);
+      const width = video.videoWidth || video.clientWidth || 400;
+      const height = video.videoHeight || video.clientHeight || 400;
+      const size = Math.min(width, height);
       canvas.width = size;
       canvas.height = size;
       const ctx = canvas.getContext('2d');
       if (ctx) {
         ctx.translate(size, 0);
         ctx.scale(-1, 1);
-        const sx = (video.videoWidth - size) / 2;
-        const sy = (video.videoHeight - size) / 2;
+        const videoWidth = video.videoWidth || width;
+        const videoHeight = video.videoHeight || height;
+        const sx = (videoWidth - size) / 2;
+        const sy = (videoHeight - size) / 2;
         ctx.drawImage(video, sx, sy, size, size, 0, 0, size, size);
         
         const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
@@ -230,7 +242,7 @@ export const Settings: React.FC = () => {
                   <span>Take Photo</span>
                 </button>
 
-                {(previewUrl || user?.avatar) && (
+                {(previewUrl || (user?.avatar && user.avatar !== 'data:,')) && (
                   <button
                     type="button"
                     onClick={handleResetAvatar}

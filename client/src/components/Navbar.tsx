@@ -283,11 +283,17 @@ export const Navbar: React.FC = () => {
                     onClick={() => setDropdownOpen(!dropdownOpen)}
                     className="flex items-center space-x-2 focus:outline-none"
                   >
-                    <img
-                      src={user.avatar}
-                      alt={user.fullName}
-                      className="h-8 w-8 rounded-full border border-gray-200 dark:border-slate-700 object-cover"
-                    />
+                    {user.avatar && user.avatar !== 'data:,' ? (
+                      <img
+                        src={user.avatar}
+                        alt={user.fullName}
+                        className="h-8 w-8 rounded-full border border-gray-200 dark:border-slate-700 object-cover"
+                      />
+                    ) : (
+                      <div className="h-8 w-8 rounded-full bg-primary-100 dark:bg-primary-950/20 flex items-center justify-center text-primary-600 dark:text-primary-400 text-xs font-black border border-gray-200 dark:border-slate-700 font-outfit">
+                        {user.fullName ? user.fullName.charAt(0).toUpperCase() : 'U'}
+                      </div>
+                    )}
                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300 hidden xl:block">
                       {user.fullName.split(' ')[0]}
                     </span>
