@@ -297,14 +297,6 @@ export const Home: React.FC = () => {
         </div>
       </section>
 
-      {/* Safe Transaction Notice Banner */}
-      <div className="p-3.5 px-6 bg-amber-500/5 dark:bg-amber-950/20 border border-amber-500/60 dark:border-amber-500/40 rounded-full flex items-center justify-center space-x-2.5 max-w-4xl mx-auto shadow-lg shadow-amber-500/5">
-        <span className="text-base md:text-lg flex-shrink-0">💸</span>
-        <p className="text-xs md:text-sm text-amber-600 dark:text-amber-400 font-medium text-center">
-          <strong>Safe Transaction Notice:</strong> Rentora is a marketplace for discovery. Always meet inside the college campus. Pay only to the student lender when you receive the item.
-        </p>
-      </div>
-
       {/* 3D Coverflow Showcase (Trending Now) */}
       {!loading && data?.topRatedProducts && data.topRatedProducts.length > 0 && (
         <CoverflowSlider listings={data.topRatedProducts} />
@@ -700,13 +692,7 @@ export const Home: React.FC = () => {
         )}
       </section>
 
-      {/* Offline Payment Notice */}
-      <div className="p-4.5 bg-amber-50/50 dark:bg-amber-950/10 border border-amber-200/60 dark:border-amber-800/40 rounded-2xl text-center flex items-center justify-center space-x-2.5 max-w-3xl mx-auto">
-        <span className="text-lg">💸</span>
-        <p className="text-xs text-amber-800 dark:text-amber-400 font-medium">
-          <strong>Safe Transaction Notice:</strong> Rentora is a marketplace for discovery. Always meet inside the college campus and pay <strong>offline directly to the student lender</strong> when you receive the item.
-        </p>
-      </div>
+
     </div>
   );
 };

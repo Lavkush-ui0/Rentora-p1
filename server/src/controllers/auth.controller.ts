@@ -1,6 +1,8 @@
 import { Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
 import { User } from '../models/user.model';
+import { OTP } from '../models/otp.model';
+import { sendOTPEmail } from '../services/mail.service';
 import { CustomRequest } from '../types';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../utils/token';
 import { config } from '../config/config';
@@ -30,7 +32,12 @@ export const register = async (req: CustomRequest, res: Response, next: NextFunc
     // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      throw new CustomError('Email already registered', 400, 'EMAIL_EXISTS');
+      if (existingUser.isVerified) {
+        throw new CustomError('Email already registered', 400, 'EMAIL_EXISTS');
+      } else {
+        // Remove unverified user so they can sign up with fresh info
+        await User.deleteOne({ _id: existingUser._id });
+      }
     }
 
     // Hash password
@@ -41,7 +48,7 @@ export const register = async (req: CustomRequest, res: Response, next: NextFunc
     const isFirstUser = (await User.countDocuments({})) === 0;
     const role = isFirstUser ? 'ADMIN' : 'STUDENT';
 
-    // Create user
+    // Create user (unverified initially)
     const newUser = await User.create({
       fullName,
       email,
@@ -52,34 +59,25 @@ export const register = async (req: CustomRequest, res: Response, next: NextFunc
       year,
       collegeName,
       avatar: `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(fullName)}`, // Dynamic avatar fallback
-      isVerified: true, // Auto verify for phase 1 NIET marketplace
+      isVerified: false,
     });
 
-    // Generate tokens
-    const accessToken = generateAccessToken(newUser._id.toString(), newUser.role);
-    const refreshToken = generateRefreshToken(newUser._id.toString());
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    await OTP.findOneAndUpdate(
+      { email: email.toLowerCase() },
+      { otp, createdAt: new Date() },
+      { upsert: true, new: true }
+    );
 
-    // Send HTTP-only cookie
-    res.cookie('refreshToken', refreshToken, cookieOptions);
+    // Send verification email
+    await sendOTPEmail(email, otp);
 
     return res.status(201).json({
       success: true,
-      message: 'Registration successful',
-      accessToken,
-      user: {
-        id: newUser._id,
-        fullName: newUser.fullName,
-        email: newUser.email,
-        role: newUser.role,
-        course: newUser.course,
-        branch: newUser.branch,
-        year: newUser.year,
-        collegeName: newUser.collegeName,
-        avatar: newUser.avatar,
-        bio: newUser.bio,
-        ratingAverage: newUser.ratingAverage,
-        completedRentals: newUser.completedRentals,
-      },
+      requiresVerification: true,
+      email: newUser.email,
+      message: 'Registration successful. Verification OTP sent to your student email.',
     });
   } catch (error) {
     return next(error);
@@ -97,6 +95,10 @@ export const login = async (req: CustomRequest, res: Response, next: NextFunctio
 
     if (user.isBlocked) {
       throw new CustomError('Your account has been blocked by administrators.', 403, 'USER_BLOCKED');
+    }
+
+    if (!user.isVerified) {
+      throw new CustomError('Please verify your email address before logging in.', 401, 'EMAIL_NOT_VERIFIED');
     }
 
     const isMatch = await user.comparePassword(password);
@@ -284,6 +286,193 @@ export const updateProfile = async (req: CustomRequest, res: Response, next: Nex
     return res.json({
       success: true,
       message: 'Profile updated successfully',
+      user: {
+        id: user._id,
+        fullName: user.fullName,
+        email: user.email,
+        role: user.role,
+        course: user.course,
+        branch: user.branch,
+        year: user.year,
+        collegeName: user.collegeName,
+        avatar: user.avatar,
+        bio: user.bio,
+        ratingAverage: user.ratingAverage,
+        completedRentals: user.completedRentals,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const verifyOTP = async (req: CustomRequest, res: Response, next: NextFunction) => {
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp) {
+      throw new CustomError('Email and OTP are required', 400, 'BAD_REQUEST');
+    }
+
+    const otpRecord = await OTP.findOne({ email: email.toLowerCase(), otp });
+    if (!otpRecord) {
+      throw new CustomError('Invalid or expired verification code', 400, 'INVALID_OTP');
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase() });
+    if (!user) {
+      throw new CustomError('User not found', 404, 'USER_NOT_FOUND');
+    }
+
+    user.isVerified = true;
+    await user.save();
+
+    // Clean up OTP record
+    await OTP.deleteOne({ _id: otpRecord._id });
+
+    // Generate tokens
+    const accessToken = generateAccessToken(user._id.toString(), user.role);
+    const refreshToken = generateRefreshToken(user._id.toString());
+
+    // Send HTTP-only cookie
+    res.cookie('refreshToken', refreshToken, cookieOptions);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Email verified successfully',
+      accessToken,
+      user: {
+        id: user._id,
+        fullName: user.fullName,
+        email: user.email,
+        role: user.role,
+        course: user.course,
+        branch: user.branch,
+        year: user.year,
+        collegeName: user.collegeName,
+        avatar: user.avatar,
+        bio: user.bio,
+        ratingAverage: user.ratingAverage,
+        completedRentals: user.completedRentals,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const resendOTP = async (req: CustomRequest, res: Response, next: NextFunction) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      throw new CustomError('Email is required', 400, 'BAD_REQUEST');
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase() });
+    if (!user) {
+      throw new CustomError('User not found', 404, 'USER_NOT_FOUND');
+    }
+
+    if (user.isVerified) {
+      throw new CustomError('Email already verified', 400, 'ALREADY_VERIFIED');
+    }
+
+    // Generate new 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    await OTP.findOneAndUpdate(
+      { email: email.toLowerCase() },
+      { otp, createdAt: new Date() },
+      { upsert: true, new: true }
+    );
+
+    // Send verification email
+    await sendOTPEmail(email, otp);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Verification code resent successfully',
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const loginSendOTP = async (req: CustomRequest, res: Response, next: NextFunction) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      throw new CustomError('Email is required', 400, 'BAD_REQUEST');
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase() });
+    if (!user) {
+      throw new CustomError('No account found with this email address. Please register first.', 404, 'USER_NOT_FOUND');
+    }
+
+    if (user.isBlocked) {
+      throw new CustomError('Your account has been blocked by administrators.', 403, 'USER_BLOCKED');
+    }
+
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    await OTP.findOneAndUpdate(
+      { email: email.toLowerCase() },
+      { otp, createdAt: new Date() },
+      { upsert: true, new: true }
+    );
+
+    // Send login OTP email
+    await sendOTPEmail(user.email, otp, 'login');
+
+    return res.status(200).json({
+      success: true,
+      message: 'Login OTP sent to your student email.',
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const loginVerifyOTP = async (req: CustomRequest, res: Response, next: NextFunction) => {
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp) {
+      throw new CustomError('Email and OTP are required', 400, 'BAD_REQUEST');
+    }
+
+    const otpRecord = await OTP.findOne({ email: email.toLowerCase(), otp });
+    if (!otpRecord) {
+      throw new CustomError('Invalid or expired login code', 400, 'INVALID_OTP');
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase() });
+    if (!user) {
+      throw new CustomError('User not found', 404, 'USER_NOT_FOUND');
+    }
+
+    if (user.isBlocked) {
+      throw new CustomError('Your account has been blocked by administrators.', 403, 'USER_BLOCKED');
+    }
+
+    // Mark as verified if they weren't already
+    if (!user.isVerified) {
+      user.isVerified = true;
+      await user.save();
+    }
+
+    // Clean up OTP record
+    await OTP.deleteOne({ _id: otpRecord._id });
+
+    // Generate tokens
+    const accessToken = generateAccessToken(user._id.toString(), user.role);
+    const refreshToken = generateRefreshToken(user._id.toString());
+
+    // Send HTTP-only cookie
+    res.cookie('refreshToken', refreshToken, cookieOptions);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Login successful',
+      accessToken,
       user: {
         id: user._id,
         fullName: user.fullName,

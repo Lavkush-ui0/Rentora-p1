@@ -22,9 +22,12 @@ interface AuthContextType {
   loading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
-  registerUser: (data: any) => Promise<void>;
+  registerUser: (data: any) => Promise<any>;
   logout: () => Promise<void>;
   updateUser: (data: any) => Promise<void>;
+  verifyOTP: (email: string, otp: string) => Promise<any>;
+  loginSendOTP: (email: string) => Promise<any>;
+  loginVerifyOTP: (email: string, otp: string) => Promise<any>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -83,6 +86,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(true);
     try {
       const response = await api.post('/auth/register', data);
+      if (response.data?.success && !response.data.requiresVerification) {
+        setAccessToken(response.data.accessToken);
+        setUser(response.data.user);
+        if (response.data.user?.collegeName) {
+          localStorage.setItem('rentora_location', response.data.user.collegeName);
+          window.dispatchEvent(new Event('rentora_location_changed'));
+        }
+      }
+      return response.data;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const verifyOTP = async (email: string, otp: string) => {
+    setLoading(true);
+    try {
+      const response = await api.post('/auth/verify-otp', { email, otp });
       if (response.data?.success) {
         setAccessToken(response.data.accessToken);
         setUser(response.data.user);
@@ -91,6 +112,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           window.dispatchEvent(new Event('rentora_location_changed'));
         }
       }
+      return response.data;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loginSendOTP = async (email: string) => {
+    setLoading(true);
+    try {
+      const response = await api.post('/auth/login-send-otp', { email });
+      return response.data;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loginVerifyOTP = async (email: string, otp: string) => {
+    setLoading(true);
+    try {
+      const response = await api.post('/auth/login-verify-otp', { email, otp });
+      if (response.data?.success) {
+        setAccessToken(response.data.accessToken);
+        setUser(response.data.user);
+        if (response.data.user?.collegeName) {
+          localStorage.setItem('rentora_location', response.data.user.collegeName);
+          window.dispatchEvent(new Event('rentora_location_changed'));
+        }
+      }
+      return response.data;
     } finally {
       setLoading(false);
     }
@@ -126,6 +176,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         registerUser,
         logout,
         updateUser,
+        verifyOTP,
+        loginSendOTP,
+        loginVerifyOTP,
       }}
     >
       {children}
