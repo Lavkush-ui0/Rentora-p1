@@ -310,6 +310,17 @@ export const AdminDashboard: React.FC = () => {
     }
   };
 
+  const handleRemoveAndResolveReport = async (reportId: string, listingId: string) => {
+    if (!window.confirm('Are you sure you want to take down this listed product and mark this report as resolved?')) return;
+    try {
+      await adminService.removeListing(listingId);
+      await adminService.updateReportStatus(reportId, 'RESOLVED');
+      fetchDashboardData();
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to remove listing and resolve report.');
+    }
+  };
+
   return (
     <AdminLayout>
       <div className="space-y-8 animate-in fade-in duration-300">
@@ -754,6 +765,14 @@ export const AdminDashboard: React.FC = () => {
                           <td className="px-6 py-4 text-right space-x-1 whitespace-nowrap">
                             {r.status === 'OPEN' && (
                               <>
+                                {r.targetType === 'LISTING' && r.targetDetails && r.targetDetails.status !== 'REMOVED' && (
+                                  <button
+                                    onClick={() => handleRemoveAndResolveReport(r._id, r.targetId)}
+                                    className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition-all"
+                                  >
+                                    Take Down & Resolve
+                                  </button>
+                                )}
                                 <button
                                   onClick={() => handleResolveReport(r._id, 'RESOLVED')}
                                   className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-xl transition-all"

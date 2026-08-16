@@ -8,7 +8,7 @@ import { chatService } from '../services/chatService';
 import { getImageUrl } from '../utils/imageUrl';
 import { adminService } from '../services/adminService';
 import {
-  Star, Eye, Repeat, ChevronLeft, ChevronRight, Calendar, MessageCircle, Tag, AlertTriangle, Package, User, Share2, Heart, ShoppingBag, Flag
+  Star, Eye, Repeat, ChevronLeft, ChevronRight, Calendar, MessageCircle, Tag, AlertTriangle, Package, User, Share2, Heart, ShoppingBag, Flag, Trash2
 } from 'lucide-react';
 
 const conditionColors: Record<string, string> = {
@@ -133,6 +133,8 @@ export const ListingDetails: React.FC = () => {
       navigate(`/messages?recipient=${listing.owner._id}&listing=${listing._id}`);
     }
   };
+
+
 
   const isOwner = user && listing?.owner?._id === user.id;
   const isAdmin = user && user.role === 'ADMIN';
@@ -421,6 +423,27 @@ export const ListingDetails: React.FC = () => {
               <Link to={`/my-listings`} className="flex-1 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-gray-300 font-bold py-3 rounded-2xl text-center text-sm hover:bg-gray-50 dark:hover:bg-slate-800 transition-all">
                 Manage Listings
               </Link>
+            </div>
+          )}
+
+          {/* Admin Moderation Panel */}
+          {user && user.role === 'ADMIN' && listing.status !== 'REMOVED' && (
+            <div className="p-4 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800/40 rounded-2xl space-y-3 mt-4">
+              <p className="text-xs font-bold text-red-700 dark:text-red-400 uppercase tracking-wider">Admin Moderation Tools</p>
+              <button
+                onClick={handleAdminTakeDown}
+                className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-2xl flex items-center justify-center space-x-2 transition-all shadow-md shadow-red-600/10 text-sm"
+              >
+                <Trash2 className="h-4.5 w-4.5" />
+                <span>Take Down Listing</span>
+              </button>
+            </div>
+          )}
+
+          {user && user.role === 'ADMIN' && listing.status === 'REMOVED' && (
+            <div className="p-4 bg-gray-50 dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-2xl space-y-1 mt-4 text-center">
+              <p className="text-xs font-bold text-red-600 dark:text-red-400 uppercase tracking-wider">Moderation Status</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">This listing has been taken down by an administrator.</p>
             </div>
           )}
         </div>
