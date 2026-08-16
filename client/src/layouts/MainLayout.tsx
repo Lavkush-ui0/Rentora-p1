@@ -1,180 +1,298 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { 
+  Home, Compass, Package, List, MessageSquare, Shield, LogOut,
+  Book, TestTube, Calculator, Cpu, User, PlusCircle
+} from 'lucide-react';
 import Navbar from '../components/Navbar';
 import MobileBottomNav from '../components/MobileBottomNav';
 import TestimonialPopup from '../components/TestimonialPopup';
-import logoLetterWhite from '../assets/logo-letter-white.png';
-import logoNameWhite from '../assets/logo-name-white.png';
+import chatService from '../services/chatService';
+import { RentoraWordmark } from '../components/RentoraBrand';
 
 interface MainLayoutProps {
   children: React.ReactNode;
 }
 
 export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
+  const { user, logout } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [unreadMessages, setUnreadMessages] = useState(0);
+
+  // Fetch unread chat messages for live counter badge
+  useEffect(() => {
+    if (user) {
+      const fetchUnread = async () => {
+        try {
+          const res = await chatService.getConversations();
+          if (res.data?.success) {
+            const count = res.data.conversations.filter((c: any) => 
+              c.lastMessage && !c.lastMessage.readAt && c.lastMessage.sender !== user.id
+            ).length;
+            setUnreadMessages(count);
+          }
+        } catch (err) {
+          console.warn('[MainLayout] Error fetching unread messages count:', err);
+        }
+      };
+      fetchUnread();
+      const timer = setInterval(fetchUnread, 15000);
+      return () => clearInterval(timer);
+    }
+  }, [user]);
+
+  const isActive = (path: string) => location.pathname === path;
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
+
+  const navItems = [
+    { label: 'Home', path: '/', icon: Home },
+    { label: 'Explore Catalog', path: '/explore', icon: Compass },
+    { label: 'My Listings', path: '/my-listings', icon: Package },
+    { label: 'Rentals & Exchanges', path: '/my-rentals', icon: List },
+    { label: 'Messages', path: '/messages', icon: MessageSquare, badge: unreadMessages },
+  ];
+
+  const categories = [
+    { label: 'Books', path: '/explore?category=Books', icon: Book },
+    { label: 'Lab Gear', path: '/explore?category=Lab%20Gear', icon: TestTube },
+    { label: 'Calculators', path: '/explore?category=Calculators', icon: Calculator },
+    { label: 'Electronics', path: '/explore?category=Electronics', icon: Cpu },
+    { label: 'Campus Life', path: '/explore?category=Campus%20Life', icon: User },
+  ];
+
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50 text-gray-900 dark:bg-slate-950 dark:text-slate-100 transition-colors duration-200">
-      {/* Header navbar */}
-      <Navbar />
-
-      {/* Main page content area */}
-      <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 md:pb-12">
-        {children}
-      </main>
-
-      {/* Rentomojo-Inspired Structured Footer */}
-      <footer className="hidden md:block bg-slate-900 text-slate-300 border-t border-slate-800 py-12 mt-auto transition-colors duration-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-10">
-            
-            {/* Column 1: Brand & App Badges */}
-            <div className="space-y-4">
-              <Link to="/home" className="flex items-center space-x-2.5">
-                <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-red-600 to-rose-500 flex items-center justify-center p-1 shadow-md shadow-red-500/20">
-                  <img src={logoLetterWhite} alt="R" className="h-full w-full object-contain" />
-                </div>
-                <img src={logoNameWhite} alt="Rentora" className="h-7 object-contain" />
-              </Link>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Rentora is the premier peer-to-peer campus rental platform. Save money by borrowing essentials from classmates or listing your own idle stuff for side cash.
-              </p>
-              
-              <div className="pt-2">
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2.5">Download our App</p>
-                <div className="flex flex-col gap-2 max-w-[170px]">
-                  <a href="#" className="flex items-center space-x-2 bg-slate-950 text-white px-3.5 py-1.5 rounded-xl border border-slate-800 hover:bg-slate-900 transition-all shadow group active:scale-95">
-                    <svg className="w-5 h-5 fill-current text-primary-500 group-hover:text-primary-400 transition-colors" viewBox="0 0 24 24">
-                      <path d="M3 20.285V3.716c0-.983.743-1.637 1.636-1.696L15.96 12 4.636 21.98C3.743 21.92 3 21.268 3 20.285zM17.15 13.064l2.843-1.64c.895-.516.895-1.34 0-1.856L17.15 7.93 15.96 12l1.19 1.064zM4.636 2.02l11.324 6.54L13.722 12l-9.086-9.98zm0 19.96L13.722 12l2.238 3.44-11.324 6.54z"/>
-                    </svg>
-                    <div className="text-left">
-                      <span className="text-[8px] block uppercase leading-none opacity-70">Get it on</span>
-                      <span className="text-[11px] font-black tracking-tight leading-tight">Google Play</span>
-                    </div>
-                  </a>
-                  <a href="#" className="flex items-center space-x-2 bg-slate-950 text-white px-3.5 py-1.5 rounded-xl border border-slate-800 hover:bg-slate-900 transition-all shadow group active:scale-95">
-                    <svg className="w-5 h-5 fill-current text-slate-200 group-hover:text-white transition-colors" viewBox="0 0 24 24">
-                      <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.82M15.97 4.17c.66-.81 1.11-1.93.99-3.06-1 .04-2.22.67-2.94 1.5-.62.71-1.16 1.85-1.01 2.96 1.12.09 2.27-.59 2.96-1.4z"/>
-                    </svg>
-                    <div className="text-left">
-                      <span className="text-[8px] block uppercase leading-none opacity-70">Download on the</span>
-                      <span className="text-[11px] font-black tracking-tight leading-tight">App Store</span>
-                    </div>
-                  </a>
-                </div>
-              </div>
-            </div>
-
-            {/* Column 2: Quick Links */}
-            <div>
-              <h4 className="text-xs font-bold text-white uppercase tracking-wider mb-4 border-l-2 border-primary-500 pl-2">
-                Information
-              </h4>
-              <ul className="space-y-2.5 text-xs text-slate-400 font-medium">
-                <li>
-                  <Link to="/home" className="hover:text-primary-400 transition-colors">About Rentora</Link>
-                </li>
-                <li>
-                  <Link to="/explore" className="hover:text-primary-400 transition-colors">Explore Campus Marketplace</Link>
-                </li>
-                <li>
-                  <Link to="/my-rentals" className="hover:text-primary-400 transition-colors">My Active Rentals</Link>
-                </li>
-                <li>
-                  <Link to="/wishlist" className="hover:text-primary-400 transition-colors">Saved Wishlist & Bag</Link>
-                </li>
-                <li>
-                  <a href="#" className="hover:text-primary-400 transition-colors">Student Safety Guidelines</a>
-                </li>
-                <li>
-                  <a href="#" className="hover:text-primary-400 transition-colors">Terms of Service</a>
-                </li>
-              </ul>
-            </div>
-
-            {/* Column 3: Popular Categories */}
-            <div>
-              <h4 className="text-xs font-bold text-white uppercase tracking-wider mb-4 border-l-2 border-indigo-500 pl-2">
-                Rent Categories
-              </h4>
-              <ul className="space-y-2.5 text-xs text-slate-400 font-medium">
-                <li>
-                  <Link to="/explore" className="hover:text-primary-400 transition-colors">Books & Study Material</Link>
-                </li>
-                <li>
-                  <Link to="/explore" className="hover:text-primary-400 transition-colors">Calculators & Electronics</Link>
-                </li>
-                <li>
-                  <Link to="/explore" className="hover:text-primary-400 transition-colors">Lab Coats & Aprons</Link>
-                </li>
-                <li>
-                  <Link to="/explore" className="hover:text-primary-400 transition-colors">Sports Kits & Accessories</Link>
-                </li>
-                <li>
-                  <Link to="/explore" className="hover:text-primary-400 transition-colors">Xbox & Gaming Gear</Link>
-                </li>
-                <li>
-                  <Link to="/explore" className="hover:text-primary-400 transition-colors">Hostel Room Appliances</Link>
-                </li>
-              </ul>
-            </div>
-
-            {/* Column 4: Campus Locations Served */}
-            <div>
-              <h4 className="text-xs font-bold text-white uppercase tracking-wider mb-4 border-l-2 border-emerald-500 pl-2">
-                Locations Noida
-              </h4>
-              <ul className="space-y-2.5 text-xs text-slate-400 font-medium">
-                <li>
-                  <span className="text-slate-400">NIET Main Campus (Block A, B, C, D)</span>
-                </li>
-                <li>
-                  <span className="text-slate-400">Knowledge Park III, Greater Noida</span>
-                </li>
-                <li>
-                  <span className="text-slate-400">NIET Boys & Girls Hostels</span>
-                </li>
-                <li>
-                  <span className="text-slate-400">Galgotias Campus (Knowledge Park)</span>
-                </li>
-                <li>
-                  <span className="text-slate-400">GL Bajaj Campus</span>
-                </li>
-                <li>
-                  <span className="text-slate-400">Knowledge Park Canteen Pickups</span>
-                </li>
-              </ul>
-            </div>
-
-          </div>
-
-          {/* SEO Text Block */}
-          <div className="pt-8 border-t border-slate-800 text-slate-500 text-justify text-[11px] leading-relaxed space-y-3">
-            <p>
-              <strong>Rentora Noida:</strong> The ultimate student-led peer rental network across Greater Noida, specifically tailored for National Institute of Engineering and Technology (NIET) students. We bring you Noida’s most convenient campus renting portal, saving you thousands of rupees on short-term necessities. No longer do you need to purchase expensive engineering textbooks, lab kits, or drawing boards for single-semester coursework.
-            </p>
-            <p>
-              By facilitating verified peer exchanges, students can list lab coats, scientific calculators (such as Casio FX-991EX), and DSA books (Cormen) to earn side pocket money while helping their peers. All transactions and checkovers are carried out directly in safe public college locations like the Block-A canteen, college library, or hostel gates, ensuring zero shipping delays and zero additional shipping costs. Rent from classmate sellers today!
-            </p>
-          </div>
-
-          {/* Final Copyright */}
-          <div className="pt-6 mt-6 border-t border-slate-800/60 flex flex-col md:flex-row justify-between items-center text-xs text-slate-500 gap-4">
-            <p>&copy; {new Date().getFullYear()} Rentora. Created by students for the student community.</p>
-            <div className="flex space-x-4">
-              <a href="#" className="hover:text-slate-400 transition-colors">Privacy Policy</a>
-              <span>&middot;</span>
-              <a href="#" className="hover:text-slate-400 transition-colors">Safety Tips</a>
-              <span>&middot;</span>
-              <a href="#" className="hover:text-slate-400 transition-colors">FAQ</a>
-            </div>
+    <div className="min-h-screen bg-[#FAF7F2] text-slate-900 dark:bg-[#161B22] dark:text-slate-100 font-sans flex transition-colors duration-200">
+      
+      {/* 1. Desktop Fixed Left Sidebar (236px) */}
+      <aside className="hidden lg:flex flex-col w-[236px] bg-[#202B36] border-r border-[#293342] text-slate-300 flex-shrink-0 min-h-screen sticky top-0">
+        
+        {/* Top Logo Panel */}
+        <div className="px-5 pt-6 pb-4 border-b border-[#293342]">
+          <Link to="/" className="block mb-3">
+            <RentoraWordmark dark size={21} />
+          </Link>
+          <div className="flex items-center gap-1.5 bg-[#293342] border border-[#293342] rounded-xl px-3 py-1.5">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />
+            <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 font-display truncate">
+              NIET Student Exchange
+            </span>
           </div>
         </div>
-      </footer>
 
-      {/* Mobile bottom bar shortcut */}
-      <MobileBottomNav />
+        {/* Action Button: List Item */}
+        <div className="px-4 pt-4 pb-3">
+          <Link
+            to="/list-item"
+            className="flex items-center justify-center space-x-2 bg-[#9E1B1B] hover:bg-[#801414] text-white py-2.5 px-4 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-150 shadow-crimson hover:shadow-lg active:scale-[0.98] w-full font-display"
+          >
+            <PlusCircle className="h-4 w-4" />
+            <span>+ List an Item</span>
+          </Link>
+        </div>
 
-      {/* Classmate testimonials dynamic popups */}
-      <TestimonialPopup />
+        {/* Main Navigation Links */}
+        <nav className="flex-1 px-3 py-3 space-y-1 overflow-y-auto">
+          <div className="space-y-1">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const active = isActive(item.path);
+              return (
+                <Link
+                  key={item.label}
+                  to={item.path}
+                  className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-[12.5px] font-medium transition-all duration-150 group ${
+                    active 
+                      ? 'bg-[#9E1B1B] text-white font-bold' 
+                      : 'hover:bg-white/[0.05] hover:text-white text-slate-400'
+                  }`}
+                >
+                  <div className="flex items-center space-x-3">
+                    <Icon className={`h-4 w-4 flex-shrink-0 ${active ? 'text-white' : 'text-slate-500 group-hover:text-white'}`} />
+                    <span className="font-display tracking-tight">{item.label}</span>
+                  </div>
+                  {item.badge !== undefined && item.badge > 0 && (
+                    <span className={`px-2 py-0.5 text-[9px] font-black rounded-full ${
+                      active ? 'bg-white text-[#9E1B1B]' : 'bg-[#9E1B1B] text-white'
+                    }`}>
+                      {item.badge}
+                    </span>
+                  )}
+                </Link>
+              );
+            })}
+
+            {/* Moderator Hub link (if admin user) */}
+            {user?.role === 'ADMIN' && (
+              <Link
+                to="/admin"
+                className={`flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-150 group ${
+                  isActive('/admin') 
+                    ? 'bg-[#22716E] text-white' 
+                    : 'hover:bg-[#263743] hover:text-white text-slate-400'
+                }`}
+              >
+                <Shield className="h-4.5 w-4.5 flex-shrink-0" />
+                <span className="font-display tracking-tight">Moderator Hub</span>
+              </Link>
+            )}
+          </div>
+
+          {/* Divider */}
+          <div className="my-5 border-t border-[#42525B]/20"></div>
+
+          {/* Category Shortcuts */}
+          <div className="space-y-1.5">
+            <span className="px-3.5 text-[9px] font-black uppercase tracking-[0.18em] text-[#42525B] block mb-2">
+              Shortcuts
+            </span>
+            {categories.map((cat) => {
+              const Icon = cat.icon;
+              return (
+                <Link
+                  key={cat.label}
+                  to={cat.path}
+                  className="flex items-center space-x-3 px-3.5 py-2 text-xs font-bold text-slate-400 hover:text-white transition-colors duration-150 group"
+                >
+                  <Icon className="h-4 w-4 text-[#42525B] group-hover:text-white transition-colors" />
+                  <span className="font-display tracking-tight">{cat.label}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
+
+        {/* Bottom Profile / Settings */}
+        <div className="p-4 border-t border-[#293342] bg-[#1a2330]/50">
+          {user ? (
+            <div className="flex items-center justify-between">
+              <Link to={`/profile/${user.id}`} className="flex items-center space-x-2.5 group">
+                <img 
+                  src={user.avatar} 
+                  alt={user.fullName} 
+                  className="h-9 w-9 rounded-full object-cover border border-[#42525B]/40 group-hover:border-[#9E1B1B] transition-colors" 
+                />
+                <div className="text-left leading-tight">
+                  <p className="text-[12px] font-bold text-white truncate max-w-[100px] font-display">{user.fullName}</p>
+                  <p className="text-[10px] text-slate-500 font-medium truncate max-w-[100px]">CSE Yr {user.year || 3}</p>
+                </div>
+              </Link>
+              <button 
+                onClick={handleLogout}
+                className="p-1.5 text-slate-500 hover:text-red-400 rounded-lg hover:bg-[#293342] transition-all"
+                title="Logout"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
+            </div>
+          ) : (
+            <Link 
+              to="/login"
+              className="flex items-center justify-center space-x-2 text-xs font-bold text-[#9E1B1B] hover:text-[#801414] bg-white/5 hover:bg-white/10 px-4 py-2 rounded-xl transition-all border border-[#293342]"
+            >
+              <span>Student Sign In</span>
+            </Link>
+          )}
+        </div>
+      </aside>
+
+      {/* 2. Main Content Wrapper */}
+      <div className="flex-1 flex flex-col min-h-screen overflow-hidden">
+        
+        {/* Sticky Top Header Navbar */}
+        <Navbar />
+
+        {/* Main Content Area */}
+        <main className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 md:pb-12 max-w-7xl w-full mx-auto">
+          {children}
+        </main>
+
+        {/* Premium Campus Footer */}
+        <footer className="hidden md:block bg-[#202B36] text-slate-400 border-t border-[#42525B]/30 py-12 mt-auto transition-colors duration-200">
+          <div className="max-w-7xl mx-auto px-6 lg:px-8">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-10">
+              
+              {/* Col 1: Logo & Description */}
+              <div className="space-y-4">
+                <RentoraWordmark size={22} />
+                <p className="text-xs text-slate-400 leading-relaxed font-sans">
+                  Rentora is a peer-to-peer campus marketplace designed specifically for NIET college students to borrow reference textbooks, calculators, and lab tools directly from classmates.
+                </p>
+                <div className="flex items-center space-x-2 bg-[#263743] border border-[#42525B]/30 px-3 py-1.5 rounded-2xl w-fit">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span className="text-[10px] font-black text-slate-300 uppercase tracking-wider font-display">
+                    Plot 19 · Plot 15 · Plot 14
+                  </span>
+                </div>
+              </div>
+
+              {/* Col 2: Navigation Links */}
+              <div>
+                <h4 className="text-xs font-bold text-white uppercase tracking-wider mb-4 border-l-2 border-[#9E1B1B] pl-2 font-display">
+                  Platform
+                </h4>
+                <ul className="space-y-2.5 text-xs font-medium">
+                  <li><Link to="/" className="hover:text-white transition-colors">Home Page</Link></li>
+                  <li><Link to="/explore" className="hover:text-white transition-colors">Explore Gear</Link></li>
+                  <li><Link to="/my-listings" className="hover:text-white transition-colors">Manage Listings</Link></li>
+                  <li><Link to="/my-rentals" className="hover:text-white transition-colors">Rental Tracker</Link></li>
+                </ul>
+              </div>
+
+              {/* Col 3: Popular Categories */}
+              <div>
+                <h4 className="text-xs font-bold text-white uppercase tracking-wider mb-4 border-l-2 border-[#22716E] pl-2 font-display">
+                  Categories
+                </h4>
+                <ul className="space-y-2.5 text-xs font-medium">
+                  <li><Link to="/explore?category=Books" className="hover:text-white transition-colors">Books & Study Material</Link></li>
+                  <li><Link to="/explore?category=Calculators" className="hover:text-white transition-colors">Lab & Sci Calculators</Link></li>
+                  <li><Link to="/explore?category=Lab%20Gear" className="hover:text-white transition-colors">Engineering & Lab Tools</Link></li>
+                  <li><Link to="/explore?category=Electronics" className="hover:text-white transition-colors">Electronics & Gear</Link></li>
+                </ul>
+              </div>
+
+              {/* Col 4: Safety & Support */}
+              <div>
+                <h4 className="text-xs font-bold text-white uppercase tracking-wider mb-4 border-l-2 border-[#F5B46E] pl-2 font-display">
+                  Trust & Safety
+                </h4>
+                <ul className="space-y-2.5 text-xs font-medium">
+                  <li><span className="text-slate-400">Offline Cash/UPI Payment</span></li>
+                  <li><span className="text-slate-400">Handover OTP Verification</span></li>
+                  <li><span className="text-slate-400">Student Reputation Ratings</span></li>
+                  <li><span className="text-slate-400">Campus Landmark Meetups</span></li>
+                </ul>
+              </div>
+
+            </div>
+
+            {/* Copyright Banner */}
+            <div className="pt-6 border-t border-[#42525B]/20 flex flex-col md:flex-row justify-between items-center text-xs text-slate-500 gap-4 font-sans">
+              <p>&copy; {new Date().getFullYear()} Rentora (NIET Edition). Circular campus sharing & reuse.</p>
+              <div className="flex space-x-4">
+                <a href="#" className="hover:text-slate-400 transition-colors">Student Guidelines</a>
+                <span>&middot;</span>
+                <a href="#" className="hover:text-slate-400 transition-colors">Safety Code</a>
+                <span>&middot;</span>
+                <a href="#" className="hover:text-slate-400 transition-colors">Plot Locations</a>
+              </div>
+            </div>
+          </div>
+        </footer>
+
+        {/* Mobile Bottom Navigation Bar */}
+        <MobileBottomNav />
+
+        {/* Classmate dynamic popup announcements */}
+        <TestimonialPopup />
+
+      </div>
     </div>
   );
 };

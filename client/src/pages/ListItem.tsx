@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { listingService } from '../services/listingService';
 import { categoryService } from '../services/categoryService';
 import { useAuth } from '../context/AuthContext';
-import { Upload, X, Image, AlertCircle } from 'lucide-react';
+import { Upload, X, Image, AlertCircle, Sparkles } from 'lucide-react';
+import { ArtworkTile } from '../components/RentoraBrand';
 
 const CONDITIONS = ['NEW', 'LIKE_NEW', 'GOOD', 'FAIR'];
 const PRICE_UNITS = ['DAY', 'WEEK', 'MONTH'];
@@ -13,6 +14,24 @@ const CAMPUS_LOCATIONS = [
   'NIET Plot 14'
 ];
 
+const THEME_LABELS: Record<string, string> = {
+  mint: 'Mint Green',
+  peach: 'Peach Orange',
+  lavender: 'Lavender Purple',
+  blue: 'Sky Blue',
+  sand: 'Sand Gold',
+  rose: 'Rose Pink',
+};
+
+const THEME_COLORS: Record<string, string> = {
+  mint: 'bg-[#DCF2E9] border-[#1E6865]/35',
+  peach: 'bg-[#FFE8DC] border-[#C04B2A]/35',
+  lavender: 'bg-[#ECE4FC] border-[#653BB5]/35',
+  blue: 'bg-[#DFF0FC] border-[#246596]/35',
+  sand: 'bg-[#F7EED8] border-[#876527]/35',
+  rose: 'bg-[#FDE4EA] border-[#AA2A4C]/35',
+};
+
 export const ListItem: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -21,6 +40,9 @@ export const ListItem: React.FC = () => {
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Customizable Card Theme
+  const [selectedTheme, setSelectedTheme] = useState<'mint' | 'peach' | 'lavender' | 'blue' | 'sand' | 'rose'>('blue');
 
   const [form, setForm] = useState({
     title: '',
@@ -33,7 +55,6 @@ export const ListItem: React.FC = () => {
     location: user?.collegeName || 'NIET Plot 19',
   });
 
-  // Keep form location in sync if user profile loads after initial mount
   useEffect(() => {
     if (user?.collegeName) {
       setForm(f => ({ ...f, location: user.collegeName }));
@@ -88,7 +109,11 @@ export const ListItem: React.FC = () => {
     try {
       const formData = new FormData();
       formData.append('title', form.title);
-      formData.append('description', form.description);
+      
+      // Append customizable theme comment at the end of the description
+      const descWithTheme = `${form.description}\n\n<!-- theme: ${selectedTheme} -->`;
+      formData.append('description', descWithTheme);
+      
       formData.append('category', form.category);
       formData.append('condition', form.condition);
       formData.append('rentalPrice', form.rentalPrice);
@@ -108,201 +133,245 @@ export const ListItem: React.FC = () => {
     }
   };
 
+  const selectedCategoryName = form.category 
+    ? categories.find(c => c._id === form.category)?.name || 'Gear'
+    : 'Gear';
+
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="max-w-5xl mx-auto space-y-6 text-left">
       <div>
-        <h1 className="text-2xl font-black font-outfit text-gray-900 dark:text-gray-100">List an Item</h1>
-        <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">Share your items and earn extra income from your classmates.</p>
+        <h1 className="text-2xl font-black font-display uppercase tracking-tight text-slate-900 dark:text-gray-100">List an Item</h1>
+        <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Upload study materials, engineering kits, or calculators for campus sharing.</p>
       </div>
 
       {error && (
-        <div className="flex items-center space-x-2 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 p-4 rounded-2xl text-red-700 dark:text-red-400 text-sm">
+        <div className="flex items-center space-x-2 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 p-4 rounded-2xl text-red-700 dark:text-red-400 text-xs">
           <AlertCircle className="h-5 w-5 shrink-0" />
-          <p className="font-medium">{error}</p>
+          <p className="font-bold">{error}</p>
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-900 rounded-3xl border border-gray-100 dark:border-slate-800 p-6 space-y-5">
+      {/* Split Layout: Form on Left (7 cols), Live Preview on Right (5 cols) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        
+        {/* Left: Listing Form */}
+        <div className="lg:col-span-7">
+          <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-6 space-y-5 shadow-sm">
+            
+            {/* Title */}
+            <div>
+              <label className="block text-[10px] font-black text-slate-450 dark:text-slate-400 uppercase tracking-wider mb-2">Item Name / Title</label>
+              <input
+                type="text"
+                name="title"
+                required
+                placeholder="e.g. CASIO FX-991EX Scientific Calculator"
+                value={form.title}
+                onChange={handleChange}
+                maxLength={100}
+                className="w-full bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-[#9E1B1B] text-xs font-bold"
+              />
+            </div>
 
-        {/* Image Upload */}
-        <div>
-          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
-            Photos (Max 5)
-          </label>
-          <div className="flex flex-wrap gap-3">
-            {imagePreviews.map((preview, i) => (
-              <div key={i} className="relative h-24 w-24 rounded-2xl overflow-hidden border border-gray-200 dark:border-slate-700">
-                <img src={preview} alt="" className="h-full w-full object-cover" />
-                <button
-                  type="button"
-                  onClick={() => removeImage(i)}
-                  className="absolute top-1 right-1 bg-red-500 text-white h-5 w-5 rounded-full flex items-center justify-center shadow-md"
+            {/* Description */}
+            <div>
+              <label className="block text-[10px] font-black text-slate-450 dark:text-slate-400 uppercase tracking-wider mb-2">Specifications / Details</label>
+              <textarea
+                name="description"
+                required
+                rows={4}
+                placeholder="Describe details, conditions, what is included, any minor scratches..."
+                value={form.description}
+                onChange={handleChange}
+                maxLength={2000}
+                className="w-full bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-[#9E1B1B] text-xs font-semibold resize-none"
+              />
+              <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 text-right font-bold">{form.description.length} / 2000</p>
+            </div>
+
+            {/* Category & Location */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[10px] font-black text-slate-450 dark:text-slate-400 uppercase tracking-wider mb-2">Category</label>
+                <select
+                  name="category"
+                  required
+                  value={form.category}
+                  onChange={handleChange}
+                  className="w-full bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-[#9E1B1B] text-xs font-bold appearance-none"
                 >
-                  <X className="h-3 w-3" />
-                </button>
+                  <option value="">Select Category</option>
+                  {categories.map(cat => <option key={cat._id} value={cat._id}>{cat.name}</option>)}
+                </select>
               </div>
-            ))}
-            {images.length < 5 && (
-              <label className="h-24 w-24 rounded-2xl border-2 border-dashed border-gray-300 dark:border-slate-700 flex flex-col items-center justify-center cursor-pointer hover:border-primary-400 hover:bg-primary-50 dark:hover:bg-primary-950/20 transition-all">
-                <Image className="h-6 w-6 text-gray-400 mb-1" />
-                <span className="text-[10px] font-bold text-gray-400">Add Photo</span>
-                <input type="file" multiple accept="image/*" className="hidden" onChange={handleImageSelect} />
-              </label>
-            )}
-          </div>
-          <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">JPG, PNG, WEBP · Max 5MB each · Max 5 photos</p>
-        </div>
+              <div>
+                <label className="block text-[10px] font-black text-slate-450 dark:text-slate-400 uppercase tracking-wider mb-2">Campus Plot Spot</label>
+                <select
+                  name="location"
+                  required
+                  value={form.location}
+                  onChange={handleChange}
+                  className="w-full bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-[#9E1B1B] text-xs font-bold appearance-none"
+                >
+                  {CAMPUS_LOCATIONS.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+            </div>
 
-        <hr className="border-gray-100 dark:border-slate-800" />
+            {/* Condition */}
+            <div>
+              <label className="block text-[10px] font-black text-slate-450 dark:text-slate-400 uppercase tracking-wider mb-2">Item Condition</label>
+              <div className="flex flex-wrap gap-2">
+                {CONDITIONS.map(c => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => setForm(f => ({ ...f, condition: c }))}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${
+                      form.condition === c
+                        ? 'bg-[#9E1B1B] text-white border-[#9E1B1B]'
+                        : 'bg-slate-50 dark:bg-slate-800 text-slate-650 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-slate-350'
+                    }`}
+                  >
+                    {c.replace('_', ' ')}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-        {/* Title */}
-        <div>
-          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Item Title</label>
-          <input
-            type="text"
-            name="title"
-            required
-            placeholder="e.g. DSA Cormen Book 4th Edition"
-            value={form.title}
-            onChange={handleChange}
-            maxLength={100}
-            className="w-full bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 px-4 py-3 rounded-2xl border border-gray-200 dark:border-slate-700 focus:outline-none focus:border-primary-500 text-sm font-medium"
-          />
-        </div>
+            {/* Pricing Rates */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[10px] font-black text-slate-450 dark:text-slate-400 uppercase tracking-wider mb-2">Rental Price (₹)</label>
+                <input
+                  type="number"
+                  name="rentalPrice"
+                  required
+                  min="0"
+                  placeholder="e.g. 50"
+                  value={form.rentalPrice}
+                  onChange={handleChange}
+                  className="w-full bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-[#9E1B1B] text-xs font-bold"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-slate-450 dark:text-slate-400 uppercase tracking-wider mb-2">Per Duration</label>
+                <select
+                  name="priceUnit"
+                  value={form.priceUnit}
+                  onChange={handleChange}
+                  className="w-full bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-[#9E1B1B] text-xs font-bold appearance-none"
+                >
+                  {PRICE_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                </select>
+              </div>
+            </div>
 
-        {/* Description */}
-        <div>
-          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Description</label>
-          <textarea
-            name="description"
-            required
-            rows={4}
-            placeholder="Describe the item — condition, what's included, any known issues..."
-            value={form.description}
-            onChange={handleChange}
-            maxLength={2000}
-            className="w-full bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 px-4 py-3 rounded-2xl border border-gray-200 dark:border-slate-700 focus:outline-none focus:border-primary-500 text-sm font-medium resize-none"
-          />
-          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 text-right">{form.description.length}/2000</p>
-        </div>
+            {/* Security Deposit */}
+            <div>
+              <label className="block text-[10px] font-black text-slate-450 dark:text-slate-400 uppercase tracking-wider mb-2">Security Deposit (₹) - Optional</label>
+              <input
+                type="number"
+                name="securityDeposit"
+                min="0"
+                placeholder="0"
+                value={form.securityDeposit}
+                onChange={handleChange}
+                className="w-full bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-[#9E1B1B] text-xs font-bold"
+              />
+            </div>
 
-        {/* Category */}
-        <div>
-          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Category</label>
-          <select
-            name="category"
-            required
-            value={form.category}
-            onChange={handleChange}
-            className="w-full bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-gray-100 px-4 py-3 rounded-2xl border border-gray-200 dark:border-slate-700 focus:outline-none focus:border-primary-500 text-sm font-medium appearance-none"
-          >
-            <option value="">Select a category</option>
-            {categories.map(cat => <option key={cat._id} value={cat._id}>{cat.name}</option>)}
-          </select>
-        </div>
+            {/* Optional photo uploads */}
+            <div>
+              <label className="block text-[10px] font-black text-slate-450 dark:text-slate-400 uppercase tracking-wider mb-3">Upload Custom Photos (Optional)</label>
+              <div className="flex flex-wrap gap-2.5">
+                {imagePreviews.map((preview, i) => (
+                  <div key={i} className="relative h-20 w-20 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 flex-shrink-0">
+                    <img src={preview} alt="" className="h-full w-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => removeImage(i)}
+                      className="absolute top-1 right-1 bg-red-500 text-white h-4.5 w-4.5 rounded-full flex items-center justify-center shadow-md hover:bg-red-650 transition-colors"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+                {images.length < 5 && (
+                  <label className="h-20 w-20 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 flex flex-col items-center justify-center cursor-pointer hover:border-[#9E1B1B] hover:bg-[#9E1B1B]/5 transition-all flex-shrink-0">
+                    <Image className="h-5 w-5 text-slate-400 mb-0.5" />
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Add</span>
+                    <input type="file" multiple accept="image/*" className="hidden" onChange={handleImageSelect} />
+                  </label>
+                )}
+              </div>
+            </div>
 
-        {/* Campus Location */}
-        <div>
-          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Available Campus / Location</label>
-          <select
-            name="location"
-            required
-            value={form.location}
-            onChange={handleChange}
-            className="w-full bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-gray-100 px-4 py-3 rounded-2xl border border-gray-200 dark:border-slate-700 focus:outline-none focus:border-primary-500 text-sm font-medium appearance-none"
-          >
-            {CAMPUS_LOCATIONS.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
-          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Specify which campus this item is available for exchange.</p>
-        </div>
-
-        {/* Condition */}
-        <div>
-          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Condition</label>
-          <div className="flex flex-wrap gap-2">
-            {CONDITIONS.map(c => (
-              <button
-                key={c}
-                type="button"
-                onClick={() => setForm(f => ({ ...f, condition: c }))}
-                className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${
-                  form.condition === c
-                    ? 'bg-primary-600 text-white border-primary-600'
-                    : 'bg-gray-50 dark:bg-slate-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-slate-700 hover:border-gray-300'
-                }`}
-              >
-                {c.replace('_', ' ')}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Pricing */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Rental Price (₹)</label>
-            <input
-              type="number"
-              name="rentalPrice"
-              required
-              min="0"
-              placeholder="e.g. 50"
-              value={form.rentalPrice}
-              onChange={handleChange}
-              className="w-full bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 px-4 py-3 rounded-2xl border border-gray-200 dark:border-slate-700 focus:outline-none focus:border-primary-500 text-sm font-medium"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Price Per</label>
-            <select
-              name="priceUnit"
-              value={form.priceUnit}
-              onChange={handleChange}
-              className="w-full bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-gray-100 px-4 py-3 rounded-2xl border border-gray-200 dark:border-slate-700 focus:outline-none focus:border-primary-500 text-sm font-medium appearance-none"
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-[#9E1B1B] hover:bg-[#801414] text-white font-extrabold py-3.5 rounded-2xl flex items-center justify-center space-x-2 shadow-lg shadow-[#9E1B1B]/15 transition-all disabled:opacity-50 text-xs uppercase tracking-wider active:scale-[0.98]"
             >
-              {PRICE_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
-            </select>
+              {loading ? (
+                <div className="h-4.5 w-4.5 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+              ) : (
+                <>
+                  <Upload className="h-4.5 w-4.5" />
+                  <span>Publish Campus Listing</span>
+                </>
+              )}
+            </button>
+          </form>
+        </div>
+
+        {/* Right: Interactive Live Artwork Card Preview */}
+        <div className="lg:col-span-5 lg:sticky lg:top-24 space-y-5">
+          <div className="p-4 bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 space-y-4 shadow-sm">
+            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest font-display flex items-center space-x-1">
+              <Sparkles className="h-4.5 w-4.5 text-[#9E1B1B]" />
+              <span>Live Card Art Illustrator</span>
+            </h3>
+
+            {/* Displaying Live ArtworkTile */}
+            <ArtworkTile
+              category={selectedCategoryName}
+              location={form.location}
+              theme={selectedTheme}
+              title={form.title || 'Your Item Title'}
+              className="w-full aspect-[4/3] rounded-2xl"
+            />
+
+            {/* Pastel color theme selector buttons */}
+            <div className="space-y-2 text-left">
+              <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest">Select Card Pastel Tone</label>
+              <div className="grid grid-cols-2 gap-2">
+                {Object.keys(THEME_LABELS).map((themeKey) => (
+                  <button
+                    key={themeKey}
+                    type="button"
+                    onClick={() => setSelectedTheme(themeKey as any)}
+                    className={`px-3 py-2 rounded-xl text-[10px] font-bold border text-left transition-all flex items-center space-x-2 ${
+                      selectedTheme === themeKey
+                        ? 'border-[#9E1B1B] text-[#9E1B1B] bg-[#9E1B1B]/5 ring-1 ring-[#9E1B1B]/20 font-black'
+                        : 'border-slate-200 dark:border-slate-850 hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-650'
+                    }`}
+                  >
+                    <span className={`h-3 w-3 rounded-full flex-shrink-0 border ${THEME_COLORS[themeKey]}`} />
+                    <span>{THEME_LABELS[themeKey]}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            
+            <p className="text-[10px] text-slate-400 font-medium leading-relaxed bg-slate-50 dark:bg-slate-800/40 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
+              💡 Selecting a pastel tone styles your item card in the explore marketplace catalog. Lenders will see your item styled in this exact color theme!
+            </p>
           </div>
         </div>
 
-        {/* Security Deposit */}
-        <div>
-          <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Security Deposit (₹) — Optional</label>
-          <input
-            type="number"
-            name="securityDeposit"
-            min="0"
-            placeholder="0"
-            value={form.securityDeposit}
-            onChange={handleChange}
-            className="w-full bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 px-4 py-3 rounded-2xl border border-gray-200 dark:border-slate-700 focus:outline-none focus:border-primary-500 text-sm font-medium"
-          />
-          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">The deposit is collected offline and returned when the item is given back safely.</p>
-        </div>
-
-        {/* Offline Payment Notice */}
-        <div className="p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/30 rounded-2xl">
-          <p className="text-xs text-amber-700 dark:text-amber-400 font-medium">
-            ⚠️ All payments (rental + deposit) are handled <strong>offline between you and the renter</strong>. Rentora does not process any payments.
-          </p>
-        </div>
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-3.5 rounded-2xl flex items-center justify-center space-x-2 shadow-lg shadow-primary-500/20 transition-all disabled:opacity-50"
-        >
-          {loading ? (
-            <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
-          ) : (
-            <>
-              <Upload className="h-5 w-5" />
-              <span>Publish Listing</span>
-            </>
-          )}
-        </button>
-      </form>
+      </div>
     </div>
   );
 };
+
 export default ListItem;

@@ -2,27 +2,178 @@
 @tailwind components;
 @tailwind utilities;
 
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+:root {
+  --app-font-sans: 'DM Sans', system-ui, sans-serif;
+  --app-font-display: 'Space Grotesk', sans-serif;
+
+  /* Warm Linen Canvas */
+  --background: 35 45% 97%;       /* #FAF7F2 */
+  --foreground: 225 27% 17%;      /* #1B2232 */
+  --border: 34 24% 87%;           /* #E2D6C6 */
+  --card: 40 50% 99%;             /* #FFFDF9 */
+  --card-foreground: 225 27% 17%;
+  --primary: 178 59% 28%;         /* #22716E teal */
+  --primary-foreground: 40 50% 99%;
+  --accent: 15 83% 64%;           /* #F27B58 coral */
+  --sidebar: 224 30% 16%;         /* #202B36 deep slate */
+  --sidebar-foreground: 38 35% 92%;
+  --sidebar-border: 224 18% 23%;
+  --crimson: #9E1B1B;
+  --crimson-hover: #801414;
+  --teal: #22716E;
+}
+
+.dark {
+  --background: 224 30% 10%;
+  --foreground: 37 35% 93%;
+  --border: 224 18% 22%;
+  --card: 224 27% 14%;
+  --card-foreground: 37 35% 93%;
+  --primary: 174 50% 53%;
+  --sidebar: 224 34% 8%;
+}
+
 @layer base {
+  * {
+    border-color: hsl(var(--border));
+  }
+
   body {
-    @apply antialiased font-sans;
+    font-family: var(--app-font-sans);
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--app-font-display);
+    font-weight: 700;
+    letter-spacing: -0.02em;
   }
 }
 
-/* Custom Scrollbars for premium styling */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
+@layer utilities {
+  .font-display  { font-family: var(--app-font-display) !important; }
+  .font-sans     { font-family: var(--app-font-sans) !important; }
 
-::-webkit-scrollbar-track {
-  @apply bg-transparent;
-}
+  /* ─── Paper Grid Background ─── */
+  .paper-grid {
+    background-image:
+      linear-gradient(rgba(23, 104, 101, 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(23, 104, 101, 0.04) 1px, transparent 1px);
+    background-size: 28px 28px;
+  }
 
-::-webkit-scrollbar-thumb {
-  @apply bg-gray-200 dark:bg-slate-800 rounded-full hover:bg-gray-300 dark:hover:bg-slate-700 transition-colors;
-}
+  /* ─── Card Lift Effect ─── */
+  .card-lift {
+    transition: box-shadow 0.25s ease, transform 0.25s ease;
+  }
+  .card-lift:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 14px 30px -10px rgba(25, 42, 53, 0.14), 0 4px 8px -4px rgba(25, 42, 53, 0.08);
+  }
 
-/* Smooth active state clicks */
-button, a {
-  @apply active:scale-[0.98] transition-transform duration-100;
+  .tile-shadow {
+    box-shadow: 0 10px 25px -5px rgba(25, 42, 53, 0.15), 0 8px 10px -6px rgba(25, 42, 53, 0.1);
+  }
+
+  /* ─── Sidebar Glass Panel ─── */
+  .sidebar-item {
+    @apply flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-[13px] font-medium transition-all duration-150 cursor-pointer;
+    color: rgba(226, 232, 240, 0.7);
+  }
+  .sidebar-item:hover {
+    background: rgba(255,255,255,0.05);
+    color: #fff;
+  }
+  .sidebar-item.active {
+    background: #9E1B1B;
+    color: #fff;
+    font-weight: 700;
+  }
+
+  /* ─── Artwork Tile Pastel Themes ─── */
+  .tile-mint     { background: #d7eee8; }
+  .tile-peach    { background: #f9dfc9; }
+  .tile-lavender { background: #e5def3; }
+  .tile-blue     { background: #dae8f3; }
+  .tile-sand     { background: #eee7d5; }
+  .tile-rose     { background: #f5ddd9; }
+
+  /* ─── Scroll utilities ─── */
+  .scrollbar-none::-webkit-scrollbar { display: none; }
+  .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
+
+  /* ─── Premium scrollbar ─── */
+  ::-webkit-scrollbar         { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track   { background: transparent; }
+  ::-webkit-scrollbar-thumb   { background: rgba(66, 82, 91, 0.35); border-radius: 99px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(66, 82, 91, 0.6); }
+
+  /* ─── Button micro interactions ─── */
+  button { transition: transform 0.1s ease, box-shadow 0.15s ease; }
+  button:active:not(:disabled) { transform: scale(0.97); }
+
+  /* ─── 3D Carousel Perspective ─── */
+  .perspective-stage {
+    perspective: 1000px;
+    perspective-origin: center;
+  }
+
+  /* ─── Glass card ─── */
+  .glass {
+    background: rgba(255,255,255,0.12);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255,255,255,0.18);
+  }
+
+  /* ─── Input base style ─── */
+  .input-base {
+    @apply w-full bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 placeholder-slate-400
+      px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800
+      focus:outline-none focus:ring-2 focus:ring-[#22716E]/30 focus:border-[#22716E]
+      text-sm font-medium transition-all duration-150;
+  }
+
+  /* ─── Pill badge ─── */
+  .badge-crimson {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-[#9E1B1B]/10 text-[#9E1B1B] border border-[#9E1B1B]/20;
+  }
+  .badge-teal {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-[#22716E]/10 text-[#22716E] dark:text-[#5FD2CA] border border-[#22716E]/20;
+  }
+  .badge-amber {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-700 border border-amber-200;
+  }
+
+  /* ─── Section header divider ─── */
+  .section-label {
+    @apply text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 font-display;
+  }
+
+  /* ─── Fade-in animation ─── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .animate-fade-up { animation: fadeUp 0.4s ease forwards; }
+
+  /* ─── Shimmer skeleton ─── */
+  @keyframes shimmer {
+    0%   { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+  .skeleton {
+    background: linear-gradient(90deg, #f0ede8 25%, #faf7f2 50%, #f0ede8 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+  .dark .skeleton {
+    background: linear-gradient(90deg, #1e2530 25%, #242f3d 50%, #1e2530 75%);
+    background-size: 200% 100%;
+  }
 }
