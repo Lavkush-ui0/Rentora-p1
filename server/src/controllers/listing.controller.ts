@@ -3,6 +3,7 @@ import { Listing } from '../models/listing.model';
 import { Category } from '../models/category.model';
 import { User } from '../models/user.model';
 import { CustomRequest } from '../types';
+import { RentalRequest } from '../models/rentalRequest.model';
 import { uploadImage, deleteImage } from '../services/cloudinary.service';
 import CustomError from '../utils/customError';
 
@@ -161,9 +162,19 @@ export const getListingById = async (req: CustomRequest, res: Response, next: Ne
       throw new CustomError('Listing not found', 404, 'NOT_FOUND');
     }
 
+    // Find active bookings to block out dates in calendar
+    const activeRentals = await RentalRequest.find({
+      listing: listing._id,
+      status: { $in: ['ACCEPTED', 'ACTIVE'] },
+    }).select('startDate endDate');
+
     return res.json({
       success: true,
       listing,
+      blockedDates: activeRentals.map(r => ({
+        start: r.startDate,
+        end: r.endDate,
+      })),
     });
   } catch (error) {
     return next(error);

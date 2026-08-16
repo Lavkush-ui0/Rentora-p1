@@ -256,6 +256,9 @@ export const acceptRentalRequest = async (req: CustomRequest, res: Response, nex
       throw new CustomError('Listing no longer exists', 404, 'NOT_FOUND');
     }
 
+    // Generate a 4-digit handover OTP code
+    const otpCode = Math.floor(1000 + Math.random() * 9000).toString();
+    request.handoverOTP = otpCode;
     request.status = 'ACCEPTED';
     await request.save();
 
@@ -420,11 +423,15 @@ export const cancelRentalRequest = async (req: CustomRequest, res: Response, nex
   }
 };
 
-// Handover trigger: Transitions status ACCEPTED -> ACTIVE (Rental begins)
 export const handoverRentalRequest = async (req: CustomRequest, res: Response, next: NextFunction) => {
   try {
     if (!req.user) {
       throw new CustomError('Authentication required', 401, 'UNAUTHORIZED');
+    }
+
+    const { otp } = req.body;
+    if (!otp) {
+      throw new CustomError('Handover OTP code is required', 400, 'OTP_REQUIRED');
     }
 
     const request = await RentalRequest.findById(req.params.id);
@@ -441,10 +448,44 @@ export const handoverRentalRequest = async (req: CustomRequest, res: Response, n
       throw new CustomError(`Handover cannot be confirmed for status "${request.status}"`, 400, 'INVALID_TRANSITION');
     }
 
+    if (request.handoverOTP !== otp) {
+      throw new CustomError('Invalid handover verification code (OTP). Please check with the renter.', 400, 'INVALID_OTP');
+    }
+
+    const listing = await Listing.findById(request.listing);
+    if (!listing) {
+      throw new CustomError('Listing not found', 404, 'NOT_FOUND');
+    }
+
+    const renterUser = await User.findById(request.renter);
+    if (!renterUser) {
+      throw new CustomError('Renter account not found', 404, 'NOT_FOUND');
+    }
+
+    // Calculate duration in days (minimum 1 day)
+    const durationMs = Math.max(1, request.endDate.getTime() - request.startDate.getTime());
+    const days = Math.ceil(durationMs / (1000 * 60 * 60 * 24));
+    const rentalFee = listing.rentalPrice * days;
+    const securityDeposit = listing.securityDeposit;
+    const totalRequired = rentalFee + securityDeposit;
+
+    if (renterUser.walletBalance < totalRequired) {
+      throw new CustomError(
+        `Renter has insufficient wallet balance. Required: ₹${totalRequired}, Current Balance: ₹${renterUser.walletBalance}.`,
+        400,
+        'INSUFFICIENT_BALANCE'
+      );
+    }
+
+    // Deduct from renter's wallet
+    renterUser.walletBalance -= totalRequired;
+    await renterUser.save();
+
+    request.heldDeposit = securityDeposit;
+    request.rentalPricePaid = rentalFee;
     request.status = 'ACTIVE';
     await request.save();
 
-    const listing = await Listing.findById(request.listing);
     if (listing) {
       listing.status = 'RENTED';
       await listing.save();
@@ -469,7 +510,6 @@ export const handoverRentalRequest = async (req: CustomRequest, res: Response, n
   }
 };
 
-// Complete trigger: Transitions status ACTIVE -> COMPLETED (Item returned)
 export const completeRentalRequest = async (req: CustomRequest, res: Response, next: NextFunction) => {
   try {
     if (!req.user) {
@@ -488,6 +528,20 @@ export const completeRentalRequest = async (req: CustomRequest, res: Response, n
 
     if (request.status !== 'ACTIVE') {
       throw new CustomError(`Rental cannot be completed from status "${request.status}"`, 400, 'INVALID_TRANSITION');
+    }
+
+    // Refund renter's security deposit
+    const renterUser = await User.findById(request.renter);
+    if (renterUser) {
+      renterUser.walletBalance += request.heldDeposit;
+      await renterUser.save();
+    }
+
+    // Pay owner the rental income fee
+    const ownerUser = await User.findById(request.owner);
+    if (ownerUser) {
+      ownerUser.walletBalance += request.rentalPricePaid;
+      await ownerUser.save();
     }
 
     request.status = 'COMPLETED';

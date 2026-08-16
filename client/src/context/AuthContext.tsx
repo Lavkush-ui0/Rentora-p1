@@ -14,6 +14,7 @@ interface UserType {
   bio?: string;
   ratingAverage: number;
   completedRentals: number;
+  walletBalance: number;
   isBlocked?: boolean;
 }
 
@@ -28,6 +29,7 @@ interface AuthContextType {
   verifyOTP: (email: string, otp: string) => Promise<any>;
   loginSendOTP: (email: string) => Promise<any>;
   loginVerifyOTP: (email: string, otp: string) => Promise<any>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -166,6 +168,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const refreshUser = async () => {
+    try {
+      const response = await api.get('/auth/profile');
+      if (response.data?.success) {
+        setUser(response.data.user);
+      }
+    } catch (error) {
+      console.warn('[Auth Context] Failed to refresh user profile:', error);
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -179,6 +192,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         verifyOTP,
         loginSendOTP,
         loginVerifyOTP,
+        refreshUser,
       }}
     >
       {children}

@@ -33,6 +33,7 @@ export const ListingDetails: React.FC = () => {
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [requestError, setRequestError] = useState('');
+  const [blockedDates, setBlockedDates] = useState<any[]>([]);
 
   // Report/Flag state
   const [reportOpen, setReportOpen] = useState(false);
@@ -80,7 +81,10 @@ export const ListingDetails: React.FC = () => {
       try {
         await listingService.incrementViewCount(id!);
         const res = await listingService.getListingById(id!);
-        if (res.data?.success) setListing(res.data.listing);
+        if (res.data?.success) {
+          setListing(res.data.listing);
+          setBlockedDates(res.data.blockedDates || []);
+        }
       } catch (err) {
         console.error('[ListingDetails] Error:', err);
       } finally {
@@ -93,6 +97,26 @@ export const ListingDetails: React.FC = () => {
   const handleRentalRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     setRequestError('');
+
+    // Check for conflicting dates selection
+    const selectStart = new Date(startDate);
+    const selectEnd = new Date(endDate);
+    if (selectEnd < selectStart) {
+      setRequestError('End date must be on or after start date.');
+      return;
+    }
+
+    const hasOverlap = blockedDates.some((r: any) => {
+      const blockedStart = new Date(r.start);
+      const blockedEnd = new Date(r.end);
+      return (selectStart <= blockedEnd && selectEnd >= blockedStart);
+    });
+
+    if (hasOverlap) {
+      setRequestError('The selected dates overlap with an existing active booking. Please check the unavailable dates.');
+      return;
+    }
+
     setSubmitting(true);
     try {
       const res = await rentalService.createRentalRequest({
@@ -463,6 +487,19 @@ export const ListingDetails: React.FC = () => {
             {requestError && (
               <div className="p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-xl text-red-700 dark:text-red-400 text-sm mb-4">
                 {requestError}
+              </div>
+            )}
+
+            {blockedDates.length > 0 && (
+              <div className="p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/40 rounded-2xl mb-4 text-xs">
+                <span className="font-bold text-amber-800 dark:text-amber-400 block mb-1">📅 Booked / Unavailable Dates:</span>
+                <ul className="list-disc pl-4 space-y-0.5 text-gray-600 dark:text-gray-400 font-medium">
+                  {blockedDates.map((d: any, idx: number) => (
+                    <li key={idx}>
+                      {new Date(d.start).toLocaleDateString()} to {new Date(d.end).toLocaleDateString()}
+                    </li>
+                  ))}
+                </ul>
               </div>
             )}
 

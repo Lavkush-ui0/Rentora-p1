@@ -8,6 +8,9 @@ export interface IRentalRequest extends Document {
   endDate: Date;
   message?: string;
   status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED' | 'ACTIVE' | 'COMPLETED';
+  handoverOTP?: string;
+  heldDeposit: number;
+  rentalPricePaid: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -50,6 +53,18 @@ const RentalRequestSchema = new Schema<IRentalRequest>(
       enum: ['PENDING', 'ACCEPTED', 'REJECTED', 'CANCELLED', 'ACTIVE', 'COMPLETED'],
       default: 'PENDING',
       index: true,
+    },
+    handoverOTP: {
+      type: String,
+      default: '',
+    },
+    heldDeposit: {
+      type: Number,
+      default: 0,
+    },
+    rentalPricePaid: {
+      type: Number,
+      default: 0,
     },
   },
   {

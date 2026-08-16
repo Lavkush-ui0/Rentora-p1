@@ -3,7 +3,8 @@ import { rentalService } from '../services/rentalService';
 import { reviewService } from '../services/reviewService';
 import { chatService } from '../services/chatService';
 import { Link, useNavigate } from 'react-router-dom';
-import { Clock, CheckCircle2, XCircle, Package, Star, MessageCircle, ArrowRight } from 'lucide-react';
+import { Clock, CheckCircle2, XCircle, Package, Star, MessageCircle, ArrowRight, KeyRound } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const statusColors: Record<string, string> = {
   PENDING: 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400',
@@ -16,6 +17,7 @@ const statusColors: Record<string, string> = {
 
 export const RentalRequests: React.FC = () => {
   const navigate = useNavigate();
+  const { refreshUser } = useAuth();
   const [tab, setTab] = useState<'incoming' | 'sent'>('incoming');
   const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -24,6 +26,7 @@ export const RentalRequests: React.FC = () => {
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
   const [reviewLoading, setReviewLoading] = useState(false);
+  const [handoverOtpMap, setHandoverOtpMap] = useState<Record<string, string>>({});
 
   const handleStartChat = async (recipientId: string, listingId?: string) => {
     try {
@@ -57,11 +60,31 @@ export const RentalRequests: React.FC = () => {
       if (action === 'accept') await rentalService.acceptRentalRequest(id);
       if (action === 'reject') await rentalService.rejectRentalRequest(id);
       if (action === 'cancel') await rentalService.cancelRentalRequest(id);
-      if (action === 'handover') await rentalService.handoverRentalRequest(id);
-      if (action === 'complete') await rentalService.completeRentalRequest(id);
+      if (action === 'complete') {
+        await rentalService.completeRentalRequest(id);
+        await refreshUser();
+      }
       await fetchRequests();
     } catch (err: any) {
       alert(err.response?.data?.message || 'Action failed. Please try again.');
+    } finally {
+      setActionLoading('');
+    }
+  };
+
+  const handleHandoverSubmit = async (requestId: string, otp: string) => {
+    setActionLoading(requestId + 'handover');
+    try {
+      await rentalService.handoverRentalRequest(requestId, otp);
+      await refreshUser();
+      await fetchRequests();
+      setHandoverOtpMap(prev => {
+        const copy = { ...prev };
+        delete copy[requestId];
+        return copy;
+      });
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Handover failed. Check OTP.');
     } finally {
       setActionLoading('');
     }
@@ -124,6 +147,24 @@ export const RentalRequests: React.FC = () => {
           </div>
           {req.message && <p className="text-xs text-gray-400 dark:text-gray-500 italic">"{req.message}"</p>}
 
+          {/* Renter Handover OTP Display */}
+          {!isIncoming && req.status === 'ACCEPTED' && req.handoverOTP && (
+            <div className="p-3.5 bg-blue-50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/40 rounded-2xl space-y-1.5 max-w-sm">
+              <span className="text-[10px] font-black text-blue-700 dark:text-blue-400 uppercase tracking-wider block">
+                Handover Verification Code (OTP)
+              </span>
+              <div className="flex items-center space-x-2">
+                <KeyRound className="h-4 w-4 text-blue-500" />
+                <span className="text-base font-extrabold text-blue-800 dark:text-blue-300 font-mono tracking-widest bg-white dark:bg-slate-900 px-3 py-1 border border-blue-200/50 dark:border-blue-950 rounded-xl shadow-sm">
+                  {req.handoverOTP}
+                </span>
+              </div>
+              <p className="text-[9px] text-gray-400 dark:text-gray-500">
+                Provide this OTP to the item owner on campus during physical handover. Security deposit & fees will be deducted upon validation.
+              </p>
+            </div>
+          )}
+
           {/* Action Buttons */}
           <div className="flex flex-wrap gap-2 pt-1">
             {isIncoming && req.status === 'PENDING' && (
@@ -147,14 +188,24 @@ export const RentalRequests: React.FC = () => {
               </>
             )}
             {isIncoming && req.status === 'ACCEPTED' && (
-              <button
-                onClick={() => handleAction(req._id, 'handover')}
-                disabled={actionLoading === req._id + 'handover'}
-                className="flex items-center space-x-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-all disabled:opacity-50"
-              >
-                <Package className="h-3.5 w-3.5" />
-                <span>Confirm Handover</span>
-              </button>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="text"
+                  placeholder="Enter 4-Digit OTP"
+                  maxLength={4}
+                  value={handoverOtpMap[req._id] || ''}
+                  onChange={(e) => setHandoverOtpMap({ ...handoverOtpMap, [req._id]: e.target.value.replace(/[^0-9]/g, '') })}
+                  className="px-3 py-1.5 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-slate-700 rounded-xl text-xs font-bold text-center w-36 tracking-widest focus:outline-none focus:ring-1 focus:ring-primary-500"
+                />
+                <button
+                  onClick={() => handleHandoverSubmit(req._id, handoverOtpMap[req._id] || '')}
+                  disabled={actionLoading === req._id + 'handover' || (handoverOtpMap[req._id] || '').length !== 4}
+                  className="flex items-center space-x-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-all disabled:opacity-50"
+                >
+                  <Package className="h-3.5 w-3.5" />
+                  <span>Verify & Handover</span>
+                </button>
+              </div>
             )}
             {isIncoming && req.status === 'ACTIVE' && (
               <button
