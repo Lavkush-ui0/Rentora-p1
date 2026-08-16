@@ -14,7 +14,6 @@ interface UserType {
   bio?: string;
   ratingAverage: number;
   completedRentals: number;
-  walletBalance: number;
   isBlocked?: boolean;
 }
 

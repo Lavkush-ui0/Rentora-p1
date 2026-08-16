@@ -15,7 +15,6 @@ export interface IUser extends Document {
   ratingAverage: number;
   ratingCount: number;
   completedRentals: number;
-  walletBalance: number;
   isBlocked: boolean;
   isVerified: boolean;
   createdAt: Date;
@@ -89,10 +88,6 @@ const UserSchema = new Schema<IUser>(
     completedRentals: {
       type: Number,
       default: 0,
-    },
-    walletBalance: {
-      type: Number,
-      default: 5000, // Pre-funded with mock 5000 rupees
     },
     isBlocked: {
       type: Boolean,

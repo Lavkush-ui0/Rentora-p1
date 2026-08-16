@@ -9,6 +9,7 @@ import { config } from './config/config';
 import { initSocket } from './services/socket.service';
 import { errorHandler } from './middleware/errorHandler';
 import apiRouter from './routes';
+import logger from './utils/logger';
 
 const app = express();
 const server = http.createServer(app);
@@ -57,6 +58,52 @@ const limiter = rateLimit({
 });
 app.use('/api', limiter);
 
+// Strict rate limiters for sensitive endpoints (Active in dev/prod, skipped in test)
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5,
+  message: {
+    success: false,
+    message: 'Too many login attempts. Please try again after 15 minutes.',
+    code: 'LOGIN_RATE_LIMIT_EXCEEDED',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => process.env.NODE_ENV === 'test',
+});
+
+const profileLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 10,
+  message: {
+    success: false,
+    message: 'Too many profile updates/uploads. Limit is 10 per hour.',
+    code: 'PROFILE_RATE_LIMIT_EXCEEDED',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => process.env.NODE_ENV === 'test',
+});
+
+const otpLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000, // 5 minutes
+  max: 2,
+  message: {
+    success: false,
+    message: 'Too many OTP requests. Limit is 2 per 5 minutes.',
+    code: 'OTP_RATE_LIMIT_EXCEEDED',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => process.env.NODE_ENV === 'test',
+});
+
+app.use('/api/auth/login', loginLimiter);
+app.use('/api/auth/login-verify-otp', loginLimiter);
+app.use('/api/auth/profile', profileLimiter);
+app.use('/api/auth/resend-otp', otpLimiter);
+app.use('/api/auth/login-send-otp', otpLimiter);
+
 // Body Parsers
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -91,7 +138,7 @@ app.use(errorHandler);
 const PORT = config.PORT;
 if (process.env.NODE_ENV !== 'test') {
   server.listen(PORT, () => {
-    console.log(`[Rentora Server] Running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
+    logger.info(`[Rentora Server] Running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
   });
 }
 

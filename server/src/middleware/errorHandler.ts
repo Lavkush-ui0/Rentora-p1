@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import CustomError from '../utils/customError';
+import logger from '../utils/logger';
 
 export const errorHandler = (
   err: any,
@@ -31,7 +32,7 @@ export const errorHandler = (
   }
 
   // Stack traces are omitted in production, but let's log the full error stack internally
-  console.error(`[Error Handler] ${req.method} ${req.url} - Error:`, err);
+  logger.error(`[Error Handler] ${req.method} ${req.url} - Error:`, err);
 
   return res.status(statusCode).json({
     success: false,

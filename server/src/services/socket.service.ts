@@ -1,6 +1,7 @@
 import { Server as HttpServer } from 'http';
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import { Conversation } from '../models/chat.model';
+import logger from '../utils/logger';
 
 let io: SocketIOServer | null = null;
 const userSocketMap = new Map<string, string>(); // userId -> socketId
@@ -14,14 +15,14 @@ export const initSocket = (server: HttpServer): SocketIOServer => {
   });
 
   io.on('connection', (socket: Socket) => {
-    console.log(`[Socket.IO] Client connected: ${socket.id}`);
+    logger.info(`[Socket.IO] Client connected: ${socket.id}`);
 
     // Map user session to socket
     socket.on('joinUserRoom', (userId: string) => {
       if (userId) {
         userSocketMap.set(userId, socket.id);
         socket.join(userId);
-        console.log(`[Socket.IO] User ${userId} joined their notification room (Socket: ${socket.id})`);
+        logger.info(`[Socket.IO] User ${userId} joined their notification room (Socket: ${socket.id})`);
       }
     });
 
@@ -29,7 +30,7 @@ export const initSocket = (server: HttpServer): SocketIOServer => {
     socket.on('joinConversation', (conversationId: string) => {
       if (conversationId) {
         socket.join(conversationId);
-        console.log(`[Socket.IO] Socket ${socket.id} joined conversation: ${conversationId}`);
+        logger.info(`[Socket.IO] Socket ${socket.id} joined conversation: ${conversationId}`);
       }
     });
 
@@ -52,7 +53,7 @@ export const initSocket = (server: HttpServer): SocketIOServer => {
       for (const [userId, socketId] of userSocketMap.entries()) {
         if (socketId === socket.id) {
           userSocketMap.delete(userId);
-          console.log(`[Socket.IO] User ${userId} disconnected`);
+          logger.info(`[Socket.IO] User ${userId} disconnected`);
           break;
         }
       }

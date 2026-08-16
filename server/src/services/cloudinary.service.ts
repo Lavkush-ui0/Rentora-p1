@@ -1,5 +1,6 @@
 import { cloudinary, isCloudinaryConfigured } from '../config/cloudinary';
 import CustomError from '../utils/customError';
+import logger from '../utils/logger';
 
 /**
  * Uploads an image buffer to Cloudinary, or encodes it directly to a Base64 Data URI for MongoDB storage.
@@ -13,7 +14,7 @@ export const uploadImage = async (
   mimeType: string = 'image/jpeg'
 ): Promise<string> => {
   if (!isCloudinaryConfigured) {
-    console.log(`[Image Service] Cloudinary not configured. Converting image to Base64 Data URI for MongoDB storage (${mimeType}).`);
+    logger.info(`[Image Service] Cloudinary not configured. Converting image to Base64 Data URI for MongoDB storage (${mimeType}).`);
     const base64Data = fileBuffer.toString('base64');
     return `data:${mimeType};base64,${base64Data}`;
   }
@@ -27,7 +28,7 @@ export const uploadImage = async (
       },
       (error, result) => {
         if (error) {
-          console.error('[Cloudinary Service] Upload error:', error);
+          logger.error('[Cloudinary Service] Upload error:', error);
           return reject(new CustomError('Failed to upload image to cloud storage', 500, 'UPLOAD_FAILED'));
         }
         if (result && result.secure_url) {
@@ -50,7 +51,7 @@ export const deleteImage = async (imageUrl: string): Promise<void> => {
   if (!imageUrl || imageUrl.startsWith('data:')) return;
 
   if (!isCloudinaryConfigured) {
-    console.log('[Cloudinary Service] Cloudinary is not configured. Mocking deletion of:', imageUrl);
+    logger.info('[Cloudinary Service] Cloudinary is not configured. Mocking deletion of:', imageUrl);
     return;
   }
 
@@ -61,8 +62,8 @@ export const deleteImage = async (imageUrl: string): Promise<void> => {
     const publicId = publicIdWithExtension.substring(0, publicIdWithExtension.lastIndexOf('.'));
 
     await cloudinary.uploader.destroy(publicId);
-    console.log('[Cloudinary Service] Deleted image publicId:', publicId);
+    logger.info('[Cloudinary Service] Deleted image publicId:', publicId);
   } catch (error) {
-    console.error('[Cloudinary Service] Deletion error:', error);
+    logger.error('[Cloudinary Service] Deletion error:', error);
   }
 };

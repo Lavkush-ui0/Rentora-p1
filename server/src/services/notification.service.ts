@@ -1,5 +1,6 @@
 import { Notification } from '../models/notification.model';
 import { getIO, getSocketIdByUser } from './socket.service';
+import logger from '../utils/logger';
 
 /**
  * Creates a notification in the database and broadcasts it via Socket.IO if the user is online.
@@ -34,13 +35,13 @@ export const createNotification = async (
           isRead: notification.isRead,
           createdAt: notification.createdAt,
         });
-        console.log(`[Notification Service] Dispatched live socket notification to user: ${userId}`);
+        logger.info(`[Notification Service] Dispatched live socket notification to user: ${userId}`);
       }
     }
 
     return notification;
   } catch (error) {
-    console.error('[Notification Service] Error creating notification:', error);
+    logger.error('[Notification Service] Error creating notification:', error);
     // Do not crash the request lifecycle if notifications fail
   }
 };

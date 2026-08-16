@@ -344,17 +344,23 @@ export const rejectRentalRequest = async (req: CustomRequest, res: Response, nex
       throw new CustomError(`Cannot reject a request with status "${request.status}"`, 400, 'INVALID_TRANSITION');
     }
 
+    const { reason } = req.body;
+
     request.status = 'REJECTED';
     await request.save();
 
     const listing = await Listing.findById(request.listing);
 
     // Notify renter
+    const notificationMessage = reason
+      ? `Your request to rent "${listing?.title || 'an item'}" was declined by the owner. Reason: ${reason}`
+      : `Your request to rent "${listing?.title || 'an item'}" was declined by the owner.`;
+
     await createNotification(
       request.renter,
       'REQUEST_REJECTED',
       'Rental Request Rejected',
-      `Your request to rent "${listing?.title || 'an item'}" was declined by the owner.`,
+      notificationMessage,
       request._id
     );
 
@@ -469,18 +475,6 @@ export const handoverRentalRequest = async (req: CustomRequest, res: Response, n
     const securityDeposit = listing.securityDeposit;
     const totalRequired = rentalFee + securityDeposit;
 
-    if (renterUser.walletBalance < totalRequired) {
-      throw new CustomError(
-        `Renter has insufficient wallet balance. Required: ₹${totalRequired}, Current Balance: ₹${renterUser.walletBalance}.`,
-        400,
-        'INSUFFICIENT_BALANCE'
-      );
-    }
-
-    // Deduct from renter's wallet
-    renterUser.walletBalance -= totalRequired;
-    await renterUser.save();
-
     request.heldDeposit = securityDeposit;
     request.rentalPricePaid = rentalFee;
     request.status = 'ACTIVE';
@@ -530,19 +524,6 @@ export const completeRentalRequest = async (req: CustomRequest, res: Response, n
       throw new CustomError(`Rental cannot be completed from status "${request.status}"`, 400, 'INVALID_TRANSITION');
     }
 
-    // Refund renter's security deposit
-    const renterUser = await User.findById(request.renter);
-    if (renterUser) {
-      renterUser.walletBalance += request.heldDeposit;
-      await renterUser.save();
-    }
-
-    // Pay owner the rental income fee
-    const ownerUser = await User.findById(request.owner);
-    if (ownerUser) {
-      ownerUser.walletBalance += request.rentalPricePaid;
-      await ownerUser.save();
-    }
 
     request.status = 'COMPLETED';
     await request.save();

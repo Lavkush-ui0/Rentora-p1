@@ -67,8 +67,12 @@ export const Notifications: React.FC = () => {
       }
     }
 
+    if (notif.type === 'REQUEST_REJECTED') {
+      return; // Do not navigate
+    }
+
     if (notif.relatedId) {
-      if (['RENTAL_REQUEST', 'NEW_MESSAGE', 'REQUEST_ACCEPTED', 'REQUEST_REJECTED'].includes(notif.type)) {
+      if (['RENTAL_REQUEST', 'NEW_MESSAGE', 'REQUEST_ACCEPTED'].includes(notif.type)) {
         navigate(`/messages/${notif.relatedId}`);
       } else {
         navigate('/rentals');
@@ -149,12 +153,49 @@ export const Notifications: React.FC = () => {
                 </div>
 
                 <div className="mt-3 sm:mt-0 flex items-center space-x-2 self-end sm:self-center">
-                  <button
-                    className="flex items-center space-x-1 px-3 py-1.5 bg-primary-50 dark:bg-primary-950/40 text-primary-600 dark:text-primary-400 text-xs font-bold rounded-xl hover:bg-primary-100 transition-all"
-                  >
-                    <span>{['RENTAL_REQUEST', 'NEW_MESSAGE', 'REQUEST_ACCEPTED'].includes(notif.type) ? 'Open Chat' : 'View'}</span>
-                    <ArrowRight className="h-3.5 w-3.5" />
-                  </button>
+                  {['RENTAL_REQUEST', 'REQUEST_ACCEPTED'].includes(notif.type) ? (
+                    <>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleNotificationClick(notif);
+                        }}
+                        className="flex items-center space-x-1 px-3 py-1.5 bg-primary-50 dark:bg-primary-950/40 text-primary-600 dark:text-primary-400 text-xs font-bold rounded-xl hover:bg-primary-100 transition-all"
+                      >
+                        <span>Open Chat</span>
+                        <ArrowRight className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!notif.isRead) {
+                            notificationService.markOneAsRead(notif._id).catch(console.error);
+                            setNotifications((prev) =>
+                              prev.map((n) => (n._id === notif._id ? { ...n, isRead: true } : n))
+                            );
+                          }
+                          navigate('/my-rentals', { state: { defaultTab: notif.type === 'REQUEST_ACCEPTED' ? 'sent' : 'incoming' } });
+                        }}
+                        className="flex items-center space-x-1 px-3 py-1.5 bg-indigo-55 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 text-xs font-bold rounded-xl hover:bg-indigo-100 transition-all"
+                      >
+                        <span>Review Request</span>
+                        <ArrowRight className="h-3.5 w-3.5" />
+                      </button>
+                    </>
+                  ) : notif.type === 'REQUEST_REJECTED' ? (
+                    null
+                  ) : (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleNotificationClick(notif);
+                      }}
+                      className="flex items-center space-x-1 px-3 py-1.5 bg-primary-50 dark:bg-primary-950/40 text-primary-600 dark:text-primary-400 text-xs font-bold rounded-xl hover:bg-primary-100 transition-all"
+                    >
+                      <span>{['RENTAL_REQUEST', 'NEW_MESSAGE', 'REQUEST_ACCEPTED'].includes(notif.type) ? 'Open Chat' : 'View'}</span>
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </button>
+                  )}
                   {!notif.isRead && (
                     <div className="h-2.5 w-2.5 rounded-full bg-primary-500 flex-shrink-0"></div>
                   )}

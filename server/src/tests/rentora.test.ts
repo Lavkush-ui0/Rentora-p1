@@ -9,6 +9,7 @@ import { Category } from '../models/category.model';
 import { Listing } from '../models/listing.model';
 import { RentalRequest } from '../models/rentalRequest.model';
 import { Review } from '../models/review.model';
+import { OTP } from '../models/otp.model';
 import { config } from '../config/config';
 
 // Set timeout for remote database connections during integration tests
@@ -26,7 +27,27 @@ describe('Rentora Integration Tests', () => {
 
   beforeAll(async () => {
     if (mongoose.connection.readyState !== 1) {
-      await mongoose.connect(config.MONGODB_URI, {
+      // Isolate tests from development database by directing connection to rentora_test database
+      let testUri = config.MONGODB_URI;
+      if (testUri.includes('.mongodb.net/?')) {
+        testUri = testUri.replace('.mongodb.net/?', '.mongodb.net/rentora_test?');
+      } else if (testUri.includes('.mongodb.net/')) {
+        const urlParts = testUri.split('.mongodb.net/');
+        const rest = urlParts[1];
+        if (rest.includes('?')) {
+          const dbName = rest.split('?')[0];
+          const query = rest.split('?')[1];
+          testUri = `${urlParts[0]}.mongodb.net/${dbName || 'rentora'}_test?${query}`;
+        } else {
+          testUri = `${urlParts[0]}.mongodb.net/${rest}_test`;
+        }
+      } else {
+        testUri = testUri.includes('localhost') || testUri.includes('127.0.0.1')
+          ? testUri.split('?')[0].replace(/\/$/, '') + '/rentora_test'
+          : testUri;
+      }
+
+      await mongoose.connect(testUri, {
         serverSelectionTimeoutMS: 5000,
       });
     }
@@ -46,6 +67,19 @@ describe('Rentora Integration Tests', () => {
       isActive: true,
     });
     categoryId = testCategory._id.toString();
+
+    // Seed a dummy admin user so subsequent registered test users are STUDENTs
+    await User.create({
+      fullName: 'System Administrator',
+      email: 'admin@niet.co.in',
+      passwordHash: 'dummy_hash_123',
+      role: 'ADMIN',
+      course: 'Management',
+      branch: 'Admin',
+      year: 1,
+      collegeName: 'NIET Plot 19',
+      isVerified: true,
+    });
   });
 
   afterAll(async () => {
@@ -73,13 +107,26 @@ describe('Rentora Integration Tests', () => {
           course: 'B.Tech',
           branch: 'CSE',
           year: 3,
+          collegeName: 'NIET Plot 19',
         });
 
       expect(res.status).toBe(201);
       expect(res.body.success).toBe(true);
-      expect(res.body.accessToken).toBeDefined();
-      studentAToken = res.body.accessToken;
-      studentAId = res.body.user.id;
+
+      const otpDoc = await OTP.findOne({ email: 'studenta@niet.co.in' });
+      expect(otpDoc).toBeDefined();
+
+      const verifyRes = await request(app)
+        .post('/api/auth/verify-otp')
+        .send({
+          email: 'studenta@niet.co.in',
+          otp: otpDoc?.otp,
+        });
+
+      expect(verifyRes.status).toBe(200);
+      expect(verifyRes.body.accessToken).toBeDefined();
+      studentAToken = verifyRes.body.accessToken;
+      studentAId = verifyRes.body.user.id;
     });
 
     it('should register Student B successfully', async () => {
@@ -92,11 +139,25 @@ describe('Rentora Integration Tests', () => {
           course: 'B.Tech',
           branch: 'ECE',
           year: 2,
+          collegeName: 'NIET Plot 19',
         });
 
       expect(res.status).toBe(201);
-      studentBToken = res.body.accessToken;
-      studentBId = res.body.user.id;
+
+      const otpDoc = await OTP.findOne({ email: 'studentb@niet.co.in' });
+      expect(otpDoc).toBeDefined();
+
+      const verifyRes = await request(app)
+        .post('/api/auth/verify-otp')
+        .send({
+          email: 'studentb@niet.co.in',
+          otp: otpDoc?.otp,
+        });
+
+      expect(verifyRes.status).toBe(200);
+      expect(verifyRes.body.accessToken).toBeDefined();
+      studentBToken = verifyRes.body.accessToken;
+      studentBId = verifyRes.body.user.id;
     });
 
     it('should block registration if domain domain is restricted (e.g. gmail.com if ALLOWED_EMAIL_DOMAIN is configured)', async () => {
@@ -112,6 +173,7 @@ describe('Rentora Integration Tests', () => {
           course: 'B.Tech',
           branch: 'CSE',
           year: 1,
+          collegeName: 'NIET Plot 19',
         });
 
       expect(res.status).toBe(400);
@@ -266,9 +328,13 @@ describe('Rentora Integration Tests', () => {
     });
 
     it('should allow transitioning ACCEPTED -> ACTIVE (Physical Handover confirmed)', async () => {
+      const reqDoc = await RentalRequest.findById(rentalRequestId);
+      const otp = reqDoc?.handoverOTP;
+
       const res = await request(app)
         .patch(`/api/rental-requests/${rentalRequestId}/handover`)
-        .set('Authorization', `Bearer ${studentAToken}`);
+        .set('Authorization', `Bearer ${studentAToken}`)
+        .send({ otp });
 
       expect(res.status).toBe(200);
       expect(res.body.request.status).toBe('ACTIVE');

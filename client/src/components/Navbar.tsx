@@ -8,7 +8,7 @@ import logoNameWhite from '../assets/logo-name-white.png';
 import { 
   Search, Sun, Moon, Bell, MessageSquare, Menu, X, 
   LogOut, User, PlusCircle, Settings, LayoutDashboard, List,
-  Heart, ShoppingBag, Home, Compass, Package, MapPin, ChevronDown, Check, Wallet
+  Heart, ShoppingBag, Home, Compass, Package, MapPin, ChevronDown, Check
 } from 'lucide-react';
 import notificationService from '../services/notificationService';
 import chatService from '../services/chatService';
@@ -247,11 +247,6 @@ export const Navbar: React.FC = () => {
                   <span>List Item</span>
                 </Link>
 
-                {/* Wallet Balance Badge */}
-                <div className="flex items-center space-x-1 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800/40 px-3 py-1.5 rounded-2xl text-green-700 dark:text-green-400 text-xs font-black font-outfit shadow-sm">
-                  <Wallet className="h-4 w-4" />
-                  <span>₹{user.walletBalance ?? 0}</span>
-                </div>
 
                 {/* Messages Icon */}
                 <Link

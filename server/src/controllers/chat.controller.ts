@@ -5,6 +5,7 @@ import { CustomRequest } from '../types';
 import { getIO } from '../services/socket.service';
 import { createNotification } from '../services/notification.service';
 import CustomError from '../utils/customError';
+import logger from '../utils/logger';
 
 export const createConversation = async (req: CustomRequest, res: Response, next: NextFunction) => {
   try {
@@ -158,7 +159,7 @@ export const sendMessage = async (req: CustomRequest, res: Response, next: NextF
     const io = getIO();
     if (io) {
       io.to(conversation._id.toString()).emit('receiveMessage', populatedMessage);
-      console.log(`[Socket.IO] Broadcasted message to conversation room: ${conversation._id}`);
+      logger.info(`[Socket.IO] Broadcasted message to conversation room: ${conversation._id}`);
     }
 
     // Send direct live notification to other user
