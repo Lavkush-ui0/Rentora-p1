@@ -4,6 +4,9 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { Mail, Lock, User, BookOpen, AlertCircle, UserPlus } from 'lucide-react';
 import { RentoraWordmark } from '../components/RentoraBrand';
+import rentoraLogo from '../assets/rentora-logo.png';
+import logoName from '../assets/logo-name.png';
+import logoNameWhite from '../assets/logo-name-white.png';
 import api from '../services/api';
 
 const COURSES = ['B.Tech', 'M.Tech', 'MBA', 'MCA', 'BCA', 'B.Sc', 'Other'];
@@ -143,7 +146,14 @@ export const Register: React.FC = () => {
         {requiresVerification ? (
           <div className="space-y-6">
             <div className="text-center mb-6 flex flex-col items-center">
-              <RentoraWordmark dark={theme === 'dark'} size={24} className="mb-4" />
+              <div className="inline-flex h-20 w-20 rounded-2xl bg-white border border-slate-200/60 items-center justify-center p-3 shadow-md mb-4 transition-transform hover:scale-105 overflow-hidden">
+                <img 
+                  src={rentoraLogo} 
+                  alt="Rentora Logo" 
+                  className="h-full w-full object-contain" 
+                  style={{ transform: 'scale(1.5)' }}
+                />
+              </div>
               <h2 className="text-2xl font-black font-outfit text-gray-900 dark:text-white">Verify Your Email</h2>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-1.5">
                 We've sent a 6-digit OTP to your campus email:
@@ -222,8 +232,21 @@ export const Register: React.FC = () => {
           <>
             {/* Header */}
             <div className="text-center mb-8 flex flex-col items-center">
+              <div className="inline-flex h-20 w-20 rounded-2xl bg-white border border-slate-200/60 items-center justify-center p-3 shadow-md mb-4 transition-transform hover:scale-105 overflow-hidden">
+                <img 
+                  src={rentoraLogo} 
+                  alt="Rentora Logo" 
+                  className="h-full w-full object-contain" 
+                  style={{ transform: 'scale(1.5)' }}
+                />
+              </div>
               <h2 className="text-2xl font-black font-outfit text-gray-900 dark:text-white flex flex-wrap items-center justify-center gap-2 mb-2.5">
-                Join <RentoraWordmark dark={theme === 'dark'} size={24} />
+                Join 
+                <img 
+                  src={theme === 'dark' ? logoNameWhite : logoName} 
+                  alt="Rentora Wordmark" 
+                  className={`h-7 object-contain flex-shrink-0 ${theme === 'dark' ? 'brightness-0 invert' : ''}`} 
+                />
               </h2>
               <p className="text-sm text-gray-500 dark:text-gray-400">NIET's exclusive student rental marketplace</p>
             </div>
