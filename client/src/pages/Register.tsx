@@ -222,9 +222,10 @@ export const Register: React.FC = () => {
           <>
             {/* Header */}
             <div className="text-center mb-8 flex flex-col items-center">
-              <RentoraWordmark dark={theme === 'dark'} size={24} className="mb-4" />
-              <h2 className="text-2xl font-black font-outfit text-gray-900 dark:text-white">Join Rentora</h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1.5">NIET's exclusive student rental marketplace</p>
+              <h2 className="text-2xl font-black font-outfit text-gray-900 dark:text-white flex flex-wrap items-center justify-center gap-2 mb-2.5">
+                Join <RentoraWordmark dark={theme === 'dark'} size={24} />
+              </h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400">NIET's exclusive student rental marketplace</p>
             </div>
 
             {/* Error Alert */}
