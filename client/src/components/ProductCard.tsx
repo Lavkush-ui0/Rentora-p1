@@ -59,7 +59,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({ listing }) => {
   // Use ArtworkTile when there's no real uploaded image
   const hasImage = images && images.length > 0
     && !images[0].includes('mock')
-    && !images[0].includes('data:image')
     && !images[0].includes('picsum')
     && !images[0].includes('placeholder');
 

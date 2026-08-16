@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { ShieldAlert, ArrowRight, Lock, Mail } from 'lucide-react';
+import { ArrowRight, Lock, Mail } from 'lucide-react';
 import { RentoraWordmark } from '../components/RentoraBrand';
 import api from '../services/api';
 

@@ -14,7 +14,7 @@ export const RentoraWordmark: React.FC<{
   className?: string;
   /** px size of the text — default 22 */
   size?: number;
-}> = ({ dark = false, color, className = '', size = 22 }) => {
+}> = ({ dark = false, className = '', size = 22 }) => {
   return (
     <div className={`inline-flex items-center select-none gap-3 ${className}`}>
       {/* ── Official Logo Image Container ── */}

@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { Mail, Lock, User, BookOpen, AlertCircle, UserPlus } from 'lucide-react';
-import { RentoraWordmark } from '../components/RentoraBrand';
 import rentoraLogo from '../assets/rentora-logo.png';
 import logoName from '../assets/logo-name.png';
 import logoNameWhite from '../assets/logo-name-white.png';

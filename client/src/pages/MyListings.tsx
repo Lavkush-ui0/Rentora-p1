@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { listingService } from '../services/listingService';
 import { Link } from 'react-router-dom';
 import { Plus, PauseCircle, PlayCircle, Trash2, Eye, Package } from 'lucide-react';
+import { getImageUrl } from '../utils/imageUrl';
 
 const statusColors: Record<string, string> = {
   ACTIVE: 'bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-400',
@@ -117,7 +118,7 @@ export const MyListings: React.FC = () => {
           {listings.map((listing) => (
             <div key={listing._id} className="flex gap-4 bg-white dark:bg-slate-900 rounded-3xl border border-gray-100 dark:border-slate-800 p-4 hover:shadow-md transition-all">
               <img
-                src={listing.images?.[0] || 'https://picsum.photos/150/150'}
+                src={getImageUrl(listing.images?.[0], 'https://picsum.photos/150/150')}
                 alt={listing.title}
                 className="h-24 w-24 object-cover rounded-2xl flex-shrink-0 border border-gray-100 dark:border-slate-800"
               />

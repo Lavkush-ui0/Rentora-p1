@@ -215,7 +215,7 @@ export const ListingDetails: React.FC = () => {
     );
   }
 
-  const isMockImage = !listing.images || listing.images.length === 0 || listing.images[0].includes('mock') || listing.images[0].includes('data:image') || listing.images[0].includes('picsum');
+  const isMockImage = !listing.images || listing.images.length === 0 || listing.images[0].includes('mock') || listing.images[0].includes('picsum');
   const themes = ['mint', 'peach', 'lavender', 'blue', 'sand', 'rose'] as const;
   const themeIndex = (listing.title.length + (listing.title.charCodeAt(0) || 0)) % themes.length;
   const selectedTheme = themes[themeIndex];
