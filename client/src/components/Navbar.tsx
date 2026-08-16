@@ -117,7 +117,7 @@ export const Navbar: React.FC = () => {
                 onClick={() => setLocationDropdownOpen(!locationDropdownOpen)}
                 className="flex items-center space-x-1 px-3 py-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs transition-all focus:outline-none border border-slate-200 dark:border-slate-800"
               >
-                <MapPin className="h-3.5 w-3.5 text-[#9E1B1B]" />
+                <MapPin className="h-3.5 w-3.5 text-[#9E1B1B] dark:text-rose-400" />
                 <span className="max-w-[100px] sm:max-w-[145px] truncate">{selectedLocation}</span>
                 <ChevronDown className="h-3 w-3 text-slate-400" />
               </button>
@@ -143,7 +143,7 @@ export const Navbar: React.FC = () => {
                       }`}
                     >
                       <span>{loc}</span>
-                      {selectedLocation === loc && <Check className="h-3.5 w-3.5 text-[#9E1B1B]" />}
+                      {selectedLocation === loc && <Check className="h-3.5 w-3.5 text-[#9E1B1B] dark:text-rose-400" />}
                     </button>
                   ))}
                 </div>
