@@ -42,7 +42,7 @@ export const Register: React.FC = () => {
 
   // Countdown timer for OTP resend
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: any;
     if (requiresVerification && timer > 0) {
       interval = setInterval(() => {
         setTimer((t) => t - 1);

@@ -47,9 +47,9 @@ export const TestimonialPopup: React.FC = () => {
   const [shouldRender, setShouldRender] = useState<boolean>(false);
 
   useEffect(() => {
-    let openTimer: NodeJS.Timeout;
-    let closeTimer: NodeJS.Timeout;
-    let nextTimer: NodeJS.Timeout;
+    let openTimer: any;
+    let closeTimer: any;
+    let nextTimer: any;
 
     // Show the first popup 5 seconds after page load
     openTimer = setTimeout(() => {

@@ -28,7 +28,7 @@ export const Login: React.FC = () => {
 
   // Countdown timer for OTP
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: any;
     if (otpSent && timer > 0) {
       interval = setInterval(() => {
         setTimer((t) => t - 1);
