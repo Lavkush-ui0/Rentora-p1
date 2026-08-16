@@ -21,7 +21,7 @@ export const Messages: React.FC = () => {
   const [sending, setSending] = useState(false);
   const [typingUser, setTypingUser] = useState<string | null>(null);
   const [activeConvo, setActiveConvo] = useState<any>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const typingTimeout = useRef<any>(null);
 
   // Fetch conversations list
@@ -122,7 +122,12 @@ export const Messages: React.FC = () => {
 
   // Scroll to bottom on new messages
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTo({
+        top: messagesContainerRef.current.scrollHeight,
+        behavior: 'smooth',
+      });
+    }
   }, [messages]);
 
   const handleTyping = () => {
@@ -318,7 +323,7 @@ export const Messages: React.FC = () => {
           </div>
 
           {/* Messages List */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3">
             {loadingMsgs ? (
               <div className="flex justify-center py-8">
                 <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"></div>
@@ -370,7 +375,6 @@ export const Messages: React.FC = () => {
                 <span className="text-xs text-gray-400">{typingUser} is typing...</span>
               </div>
             )}
-            <div ref={messagesEndRef} />
           </div>
 
           {/* Message Input */}
