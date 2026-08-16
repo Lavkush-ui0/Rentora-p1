@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { Mail, Lock, LogIn, AlertCircle } from 'lucide-react';
-import rentoraLogo from '../assets/rentora-logo.png';
+import { RentoraWordmark } from '../components/RentoraBrand';
 
 export const Login: React.FC = () => {
   const { login, loginSendOTP, loginVerifyOTP } = useAuth();
+  const { theme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   
@@ -133,15 +135,8 @@ export const Login: React.FC = () => {
       <div className="max-w-md w-full bg-white dark:bg-slate-900 p-8 rounded-3xl border border-gray-100 dark:border-slate-800 shadow-2xl shadow-gray-200/50 dark:shadow-none animate-in fade-in zoom-in-95 duration-300">
         
         {/* Header */}
-        <div className="text-center mb-6">
-          <div className="inline-flex h-16 w-16 rounded-2xl bg-white border border-slate-200/60 items-center justify-center p-2.5 shadow-md mb-3 transition-transform hover:scale-105 overflow-hidden">
-            <img 
-              src={rentoraLogo} 
-              alt="Rentora Logo" 
-              className="h-full w-full object-contain" 
-              style={{ transform: 'scale(1.5)' }}
-            />
-          </div>
+        <div className="text-center mb-6 flex flex-col items-center">
+          <RentoraWordmark dark={theme === 'dark'} size={24} className="mb-4" />
           <h2 className="text-2xl font-black font-outfit text-gray-900 dark:text-white">Welcome Back</h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1.5">Sign in to browse student-to-student rentals</p>
         </div>

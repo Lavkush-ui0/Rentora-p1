@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { Mail, Lock, User, BookOpen, AlertCircle, UserPlus } from 'lucide-react';
-import rentoraLogo from '../assets/rentora-logo.png';
+import { RentoraWordmark } from '../components/RentoraBrand';
 import api from '../services/api';
 
 const COURSES = ['B.Tech', 'M.Tech', 'MBA', 'MCA', 'BCA', 'B.Sc', 'Other'];
@@ -15,6 +16,7 @@ const CAMPUS_LOCATIONS = [
 
 export const Register: React.FC = () => {
   const { registerUser, verifyOTP } = useAuth();
+  const { theme } = useTheme();
   const navigate = useNavigate();
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -140,15 +142,8 @@ export const Register: React.FC = () => {
 
         {requiresVerification ? (
           <div className="space-y-6">
-            <div className="text-center mb-6">
-              <div className="inline-flex h-16 w-16 rounded-2xl bg-white border border-slate-200/60 items-center justify-center p-2.5 shadow-md mb-3 transition-transform hover:scale-105 overflow-hidden">
-                <img 
-                  src={rentoraLogo} 
-                  alt="Rentora Logo" 
-                  className="h-full w-full object-contain" 
-                  style={{ transform: 'scale(1.5)' }}
-                />
-              </div>
+            <div className="text-center mb-6 flex flex-col items-center">
+              <RentoraWordmark dark={theme === 'dark'} size={24} className="mb-4" />
               <h2 className="text-2xl font-black font-outfit text-gray-900 dark:text-white">Verify Your Email</h2>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-1.5">
                 We've sent a 6-digit OTP to your campus email:
@@ -226,15 +221,8 @@ export const Register: React.FC = () => {
         ) : (
           <>
             {/* Header */}
-            <div className="text-center mb-8">
-              <div className="inline-flex h-16 w-16 rounded-2xl bg-white border border-slate-200/60 items-center justify-center p-2.5 shadow-md mb-3 transition-transform hover:scale-105 overflow-hidden">
-                <img 
-                  src={rentoraLogo} 
-                  alt="Rentora Logo" 
-                  className="h-full w-full object-contain" 
-                  style={{ transform: 'scale(1.5)' }}
-                />
-              </div>
+            <div className="text-center mb-8 flex flex-col items-center">
+              <RentoraWordmark dark={theme === 'dark'} size={24} className="mb-4" />
               <h2 className="text-2xl font-black font-outfit text-gray-900 dark:text-white">Join Rentora</h2>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-1.5">NIET's exclusive student rental marketplace</p>
             </div>

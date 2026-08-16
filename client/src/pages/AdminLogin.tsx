@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { ShieldAlert, ArrowRight, Lock, Mail } from 'lucide-react';
+import { RentoraWordmark } from '../components/RentoraBrand';
 import api from '../services/api';
 
 export const AdminLogin: React.FC = () => {
@@ -41,12 +42,10 @@ export const AdminLogin: React.FC = () => {
 
       <div className="w-full max-w-md bg-slate-900/60 backdrop-blur-xl border border-slate-800 p-8 rounded-3xl shadow-2xl relative z-10 space-y-6">
         {/* Header */}
-        <div className="text-center space-y-2">
-          <div className="h-12 w-12 rounded-2xl bg-primary-500/10 border border-primary-500/20 flex items-center justify-center mx-auto">
-            <ShieldAlert className="h-6 w-6 text-primary-500" />
-          </div>
-          <h1 className="font-outfit font-black text-2xl text-white tracking-tight">Rentora Admin</h1>
-          <p className="text-xs font-bold uppercase tracking-widest text-primary-500">
+        <div className="text-center mb-6 flex flex-col items-center">
+          <RentoraWordmark dark size={24} className="mb-4" />
+          <h2 className="text-2xl font-black font-outfit text-white">Admin Dashboard</h2>
+          <p className="text-xs font-bold uppercase tracking-widest text-primary-500 mt-1">
             Control center
           </p>
         </div>
