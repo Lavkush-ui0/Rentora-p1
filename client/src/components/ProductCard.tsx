@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Star, Heart, MapPin } from 'lucide-react';
 import { useWishlist, ListingSummary } from '../context/WishlistContext';
-import { getImageUrl } from '../utils/imageUrl';
+import { getImageUrl, getAvatarUrl } from '../utils/imageUrl';
 import { ArtworkTile } from './RentoraBrand';
 
 interface ProductCardProps {
@@ -141,7 +141,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ listing }) => {
         <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800 mt-auto">
           <Link to={`/profile/${owner?._id}`} className="flex items-center gap-2">
             <img
-              src={owner?.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${owner?._id}`}
+              src={getAvatarUrl(owner?.avatar, owner?.fullName)}
               alt={owner?.fullName}
               className="h-7 w-7 rounded-full object-cover border border-slate-100 dark:border-slate-800"
             />

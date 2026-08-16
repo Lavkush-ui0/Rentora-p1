@@ -14,6 +14,9 @@ import logger from './utils/logger';
 const app = express();
 const server = http.createServer(app);
 
+// Trust reverse proxy (Render, Cloudflare, etc.) to get correct client IP for rate limiting
+app.set('trust proxy', 1);
+
 // Initialize Socket.IO
 initSocket(server);
 

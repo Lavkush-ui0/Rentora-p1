@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import notificationService from '../services/notificationService';
 import { RentoraWordmark } from './RentoraBrand';
+import { getAvatarUrl } from '../utils/imageUrl';
 
 const CAMPUS_LOCATIONS = [
   'All',
@@ -222,7 +223,7 @@ export const Navbar: React.FC = () => {
                     className="flex items-center space-x-2 focus:outline-none p-1 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                   >
                     <img
-                      src={user.avatar}
+                      src={getAvatarUrl(user.avatar, user.fullName)}
                       alt={user.fullName}
                       className="h-7 w-7 rounded-full border border-slate-200 dark:border-slate-800 object-cover"
                     />

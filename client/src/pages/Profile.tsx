@@ -6,6 +6,7 @@ import { listingService } from '../services/listingService';
 import { reviewService } from '../services/reviewService';
 import { Star, Package, CheckCircle2, Calendar, BookOpen, Edit3 } from 'lucide-react';
 import ProductCard from '../components/ProductCard';
+import { getAvatarUrl } from '../utils/imageUrl';
 
 export const Profile: React.FC = () => {
   const { id } = useParams<{ id?: string }>();
@@ -73,7 +74,7 @@ export const Profile: React.FC = () => {
           <div className="flex items-center space-x-4">
             <div className="relative">
               <img
-                src={profile.avatar}
+                src={getAvatarUrl(profile.avatar, profile.fullName)}
                 alt={profile.fullName}
                 className="h-20 w-20 rounded-2xl border-2 border-gray-100 dark:border-slate-700 object-cover"
               />
@@ -197,7 +198,7 @@ export const Profile: React.FC = () => {
                   return (
                     <div key={rev._id} className="bg-white dark:bg-slate-900 rounded-3xl border border-gray-100 dark:border-slate-800 p-5 hover:shadow-md transition-all">
                       <div className="flex items-start space-x-3">
-                        <img src={rev.reviewer?.avatar} alt={rev.reviewer?.fullName} className="h-10 w-10 rounded-full border border-gray-100 dark:border-slate-700 object-cover flex-shrink-0" />
+                        <img src={getAvatarUrl(rev.reviewer?.avatar, rev.reviewer?.fullName)} alt={rev.reviewer?.fullName} className="h-10 w-10 rounded-full border border-gray-100 dark:border-slate-700 object-cover flex-shrink-0" />
                         <div className="flex-1 space-y-1.5">
                           <div className="flex items-start justify-between flex-wrap gap-2">
                             <div>

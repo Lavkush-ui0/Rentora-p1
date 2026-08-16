@@ -17,4 +17,11 @@ export const getImageUrl = (url?: string, fallback = 'https://picsum.photos/600/
   return `${backendBase}${cleanPath}`;
 };
 
+export const getAvatarUrl = (url?: string, fullName = 'User'): string => {
+  if (!url || url === 'data:,' || url.trim() === '') {
+    return `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(fullName)}`;
+  }
+  return getImageUrl(url);
+};
+
 export default getImageUrl;

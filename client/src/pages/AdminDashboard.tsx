@@ -6,7 +6,7 @@ import {
   MessageCircle
 } from 'lucide-react';
 import { AdminLayout } from '../layouts/AdminLayout';
-import { getImageUrl } from '../utils/imageUrl';
+import { getImageUrl, getAvatarUrl } from '../utils/imageUrl';
 
 // Custom SVG Line Graph Component
 interface DailyStat {
@@ -510,7 +510,7 @@ export const AdminDashboard: React.FC = () => {
                         <tr key={u._id} className="hover:bg-gray-50/50 dark:hover:bg-slate-800/20">
                           <td className="px-6 py-4 flex items-center space-x-3">
                             <img
-                              src={u.avatar || 'https://picsum.photos/100/100'}
+                              src={getAvatarUrl(u.avatar, u.fullName)}
                               alt=""
                               className="h-8 w-8 rounded-full object-cover border border-gray-100 dark:border-slate-700"
                             />

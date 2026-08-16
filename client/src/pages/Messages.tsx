@@ -3,7 +3,7 @@ import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import { chatService } from '../services/chatService';
-import { getImageUrl } from '../utils/imageUrl';
+import { getImageUrl, getAvatarUrl } from '../utils/imageUrl';
 import { Send, MessageCircle, ArrowLeft, ExternalLink, ShoppingBag } from 'lucide-react';
 
 export const Messages: React.FC = () => {
@@ -211,7 +211,7 @@ export const Messages: React.FC = () => {
                   >
                     <div className="relative">
                       <img
-                        src={other?.avatar || 'https://picsum.photos/100/100'}
+                        src={getAvatarUrl(other?.avatar, other?.fullName)}
                         alt={other?.fullName}
                         className="h-11 w-11 rounded-full border border-gray-100 dark:border-slate-700 object-cover flex-shrink-0"
                       />
@@ -267,7 +267,7 @@ export const Messages: React.FC = () => {
                   return (
                     <div className="flex items-center space-x-3">
                       <img
-                        src={other?.avatar || 'https://picsum.photos/100/100'}
+                        src={getAvatarUrl(other?.avatar, other?.fullName)}
                         alt={other?.fullName}
                         className="h-10 w-10 rounded-full border border-gray-100 dark:border-slate-700 object-cover"
                       />
@@ -335,7 +335,7 @@ export const Messages: React.FC = () => {
                   <div key={msg._id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                     {!isMe && (
                       <img
-                        src={msg.sender?.avatar || 'https://picsum.photos/100/100'}
+                        src={getAvatarUrl(msg.sender?.avatar, msg.sender?.fullName)}
                         alt=""
                         className="h-7 w-7 rounded-full border border-gray-100 dark:border-slate-700 mr-2 self-end flex-shrink-0"
                       />

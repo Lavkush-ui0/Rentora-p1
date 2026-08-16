@@ -5,6 +5,7 @@ import { chatService } from '../services/chatService';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Clock, CheckCircle2, XCircle, Package, Star, MessageCircle, ArrowRight, KeyRound } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { getImageUrl, getAvatarUrl } from '../utils/imageUrl';
 
 const statusColors: Record<string, string> = {
   PENDING: 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400',
@@ -170,7 +171,7 @@ export const RentalRequests: React.FC = () => {
             return (
               <div key={req._id} className="bg-white dark:bg-slate-900 rounded-3xl border border-gray-100 dark:border-slate-800 p-5 flex flex-col sm:flex-row gap-4 hover:shadow-md transition-all">
                 <img
-                  src={listing?.images?.[0] || 'https://picsum.photos/150/150'}
+                  src={getImageUrl(listing?.images?.[0], 'https://picsum.photos/150/150')}
                   alt={listing?.title}
                   className="h-24 w-24 sm:h-20 sm:w-20 rounded-2xl object-cover flex-shrink-0 border border-gray-100 dark:border-slate-800"
                 />
@@ -185,7 +186,7 @@ export const RentalRequests: React.FC = () => {
                   </div>
                   <div className="flex items-center flex-wrap gap-x-2 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
                     <Link to={`/profile/${otherUser?._id}`} className="flex items-center space-x-1.5 hover:text-primary-600 transition-colors">
-                      <img src={otherUser?.avatar} alt={otherUser?.fullName} className="h-5 w-5 rounded-full object-cover" />
+                      <img src={getAvatarUrl(otherUser?.avatar, otherUser?.fullName)} alt={otherUser?.fullName} className="h-5 w-5 rounded-full object-cover" />
                       <span>{isIncoming ? 'from' : 'to'} <strong>{otherUser?.fullName}</strong></span>
                     </Link>
                     {otherUser?.ratingAverage !== undefined && (

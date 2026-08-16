@@ -5,7 +5,7 @@ import { useWishlist, ListingSummary } from '../context/WishlistContext';
 import { listingService } from '../services/listingService';
 import { rentalService } from '../services/rentalService';
 import { chatService } from '../services/chatService';
-import { getImageUrl } from '../utils/imageUrl';
+import { getImageUrl, getAvatarUrl } from '../utils/imageUrl';
 import { adminService } from '../services/adminService';
 import {
   Star, Eye, Repeat, ChevronLeft, ChevronRight, Calendar, MessageCircle,
@@ -376,7 +376,7 @@ export const ListingDetails: React.FC = () => {
             className="flex items-center space-x-3.5 p-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 hover:shadow-md transition-all group"
           >
             <img 
-              src={listing.owner.avatar} 
+              src={getAvatarUrl(listing.owner.avatar, listing.owner.fullName)} 
               alt={listing.owner.fullName} 
               className="h-10 w-10 rounded-full border border-slate-200 dark:border-slate-850 object-cover flex-shrink-0" 
             />
