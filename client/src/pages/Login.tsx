@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Mail, Lock, LogIn, AlertCircle } from 'lucide-react';
-import logoLetterWhite from '../assets/logo-letter-white.png';
+import rentoraLogo from '../assets/rentora-logo.png';
 
 export const Login: React.FC = () => {
   const { login, loginSendOTP, loginVerifyOTP } = useAuth();
@@ -134,8 +134,13 @@ export const Login: React.FC = () => {
         
         {/* Header */}
         <div className="text-center mb-6">
-          <div className="inline-flex h-12 w-12 rounded-2xl bg-gradient-to-tr from-red-600 to-rose-500 items-center justify-center p-1.5 shadow-lg shadow-red-500/20 mb-3">
-            <img src={logoLetterWhite} alt="R" className="h-full w-full object-contain" />
+          <div className="inline-flex h-16 w-16 rounded-2xl bg-white border border-slate-200/60 items-center justify-center p-2.5 shadow-md mb-3 transition-transform hover:scale-105 overflow-hidden">
+            <img 
+              src={rentoraLogo} 
+              alt="Rentora Logo" 
+              className="h-full w-full object-contain" 
+              style={{ transform: 'scale(1.5)' }}
+            />
           </div>
           <h2 className="text-2xl font-black font-outfit text-gray-900 dark:text-white">Welcome Back</h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1.5">Sign in to browse student-to-student rentals</p>

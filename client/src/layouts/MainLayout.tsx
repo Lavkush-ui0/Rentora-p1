@@ -70,7 +70,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     <div className="min-h-screen bg-[#FAF7F2] text-slate-900 dark:bg-[#161B22] dark:text-slate-100 font-sans flex transition-colors duration-200">
       
       {/* 1. Desktop Fixed Left Sidebar (236px) */}
-      <aside className="hidden lg:flex flex-col w-[236px] bg-[#202B36] border-r border-[#293342] text-slate-300 flex-shrink-0 min-h-screen sticky top-0">
+      <aside className="hidden lg:flex flex-col w-[236px] bg-[#202B36] border-r border-[#293342] text-slate-300 flex-shrink-0 h-screen sticky top-0 self-start">
         
         {/* Top Logo Panel */}
         <div className="px-5 pt-6 pb-4 border-b border-[#293342]">
@@ -193,7 +193,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           ) : (
             <Link 
               to="/login"
-              className="flex items-center justify-center space-x-2 text-xs font-bold text-[#9E1B1B] hover:text-[#801414] bg-white/5 hover:bg-white/10 px-4 py-2 rounded-xl transition-all border border-[#293342]"
+              className="flex items-center justify-center space-x-2 text-xs font-bold text-slate-200 hover:text-white bg-white/5 hover:bg-[#9E1B1B] px-4 py-2.5 rounded-xl transition-all border border-[#293342] hover:border-transparent w-full"
             >
               <span>Student Sign In</span>
             </Link>
@@ -219,7 +219,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
               
               {/* Col 1: Logo & Description */}
               <div className="space-y-4">
-                <RentoraWordmark size={22} />
+                <RentoraWordmark dark size={22} />
                 <p className="text-xs text-slate-400 leading-relaxed font-sans">
                   Rentora is a peer-to-peer campus marketplace designed specifically for NIET college students to borrow reference textbooks, calculators, and lab tools directly from classmates.
                 </p>

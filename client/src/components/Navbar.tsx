@@ -108,7 +108,7 @@ export const Navbar: React.FC = () => {
 
             {/* Logo on mobile */}
             <Link to="/" className="lg:hidden flex items-center flex-shrink-0">
-              <RentoraWordmark size={20} />
+              <RentoraWordmark dark={theme === 'dark'} size={20} />
             </Link>
 
             {/* Campus Selector */}

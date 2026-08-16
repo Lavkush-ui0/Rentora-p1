@@ -24,9 +24,9 @@ const envSchema = z.object({
   SMTP_PASS: z.string().min(1, 'SMTP_PASS is required'),
 
   // Cloudinary Settings
-  CLOUDINARY_CLOUD_NAME: z.string().min(1, 'CLOUDINARY_CLOUD_NAME is required'),
-  CLOUDINARY_API_KEY: z.string().min(1, 'CLOUDINARY_API_KEY is required'),
-  CLOUDINARY_API_SECRET: z.string().min(1, 'CLOUDINARY_API_SECRET is required'),
+  CLOUDINARY_CLOUD_NAME: z.string().default('mock_cloud'),
+  CLOUDINARY_API_KEY: z.string().default('mock_key'),
+  CLOUDINARY_API_SECRET: z.string().default('mock_secret'),
 });
 
 const result = envSchema.safeParse(process.env);

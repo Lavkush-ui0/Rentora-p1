@@ -1,11 +1,12 @@
 import React from 'react';
 import { Calculator, BookOpen, FlaskConical, Cpu, GraduationCap, Layers, Heart } from 'lucide-react';
+import rentoraLogo from '../assets/rentora-logo.png';
+import logoName from '../assets/logo-name.png';
+import logoNameWhite from '../assets/logo-name-white.png';
 
 /* ── RentoraWordmark — replicates the uploaded logo exactly ─────── */
 /*
-  Design: RENT + [3-arrow recycling circle] + RA
-  Font:   Space Grotesk 800 (already loaded in index.css)
-  Color:  #9E1B1B (or white when dark=true)
+  Design: [Official logo image] + [Official wordmark image]
 */
 export const RentoraWordmark: React.FC<{
   dark?: boolean;
@@ -14,125 +15,59 @@ export const RentoraWordmark: React.FC<{
   /** px size of the text — default 22 */
   size?: number;
 }> = ({ dark = false, color, className = '', size = 22 }) => {
-  const c = color ?? (dark ? '#FFFFFF' : '#9E1B1B');
-  const iconPx = size * 0.95;
-
   return (
-    <div
-      className={`inline-flex items-center select-none ${className}`}
-      style={{
-        fontFamily: "'Space Grotesk', sans-serif",
-        fontWeight: 800,
-        fontSize: size,
-        letterSpacing: '-0.02em',
-        lineHeight: 1,
-        color: c,
-      }}
-    >
-      {/* ── RENT ── */}
-      <span>RENT</span>
-
-      {/* ── Recycling O ── */}
-      {/* SVG replica of the 3-arrow recycling symbol from the logo */}
-      <svg
-        viewBox="0 0 100 100"
-        width={iconPx}
-        height={iconPx}
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        style={{ flexShrink: 0, display: 'inline-block', verticalAlign: 'middle', margin: '0 1px' }}
+    <div className={`inline-flex items-center select-none gap-3 ${className}`}>
+      {/* ── Official Logo Image Container ── */}
+      <div 
+        className="flex items-center justify-center bg-white border border-slate-200/50 rounded-2xl p-1.5 shadow-sm transition-transform duration-200 hover:scale-105 flex-shrink-0 overflow-hidden"
+        style={{ 
+          width: size * 1.6, 
+          height: size * 1.6,
+        }}
       >
-        {/*
-          3 arrows forming a triangle (recycling symbol).
-          Each arrow = a thick arc path + an arrowhead polygon.
-          Stroke is filled (not stroked) so it renders identically to the logo.
-        */}
+        <img 
+          src={rentoraLogo} 
+          alt="Rentora Official Logo" 
+          className="w-full h-full object-contain" 
+          style={{ transform: 'scale(1.5)' }}
+        />
+      </div>
 
-        {/* Arrow 1 — top-right → bottom (rotated 0°) */}
-        <g transform="rotate(0, 50, 50)">
-          {/* Arc body */}
-          <path
-            d="
-              M50 12
-              A40 40 0 0 1 84.64 70
-              L79 67
-              L84.64 82
-              L70 76
-              L75.6 73
-              A33 33 0 0 0 50 19
-              Z
-            "
-            fill={c}
-          />
-        </g>
-
-        {/* Arrow 2 — bottom-right → left (rotated 120°) */}
-        <g transform="rotate(120, 50, 50)">
-          <path
-            d="
-              M50 12
-              A40 40 0 0 1 84.64 70
-              L79 67
-              L84.64 82
-              L70 76
-              L75.6 73
-              A33 33 0 0 0 50 19
-              Z
-            "
-            fill={c}
-          />
-        </g>
-
-        {/* Arrow 3 — left → top-right (rotated 240°) */}
-        <g transform="rotate(240, 50, 50)">
-          <path
-            d="
-              M50 12
-              A40 40 0 0 1 84.64 70
-              L79 67
-              L84.64 82
-              L70 76
-              L75.6 73
-              A33 33 0 0 0 50 19
-              Z
-            "
-            fill={c}
-          />
-        </g>
-      </svg>
-
-      {/* ── RA ── */}
-      <span>RA</span>
+      {/* ── Official Wordmark Image (no bg, right side) ── */}
+      <img 
+        src={dark ? logoNameWhite : logoName} 
+        alt="Rentora Wordmark" 
+        className={`object-contain flex-shrink-0 ${dark ? 'brightness-0 invert' : ''}`} 
+        style={{ 
+          height: size * 0.95,
+        }}
+      />
     </div>
   );
 };
 
 
 /* ── RentoraIcon ────────────────────────────────────────────────── */
-export const RentoraIcon: React.FC<{ className?: string }> = ({ className = 'h-8 w-8' }) => (
-  <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-    {/* Block body */}
-    <rect x="6" y="6" width="88" height="88" rx="22" fill="#9E1B1B" />
-    {/* R letterform */}
-    <path
-      d="M26 78V22H52C65 22 73 29 73 41C73 50 67 56 58 59L78 78H60L43 61H39V78H26ZM39 50H50C58 50 62 46 62 40C62 34 57 31 50 31H39V50Z"
-      fill="white"
+export const RentoraIcon: React.FC<{ className?: string }> = ({ className = 'h-10 w-10' }) => (
+  <div className={`bg-white border border-slate-200/50 rounded-2xl p-1.5 shadow-sm flex items-center justify-center flex-shrink-0 overflow-hidden ${className}`}>
+    <img 
+      src={rentoraLogo} 
+      alt="Rentora Icon" 
+      className="h-full w-full object-contain" 
+      style={{ transform: 'scale(1.5)' }}
     />
-    {/* Speed swoosh accent */}
-    <path d="M70 22L80 14C82 22 80 34 74 40L70 22Z" fill="#801414" opacity="0.8" />
-  </svg>
+  </div>
 );
 
 /* ── RentoraLogo ────────────────────────────────────────────────── */
 export const RentoraLogo: React.FC<{ className?: string; dark?: boolean }> = ({ className = 'h-8 w-auto', dark = false }) => (
   <div className={`flex items-center space-x-2.5 select-none ${className}`}>
-    <RentoraIcon className="h-8 w-8 flex-shrink-0" />
-    <span
-      className="font-display font-black text-[22px] tracking-[-0.03em] leading-none"
-      style={{ color: dark ? '#F8EDEC' : '#9E1B1B' }}
-    >
-      RENTOR<span style={{ color: dark ? '#F27B58' : '#9E1B1B' }}>A</span>
-    </span>
+    <RentoraIcon className="h-10 w-10 flex-shrink-0" />
+    <img 
+      src={dark ? logoNameWhite : logoName} 
+      alt="Rentora Wordmark" 
+      className={`h-6 object-contain flex-shrink-0 ${dark ? 'brightness-0 invert' : ''}`} 
+    />
   </div>
 );
 
