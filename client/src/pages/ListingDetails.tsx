@@ -64,6 +64,17 @@ export const ListingDetails: React.FC = () => {
     }
   };
 
+  const handleAdminTakeDown = async () => {
+    if (!window.confirm('Are you sure you want to take down this listed item? This will mark it as REMOVED.')) return;
+    try {
+      await adminService.removeListing(listing._id);
+      alert('The listing has been successfully taken down.');
+      setListing((prev: any) => (prev ? { ...prev, status: 'REMOVED', availability: false } : null));
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to take down listing.');
+    }
+  };
+
   useEffect(() => {
     const fetchListing = async () => {
       try {
@@ -124,6 +135,7 @@ export const ListingDetails: React.FC = () => {
   };
 
   const isOwner = user && listing?.owner?._id === user.id;
+  const isAdmin = user && user.role === 'ADMIN';
   const isAvailable = listing?.status === 'ACTIVE' && listing?.availability;
   const todayStr = new Date().toISOString().split('T')[0];
 
@@ -296,6 +308,25 @@ export const ListingDetails: React.FC = () => {
             <div className="flex items-center space-x-2 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-xl text-amber-700 dark:text-amber-400 text-sm">
               <AlertTriangle className="h-4 w-4 shrink-0" />
               <p className="font-medium">This item is currently {listing.status.toLowerCase()} and not available for rental.</p>
+            </div>
+          )}
+
+          {/* Admin Moderation Box */}
+          {isAdmin && listing.status !== 'REMOVED' && (
+            <div className="p-5 bg-red-50 dark:bg-red-950/15 border border-red-200 dark:border-red-900/30 rounded-3xl space-y-3.5 shadow-sm">
+              <div className="flex items-center space-x-2 text-red-700 dark:text-red-400">
+                <Flag className="h-5 w-5 fill-current" />
+                <h4 className="font-outfit font-black text-sm">Admin Controls</h4>
+              </div>
+              <p className="text-xs text-red-650 dark:text-red-400/80 leading-relaxed font-medium">
+                As an administrator, you can immediately remove this item from the campus marketplace if it violates guidelines or is inappropriate.
+              </p>
+              <button
+                onClick={handleAdminTakeDown}
+                className="w-full bg-red-600 hover:bg-red-700 text-white font-extrabold py-3.5 rounded-2xl flex items-center justify-center space-x-2 transition-all shadow-md shadow-red-500/10 active:scale-95 text-xs"
+              >
+                <span>Take Down Listing</span>
+              </button>
             </div>
           )}
 

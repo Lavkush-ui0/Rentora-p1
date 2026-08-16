@@ -146,7 +146,7 @@ export const Home: React.FC = () => {
       cta: "Explore Marketplace",
       link: "/explore",
       bgClass: "from-primary-600 via-primary-700 to-indigo-600 shadow-primary-500/20",
-      badge: "NIET Plot 19 Marketplace"
+      badge: "NIET Marketplace"
     },
     {
       title: "Got Idle Stuff? Earn Pocket Money.",
