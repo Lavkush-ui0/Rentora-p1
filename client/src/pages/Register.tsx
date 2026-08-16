@@ -245,7 +245,7 @@ export const Register: React.FC = () => {
                 <img 
                   src={theme === 'dark' ? logoNameWhite : logoName} 
                   alt="Rentora Wordmark" 
-                  className={`h-7 object-contain flex-shrink-0 ${theme === 'dark' ? 'brightness-0 invert' : ''}`} 
+                  className={`h-[20px] object-contain flex-shrink-0 ${theme === 'dark' ? 'brightness-0 invert' : ''}`} 
                 />
               </h2>
               <p className="text-sm text-gray-500 dark:text-gray-400">NIET's exclusive student rental marketplace</p>
