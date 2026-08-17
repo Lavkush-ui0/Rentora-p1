@@ -36,20 +36,27 @@ const getTransporter = (): nodemailer.Transporter | null => {
       host,
       port: portNum,
       secure: isSecure,
-      family: 4, // Force IPv4 to prevent ENETUNREACH IPv6 routing errors on Render
+      family: 4, // Force IPv4 socket connection
+      lookup: (hostname: string, options: any, callback: any) => {
+        // Force Node.js DNS to only return IPv4 addresses (prevents ENETUNREACH IPv6 routing errors on Render)
+        return dns.lookup(hostname, { family: 4 }, callback);
+      },
       auth: {
         user,
         pass,
+      },
+      tls: {
+        rejectUnauthorized: false, // Ensure handshake succeeds across cloud proxies
       },
       maxConnections: 5,
       maxMessages: 100,
       rateDelta: 1000,
       rateLimit: 5,
-      connectionTimeout: 10000, // 10 seconds
-      greetingTimeout: 10000,   // 10 seconds
-      socketTimeout: 15000,     // 15 seconds
+      connectionTimeout: 15000, // 15 seconds
+      greetingTimeout: 15000,   // 15 seconds
+      socketTimeout: 20000,     // 20 seconds
     } as nodemailer.TransportOptions);
-    logger.info(`📧 Nodemailer SMTP connection pool initialized for ${host}:${portNum} (IPv4)`);
+    logger.info(`📧 Nodemailer SMTP connection pool initialized for ${host}:${portNum} (IPv4 Only)`);
   } catch (error) {
     logger.error(`❌ Failed to initialize Nodemailer SMTP connection pool: ${(error as Error).message}`);
     transporter = null;
