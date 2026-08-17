@@ -1,76 +1,70 @@
-import { google } from 'googleapis';
+import nodemailer from 'nodemailer';
 import logger from '../utils/logger';
 
-/**
- * Gmail REST API Email Service
- *
- * WHY Gmail API instead of SMTP:
- *   Render.com (and most PaaS free tiers) block all outbound SMTP ports (25, 465, 587).
- *   The Gmail REST API sends email over HTTPS (port 443) which is never blocked.
- *   This lets us send FROM rentora2611@gmail.com to anyone, for free.
- *
- * SETUP (one-time, ~5 minutes):
- *   See the step-by-step guide below to get your 3 env vars:
- *   GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REFRESH_TOKEN
- */
+let transporter: nodemailer.Transporter | null = null;
 
-const getOAuth2Client = () => {
-  return new google.auth.OAuth2(
-    process.env.GOOGLE_CLIENT_ID,
-    process.env.GOOGLE_CLIENT_SECRET,
-    'https://developers.google.com/oauthplayground'
-  );
+const getTransporter = (): nodemailer.Transporter | null => {
+  if (transporter) {
+    return transporter;
+  }
+
+  const host = process.env.SMTP_HOST;
+  const port = process.env.SMTP_PORT;
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+
+  if (!host || !user || !pass) {
+    return null;
+  }
+
+  try {
+    transporter = nodemailer.createTransport({
+      pool: true, // Use connection pooling
+      host,
+      port: parseInt(port || '587', 10),
+      secure: process.env.SMTP_SECURE === 'true',
+      auth: {
+        user,
+        pass,
+      },
+      maxConnections: 5,
+      maxMessages: 100,
+      rateDelta: 1000,
+      rateLimit: 5,
+      connectionTimeout: 10000, // 10 seconds
+      greetingTimeout: 10000,   // 10 seconds
+      socketTimeout: 15000,     // 15 seconds
+    });
+    logger.info(`📧 Nodemailer SMTP connection pool initialized for ${host}`);
+  } catch (error) {
+    logger.error(`❌ Failed to initialize Nodemailer SMTP connection pool: ${(error as Error).message}`);
+    transporter = null;
+  }
+
+  return transporter;
 };
 
-/**
- * Encodes a plain-text email into base64url format required by Gmail API.
- */
-const buildRawMessage = (to: string, from: string, subject: string, html: string): string => {
-  const boundary = `boundary_${Date.now()}`;
-  const lines = [
-    `From: ${from}`,
-    `To: ${to}`,
-    `Subject: ${subject}`,
-    'MIME-Version: 1.0',
-    `Content-Type: multipart/alternative; boundary="${boundary}"`,
-    '',
-    `--${boundary}`,
-    'Content-Type: text/html; charset=UTF-8',
-    'Content-Transfer-Encoding: quoted-printable',
-    '',
-    html,
-    '',
-    `--${boundary}--`,
-  ];
-  return Buffer.from(lines.join('\r\n')).toString('base64url');
-};
-
-export const sendOTPEmail = async (
-  email: string,
-  otp: string,
-  type: 'register' | 'login' = 'register'
-) => {
+export const sendOTPEmail = async (email: string, otp: string, type: 'register' | 'login' = 'register') => {
   const isLogin = type === 'login';
   const subject = isLogin ? '🔑 Rentora Login Code' : '🔒 Rentora Verification Code';
-  const title   = isLogin ? 'Login to Rentora' : 'Verify Your Account';
+  const title = isLogin ? 'Login to Rentora' : 'Verify Your Account';
   const description = isLogin
     ? 'Use the code below to log in to your Rentora account. This code is valid for 10 minutes.'
     : 'Use the code below to complete your registration. This code will expire in 10 minutes.';
 
-  // Always log OTP in development for easy testing
-  if (process.env.NODE_ENV === 'development') {
-    logger.info(`🔑 [Dev OTP] To: ${email} | Code: ${otp}`);
-  }
+  const text = isLogin
+    ? `Your Rentora login verification code is: ${otp}. This code is valid for 10 minutes.`
+    : `Your Rentora account verification code is: ${otp}. This code is valid for 10 minutes.`;
 
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e1e1e1; border-radius: 10px;">
-      <h2 style="color: #9E1B1B; text-align: center;">${title}</h2>
+      <h2 style="color: #4f46e5; text-align: center;">${title}</h2>
       <p>Dear Rentora User,</p>
       <p>${description}</p>
       <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; text-align: center; margin: 20px 0;">
-        <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #111827;">${otp}</span>
+        <span style="font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #111827;">${otp}</span>
       </div>
-      <p>If you did not request this, please ignore this email.</p>
+      <p>If you did not make this request, please ignore this email.</p>
       <hr style="border: none; border-top: 1px solid #e1e1e1; margin: 20px 0;" />
       <p style="font-size: 12px; color: #6b7280; text-align: center;">
         This is an automated message from Rentora. Please do not reply directly.
@@ -78,31 +72,65 @@ export const sendOTPEmail = async (
     </div>
   `;
 
-  const senderEmail = process.env.GOOGLE_EMAIL || 'rentora2611@gmail.com';
-  const from = `Rentora <${senderEmail}>`;
+  // Log OTP in development mode for easier debugging/testing
+  if (process.env.NODE_ENV === 'development') {
+    logger.info(`🔑 [Dev Mode OTP Log] To: ${email} | OTP: ${otp}`);
+  }
 
-  // Check credentials are configured
-  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET || !process.env.GOOGLE_REFRESH_TOKEN) {
-    logger.warn(`⚠️ Gmail API credentials not set. OTP Fallback → To: ${email} | Code: ${otp}`);
+  // Option 1: Use Resend API if API Key is configured
+  if (process.env.RESEND_API_KEY) {
+    try {
+      const fromEmail = process.env.EMAIL_FROM || '"Rentora Verification" <onboarding@resend.dev>';
+      logger.info(`📧 Attempting to send OTP to ${email} via Resend API...`);
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: fromEmail,
+          to: [email],
+          subject,
+          text,
+          html,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        logger.info(`📧 ${isLogin ? 'Login' : 'Signup'} OTP email successfully sent to ${email} via Resend. ID: ${data.id}`);
+        return;
+      } else {
+        const errorText = await response.text();
+        logger.error(`❌ Resend API returned error status ${response.status}: ${errorText}`);
+      }
+    } catch (resendError) {
+      logger.error(`❌ Failed to send email via Resend API: ${(resendError as Error).message}`);
+    }
+  }
+
+  // Option 2: Fallback to SMTP connection pool
+  const smtpTransporter = getTransporter();
+
+  if (!smtpTransporter) {
+    logger.warn(`🔑 [Rentora ${isLogin ? 'Login' : 'Signup'} OTP Fallback] To: ${email} | Verification Code: ${otp} (Configure SMTP_HOST or RESEND_API_KEY to send real emails)`);
     return;
   }
 
+  const mailOptions = {
+    from: `"Rentora Verification" <${process.env.SMTP_USER}>`,
+    to: email,
+    subject,
+    text,
+    html,
+  };
+
   try {
-    const auth = getOAuth2Client();
-    auth.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN });
-
-    const gmail = google.gmail({ version: 'v1', auth });
-
-    await gmail.users.messages.send({
-      userId: 'me',
-      requestBody: {
-        raw: buildRawMessage(email, from, subject, html),
-      },
-    });
-
-    logger.info(`📧 ${isLogin ? 'Login' : 'Signup'} OTP sent via Gmail API to ${email}`);
+    await smtpTransporter.sendMail(mailOptions);
+    logger.info(`📧 ${isLogin ? 'Login' : 'Signup'} OTP email successfully sent to ${email} via SMTP`);
   } catch (error) {
-    logger.error(`❌ Failed to send OTP via Gmail API: ${(error as Error).message}`);
-    logger.warn(`🔑 [OTP Fallback] To: ${email} | Code: ${otp}`);
+    logger.error(`❌ Failed to send ${isLogin ? 'login' : 'verification'} email via SMTP: ${(error as Error).message}`);
+    logger.warn(`🔑 [Rentora ${isLogin ? 'Login' : 'Signup'} OTP Fallback (SMTP Error)] To: ${email} | Verification Code: ${otp}`);
   }
 };
