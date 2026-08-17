@@ -1,6 +1,7 @@
 import { Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
 import { OAuth2Client } from 'google-auth-library';
+import { google } from 'googleapis';
 import { User } from '../models/user.model';
 import { OTP } from '../models/otp.model';
 import { sendOTPEmail } from '../services/mail.service';
@@ -540,7 +541,8 @@ export const loginVerifyOTP = async (req: CustomRequest, res: Response, next: Ne
 /**
  * POST /auth/google
  * Accepts a Google OAuth access token from the frontend (implicit flow via @react-oauth/google).
- * Calls Google's userinfo endpoint to get the user's profile, then creates or logs in the user.
+ * Uses googleapis to verify the token and get the user's profile.
+ * Accepts ANY Google account (gmail.com or custom domain) — no domain restriction.
  */
 export const googleAuth = async (req: CustomRequest, res: Response, next: NextFunction) => {
   try {
@@ -549,30 +551,21 @@ export const googleAuth = async (req: CustomRequest, res: Response, next: NextFu
       throw new CustomError('Google credential token is required', 400, 'MISSING_CREDENTIAL');
     }
 
-    // Verify the access token by calling Google's userinfo endpoint over HTTPS
-    const userInfoRes = await fetch(
-      `https://www.googleapis.com/oauth2/v3/userinfo?access_token=${credential}`
-    );
+    // Use googleapis to fetch user info from the access token
+    // This works on all Node.js versions (no native fetch needed)
+    const oauth2Client = new google.auth.OAuth2();
+    oauth2Client.setCredentials({ access_token: credential });
 
-    if (!userInfoRes.ok) {
-      throw new CustomError('Invalid or expired Google token', 400, 'INVALID_GOOGLE_TOKEN');
-    }
+    const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client });
+    const { data: googleUser } = await oauth2.userinfo.get();
 
-    const googleUser = await userInfoRes.json() as {
-      sub: string;
-      email: string;
-      email_verified: boolean;
-      name?: string;
-      picture?: string;
-    };
-
-    if (!googleUser.email || !googleUser.email_verified) {
+    if (!googleUser.email || !googleUser.verified_email) {
       throw new CustomError('Google account email is not verified', 400, 'GOOGLE_EMAIL_UNVERIFIED');
     }
 
-    const { email, name, picture, sub: googleId } = googleUser;
+    const { email, name, picture, id: googleId } = googleUser;
 
-    // Find or create the user
+    // Find or create the user — no domain restriction for Google OAuth
     let user = await User.findOne({ email });
     let isNewUser = false;
 
@@ -593,7 +586,7 @@ export const googleAuth = async (req: CustomRequest, res: Response, next: NextFu
       const passwordHash = await bcrypt.hash(randomPassword, salt);
 
       user = await User.create({
-        fullName: name || email.split('@')[0],
+        fullName: name || (email ? email.split('@')[0] : 'User'),
         email,
         passwordHash,
         role,
@@ -601,7 +594,7 @@ export const googleAuth = async (req: CustomRequest, res: Response, next: NextFu
         branch: 'Not Set',
         year: 1,
         collegeName: 'NIET Plot 19',
-        avatar: picture || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(name || email)}`,
+        avatar: picture || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(name || email || 'user')}`,
         isVerified: true,
       });
     }
