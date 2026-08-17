@@ -262,10 +262,10 @@ export const Login: React.FC = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-3 rounded-2xl flex items-center justify-center space-x-2 shadow-lg shadow-primary-500/20 hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-4"
+              className="w-full bg-brand-crimson hover:bg-brand-crimsonHover text-white font-bold py-3 rounded-2xl flex items-center justify-center space-x-2 shadow-crimson hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-4"
             >
               {loading ? (
-                <div className="h-5.5 w-5.5 animate-spin rounded-full border-3 border-white border-t-transparent"></div>
+                <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
               ) : (
                 <>
                   <LogIn className="h-5 w-5" />
@@ -296,10 +296,10 @@ export const Login: React.FC = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-3 rounded-2xl flex items-center justify-center space-x-2 shadow-lg shadow-primary-500/20 hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-4"
+              className="w-full bg-brand-crimson hover:bg-brand-crimsonHover text-white font-bold py-3 rounded-2xl flex items-center justify-center space-x-2 shadow-crimson hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-4"
             >
               {loading ? (
-                <div className="h-5.5 w-5.5 animate-spin rounded-full border-3 border-white border-t-transparent"></div>
+                <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
               ) : (
                 <>
                   <Mail className="h-5 w-5" />
@@ -337,12 +337,12 @@ export const Login: React.FC = () => {
               <button
                 type="submit"
                 disabled={verificationLoading}
-                className="w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-3 rounded-2xl flex items-center justify-center space-x-2 shadow-lg shadow-primary-500/20 hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+                className="w-full bg-brand-crimson hover:bg-brand-crimsonHover text-white font-bold py-3 rounded-2xl flex items-center justify-center space-x-2 shadow-crimson hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-2"
               >
                 {verificationLoading ? (
                   <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
                 ) : (
-                  <span>Verify & Sign In</span>
+                  <span>Verify &amp; Sign In</span>
                 )}
               </button>
             </form>
@@ -356,7 +356,7 @@ export const Login: React.FC = () => {
                 <button
                   onClick={handleResendOTP}
                   disabled={resendLoading}
-                  className="text-xs font-bold text-primary-600 dark:text-primary-400 hover:underline disabled:opacity-50"
+                className="text-xs font-bold text-brand-crimson dark:text-brand-crimsonLight hover:underline disabled:opacity-50"
                 >
                   {resendLoading ? 'Sending...' : 'Resend Login OTP'}
                 </button>
