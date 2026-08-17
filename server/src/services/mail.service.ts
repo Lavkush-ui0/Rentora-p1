@@ -65,10 +65,15 @@ export const sendOTPEmail = async (email: string, otp: string, type: 'register' 
     return;
   }
 
+  const text = isLogin
+    ? `Your Rentora login verification code is: ${otp}. This code is valid for 10 minutes.`
+    : `Your Rentora account verification code is: ${otp}. This code is valid for 10 minutes.`;
+
   const mailOptions = {
     from: `"Rentora Verification" <${process.env.SMTP_USER}>`,
     to: email,
     subject,
+    text,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e1e1e1; border-radius: 10px;">
         <h2 style="color: #4f46e5; text-align: center;">${title}</h2>
