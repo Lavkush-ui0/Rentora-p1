@@ -1,122 +1,91 @@
-import nodemailer from 'nodemailer';
-import dns from 'dns';
+import { Resend } from 'resend';
 import logger from '../utils/logger';
 
-// Force Node.js DNS lookup to prefer IPv4 (fixes ENETUNREACH on Render/Cloud environments)
-try {
-  if (dns.setDefaultResultOrder) {
-    dns.setDefaultResultOrder('ipv4first');
-  }
-} catch (e) {
-  // Ignore if unsupported in old Node environments
-}
+/**
+ * Sends an OTP email via the Resend HTTP API.
+ *
+ * WHY RESEND instead of SMTP:
+ *   Render.com (and most PaaS free tiers) block outbound SMTP ports (25, 465, 587)
+ *   at the firewall level to prevent spam. Resend uses HTTPS (port 443) which is
+ *   never blocked, making it the reliable way to send transactional email on Render.
+ *
+ * Setup:
+ *   1. Create a free account at https://resend.com (3,000 emails/month free)
+ *   2. Go to API Keys → Create API Key → copy it
+ *   3. Add RESEND_API_KEY to your Render environment variables
+ *   4. (Optional) Verify your own domain in Resend for branded "from" addresses
+ */
 
-let transporter: nodemailer.Transporter | null = null;
+let resendClient: Resend | null = null;
 
-const getTransporter = (): nodemailer.Transporter | null => {
-  if (transporter) {
-    return transporter;
-  }
+const getResendClient = (): Resend | null => {
+  if (resendClient) return resendClient;
 
-  const host = process.env.SMTP_HOST;
-  const port = process.env.SMTP_PORT;
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
-
-  if (!host || !user || !pass) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    logger.warn('⚠️ RESEND_API_KEY is not set. Email delivery is disabled.');
     return null;
   }
 
-  const portNum = parseInt(port || '587', 10);
-  const isSecure = process.env.SMTP_SECURE === 'true' || portNum === 465;
-
-  try {
-    transporter = nodemailer.createTransport({
-      pool: true, // Use connection pooling
-      host,
-      port: portNum,
-      secure: isSecure,
-      family: 4, // Force IPv4 socket connection
-      lookup: (hostname: string, options: any, callback: any) => {
-        // Force Node.js DNS to only return IPv4 addresses (prevents ENETUNREACH IPv6 routing errors on Render)
-        return dns.lookup(hostname, { family: 4 }, callback);
-      },
-      auth: {
-        user,
-        pass,
-      },
-      tls: {
-        rejectUnauthorized: false, // Ensure handshake succeeds across cloud proxies
-      },
-      maxConnections: 5,
-      maxMessages: 100,
-      rateDelta: 1000,
-      rateLimit: 5,
-      connectionTimeout: 15000, // 15 seconds
-      greetingTimeout: 15000,   // 15 seconds
-      socketTimeout: 20000,     // 20 seconds
-    } as nodemailer.TransportOptions);
-    logger.info(`📧 Nodemailer SMTP connection pool initialized for ${host}:${portNum} (IPv4 Only)`);
-  } catch (error) {
-    logger.error(`❌ Failed to initialize Nodemailer SMTP connection pool: ${(error as Error).message}`);
-    transporter = null;
-  }
-
-  return transporter;
+  resendClient = new Resend(apiKey);
+  logger.info('📧 Resend email client initialized (HTTPS API — works on Render)');
+  return resendClient;
 };
 
 export const sendOTPEmail = async (email: string, otp: string, type: 'register' | 'login' = 'register') => {
   const isLogin = type === 'login';
   const subject = isLogin ? '🔑 Rentora Login Code' : '🔒 Rentora Verification Code';
-  const title = isLogin ? 'Login to Rentora' : 'Verify Your Account';
+  const title   = isLogin ? 'Login to Rentora' : 'Verify Your Account';
   const description = isLogin
     ? 'Use the code below to log in to your Rentora account. This code is valid for 10 minutes.'
     : 'Use the code below to complete your registration. This code will expire in 10 minutes.';
 
-  const smtpTransporter = getTransporter();
-
-  // Log OTP in development mode for easier debugging/testing
+  // In development always log OTP to console for easy testing
   if (process.env.NODE_ENV === 'development') {
     logger.info(`🔑 [Dev Mode OTP Log] To: ${email} | OTP: ${otp}`);
   }
 
-  // Fallback if SMTP credentials are not configured or transport creation failed
-  if (!smtpTransporter) {
-    logger.warn(`🔑 [Rentora ${isLogin ? 'Login' : 'Signup'} OTP Fallback] To: ${email} | Verification Code: ${otp} (Configure SMTP_HOST, SMTP_USER, SMTP_PASS in .env to send real emails)`);
+  const client = getResendClient();
+  if (!client) {
+    logger.warn(`🔑 [OTP Fallback — No Email Client] To: ${email} | Code: ${otp}`);
     return;
   }
 
-  const text = isLogin
-    ? `Your Rentora login verification code is: ${otp}. This code is valid for 10 minutes.`
-    : `Your Rentora account verification code is: ${otp}. This code is valid for 10 minutes.`;
+  // Use Resend's shared "from" domain by default.
+  // If you verify your own domain in Resend dashboard, replace this with your address.
+  const fromAddress = process.env.RESEND_FROM_EMAIL || 'Rentora <onboarding@resend.dev>';
 
-  const mailOptions = {
-    from: `"Rentora Verification" <${process.env.SMTP_USER}>`,
-    to: email,
-    subject,
-    text,
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e1e1e1; border-radius: 10px;">
-        <h2 style="color: #4f46e5; text-align: center;">${title}</h2>
-        <p>Dear Rentora User,</p>
-        <p>${description}</p>
-        <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; text-align: center; margin: 20px 0;">
-          <span style="font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #111827;">${otp}</span>
-        </div>
-        <p>If you did not make this request, please ignore this email.</p>
-        <hr style="border: none; border-top: 1px solid #e1e1e1; margin: 20px 0;" />
-        <p style="font-size: 12px; color: #6b7280; text-align: center;">
-          This is an automated message from Rentora. Please do not reply directly.
-        </p>
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e1e1e1; border-radius: 10px;">
+      <h2 style="color: #9E1B1B; text-align: center;">${title}</h2>
+      <p>Dear Rentora User,</p>
+      <p>${description}</p>
+      <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; text-align: center; margin: 20px 0;">
+        <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #111827;">${otp}</span>
       </div>
-    `,
-  };
+      <p>If you did not make this request, please ignore this email.</p>
+      <hr style="border: none; border-top: 1px solid #e1e1e1; margin: 20px 0;" />
+      <p style="font-size: 12px; color: #6b7280; text-align: center;">
+        This is an automated message from Rentora. Please do not reply directly.
+      </p>
+    </div>
+  `;
 
   try {
-    await smtpTransporter.sendMail(mailOptions);
-    logger.info(`📧 ${isLogin ? 'Login' : 'Signup'} OTP email successfully sent to ${email}`);
+    const { data, error } = await client.emails.send({
+      from: fromAddress,
+      to: [email],
+      subject,
+      html,
+    });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    logger.info(`📧 ${isLogin ? 'Login' : 'Signup'} OTP email sent via Resend to ${email} (id: ${data?.id})`);
   } catch (error) {
-    logger.error(`❌ Failed to send ${isLogin ? 'login' : 'verification'} email via SMTP. Falling back to logger output:`);
-    logger.warn(`🔑 [Rentora ${isLogin ? 'Login' : 'Signup'} OTP Fallback (SMTP Error)] To: ${email} | Verification Code: ${otp} | Error: ${(error as Error).message}`);
+    logger.error(`❌ Failed to send OTP email via Resend: ${(error as Error).message}`);
+    logger.warn(`🔑 [OTP Fallback] To: ${email} | Code: ${otp} | Error: ${(error as Error).message}`);
   }
 };
