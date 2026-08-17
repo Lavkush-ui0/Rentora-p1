@@ -19,9 +19,9 @@ const SkeletonCard = () => (
 const PLOTS = [
   {
     id: 'Plot 19',
-    name: 'Plot 19 Academic Block',
-    spot: 'Canteen & Tech Hub',
-    desc: 'The centre of student exchanges — canteen, academic lounges, and study zones.',
+    name: 'Plot 19 B Block',
+    spot: 'Auditorium',
+    desc: 'The centre of student exchanges — events, academic lounges, and study zones.',
     accent: '#22716E',
     bg: 'bg-[#22716E]/6 dark:bg-[#22716E]/10',
     tag: 'bg-[#22716E]/10 text-[#22716E] dark:text-[#5FD2CA]',
@@ -30,8 +30,8 @@ const PLOTS = [
   },
   {
     id: 'Plot 15',
-    name: 'Plot 15 Central Library',
-    spot: 'Main Library Gate',
+    name: 'Plot 15 Canteen Spot',
+    spot: 'Canteen Gate',
     desc: 'Ideal for textbook handovers, calculator swaps, and quiet meetups.',
     accent: '#9E1B1B',
     bg: 'bg-[#9E1B1B]/5 dark:bg-[#9E1B1B]/10',
@@ -41,9 +41,9 @@ const PLOTS = [
   },
   {
     id: 'Plot 14',
-    name: 'Plot 14 Innovation Labs',
-    spot: 'Tech Block Lobby',
-    desc: 'Best for lab gear, aprons, electronics kits, and project parts.',
+    name: 'Plot 14 Basketball Court',
+    spot: 'Near Basketball Court',
+    desc: 'Best for sports equipment, aprons, electronics kits, and project parts.',
     accent: '#B45309',
     bg: 'bg-amber-50 dark:bg-amber-950/20',
     tag: 'bg-amber-100 text-amber-700 dark:text-amber-400',
