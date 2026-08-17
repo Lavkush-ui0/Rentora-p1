@@ -17,11 +17,11 @@ const envSchema = z.object({
   CLIENT_URL: z.string().min(1, 'CLIENT_URL is required'),
   ALLOWED_EMAIL_DOMAIN: z.string().optional().default('niet.co.in'),
 
-  // SMTP Settings
-  SMTP_HOST: z.string().min(1, 'SMTP_HOST is required'),
-  SMTP_PORT: z.string().transform((v) => parseInt(v, 10)),
-  SMTP_USER: z.string().min(1, 'SMTP_USER is required'),
-  SMTP_PASS: z.string().min(1, 'SMTP_PASS is required'),
+  // Google OAuth / Gmail API (optional — used for Google login and OTP emails)
+  GOOGLE_EMAIL: z.string().optional(),
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+  GOOGLE_REFRESH_TOKEN: z.string().optional(),
 
   // Cloudinary Settings
   CLOUDINARY_CLOUD_NAME: z.string().default('mock_cloud'),
