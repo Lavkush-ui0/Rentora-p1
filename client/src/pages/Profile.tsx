@@ -1,16 +1,16 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { authService } from '../services/authService';
 import { listingService } from '../services/listingService';
 import { reviewService } from '../services/reviewService';
-import { Star, Package, CheckCircle2, Calendar, BookOpen, Edit3 } from 'lucide-react';
+import { Star, Package, CheckCircle2, Calendar, BookOpen, Edit3, Camera, Loader2 } from 'lucide-react';
 import ProductCard from '../components/ProductCard';
 import { getAvatarUrl } from '../utils/imageUrl';
 
 export const Profile: React.FC = () => {
   const { id } = useParams<{ id?: string }>();
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const profileId = id || user?.id;
   const isOwnProfile = !id || id === user?.id;
 
@@ -18,7 +18,47 @@ export const Profile: React.FC = () => {
   const [listings, setListings] = useState<any[]>([]);
   const [reviews, setReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [avatarSuccess, setAvatarSuccess] = useState('');
   const [activeTab, setActiveTab] = useState<'all' | 'renter' | 'lender'>('all');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('File size exceeds 5MB limit.');
+      return;
+    }
+
+    setUploadingAvatar(true);
+    setAvatarSuccess('');
+    try {
+      const formData = new FormData();
+      formData.append('avatar', file);
+      if (profile?.fullName) formData.append('fullName', profile.fullName);
+      if (profile?.course) formData.append('course', profile.course);
+      if (profile?.branch) formData.append('branch', profile.branch);
+      if (profile?.year) formData.append('year', String(profile.year));
+
+      await updateUser(formData);
+
+      // Create instant local preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setProfile((prev: any) => ({ ...prev, avatar: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
+
+      setAvatarSuccess('Profile photo updated!');
+      setTimeout(() => setAvatarSuccess(''), 4000);
+    } catch (err: any) {
+      alert(err?.response?.data?.message || 'Failed to upload profile picture.');
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -70,16 +110,53 @@ export const Profile: React.FC = () => {
 
       {/* Profile Header Card */}
       <div className="bg-white dark:bg-slate-900 rounded-3xl border border-gray-100 dark:border-slate-800 p-6">
+        {avatarSuccess && (
+          <div className="mb-4 p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-xs font-bold rounded-2xl flex items-center gap-2">
+            <CheckCircle2 size={16} />
+            <span>{avatarSuccess}</span>
+          </div>
+        )}
+
         <div className="flex items-start justify-between flex-wrap gap-4">
           <div className="flex items-center space-x-4">
-            <div className="relative">
+            <div className="relative group">
               <img
                 src={getAvatarUrl(profile.avatar, profile.fullName)}
                 alt={profile.fullName}
                 className="h-20 w-20 rounded-2xl border-2 border-gray-100 dark:border-slate-700 object-cover"
               />
+              
+              {/* Quick Avatar Change Button for own profile */}
+              {isOwnProfile && (
+                <>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleAvatarUpload}
+                    accept="image/*"
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingAvatar}
+                    title="Change Profile Photo"
+                    className="absolute inset-0 bg-black/50 rounded-2xl flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white cursor-pointer"
+                  >
+                    {uploadingAvatar ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <>
+                        <Camera className="h-5 w-5 mb-0.5" />
+                        <span className="text-[9px] font-black uppercase tracking-wider">Change</span>
+                      </>
+                    )}
+                  </button>
+                </>
+              )}
+
               {profile.role === 'ADMIN' && (
-                <span className="absolute -bottom-2 -right-2 bg-primary-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full border-2 border-white dark:border-slate-900">
+                <span className="absolute -bottom-2 -right-2 bg-brand-crimson text-white text-[9px] font-black px-1.5 py-0.5 rounded-full border-2 border-white dark:border-slate-900 shadow-sm">
                   ADMIN
                 </span>
               )}
@@ -91,10 +168,21 @@ export const Profile: React.FC = () => {
             </div>
           </div>
           {isOwnProfile && (
-            <Link to="/settings" className="flex items-center space-x-1.5 px-4 py-2 rounded-2xl border border-gray-200 dark:border-slate-700 text-sm font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-800 transition-all">
-              <Edit3 className="h-4 w-4" />
-              <span>Edit Profile</span>
-            </Link>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingAvatar}
+                className="flex items-center space-x-1.5 px-3.5 py-2 rounded-2xl border border-gray-200 dark:border-slate-700 text-xs font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-800 transition-all shadow-sm"
+              >
+                <Camera className="h-3.5 w-3.5" />
+                <span>Upload Photo</span>
+              </button>
+              <Link to="/settings" className="flex items-center space-x-1.5 px-4 py-2 rounded-2xl bg-brand-crimson hover:bg-brand-crimsonHover text-xs font-bold text-white transition-all shadow-crimson">
+                <Edit3 className="h-3.5 w-3.5" />
+                <span>Edit Profile</span>
+              </Link>
+            </div>
           )}
         </div>
 

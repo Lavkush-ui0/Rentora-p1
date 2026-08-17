@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import { Star, Heart, MapPin } from 'lucide-react';
 import { useWishlist, ListingSummary } from '../context/WishlistContext';
 import { getImageUrl, getAvatarUrl } from '../utils/imageUrl';
-import { ArtworkTile } from './RentoraBrand';
 
 interface ProductCardProps {
   listing: {
@@ -39,8 +38,6 @@ const CONDITION_LABELS: Record<string, string> = {
   FAIR: 'Fair',
 };
 
-const THEMES = ['mint', 'peach', 'lavender', 'blue', 'sand', 'rose'] as const;
-
 export const ProductCard: React.FC<ProductCardProps> = ({ listing }) => {
   const {
     _id, title, images,
@@ -56,15 +53,20 @@ export const ProductCard: React.FC<ProductCardProps> = ({ listing }) => {
 
   const isFavorited = isInWishlist(_id);
 
-  // Use ArtworkTile when there's no real uploaded image
-  const hasImage = images && images.length > 0
-    && !images[0].includes('mock')
-    && !images[0].includes('picsum')
-    && !images[0].includes('placeholder');
+  // Category based high-resolution fallback photos
+  const CATEGORY_FALLBACKS: Record<string, string> = {
+    'Books & Study Material': 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=600&auto=format&fit=crop',
+    'Electronics & Technical': 'https://images.unsplash.com/photo-1574607383476-f517f220d398?q=80&w=600&auto=format&fit=crop',
+    'Clothing & Accessories': 'https://images.unsplash.com/photo-1581093588401-fbb62a02f120?q=80&w=600&auto=format&fit=crop',
+    'Sports Equipment': 'https://images.unsplash.com/photo-1531415074968-036ba1b575da?q=80&w=600&auto=format&fit=crop',
+    'Gaming': 'https://images.unsplash.com/photo-1600080972464-8e5f35f63d08?q=80&w=600&auto=format&fit=crop',
+    'Other': 'https://images.unsplash.com/photo-1526738549149-8e07eca6c147?q=80&w=600&auto=format&fit=crop',
+  };
 
-  const displayImage = getImageUrl(images?.[0]);
-  const themeIndex = (title.length + (title.charCodeAt(0) || 0)) % THEMES.length;
-  const selectedTheme = THEMES[themeIndex];
+  const defaultCategoryImg = CATEGORY_FALLBACKS[category] || 'https://images.unsplash.com/photo-1526738549149-8e07eca6c147?q=80&w=600&auto=format&fit=crop';
+  const displayImage = images && images.length > 0 && images[0]?.trim()
+    ? getImageUrl(images[0], defaultCategoryImg)
+    : defaultCategoryImg;
 
   const handleWishlistClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -78,25 +80,19 @@ export const ProductCard: React.FC<ProductCardProps> = ({ listing }) => {
   return (
     <article className="group flex flex-col bg-white dark:bg-slate-900 rounded-3xl overflow-hidden border border-slate-100 dark:border-slate-800 card-lift transition-all duration-300 relative">
 
-      {/* Thumbnail / Artwork */}
-      <div className="relative aspect-[4/3] w-full overflow-hidden">
+      {/* Thumbnail / Real Product Photo */}
+      <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
         <Link to={`/listing/${_id}`} className="block w-full h-full" tabIndex={-1}>
-          {hasImage ? (
-            <img
-              src={displayImage}
-              alt={title}
-              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-              loading="lazy"
-            />
-          ) : (
-            <ArtworkTile
-              category={category}
-              theme={selectedTheme}
-              title={title}
-              location={plotLabel}
-              className="w-full h-full rounded-none"
-            />
-          )}
+          <img
+            src={displayImage}
+            alt={title}
+            onError={(e) => {
+              // Fallback to category photo if remote image fails
+              (e.target as HTMLImageElement).src = defaultCategoryImg;
+            }}
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+            loading="lazy"
+          />
         </Link>
 
         {/* Condition badge */}

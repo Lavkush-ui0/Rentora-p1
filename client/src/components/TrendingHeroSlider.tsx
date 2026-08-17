@@ -24,6 +24,7 @@ const MOCK_SLIDES: SlideItem[] = [
     condition: 'BRAND NEW',
     gradient: 'linear-gradient(135deg, #14b8a6 0%, #0d9488 60%, #0f766e 100%)',
     accentColor: '#5eead4',
+    image: 'https://images.unsplash.com/photo-1574607383476-f517f220d398?q=80&w=800&auto=format&fit=crop',
   },
   {
     id: '2',
@@ -34,6 +35,7 @@ const MOCK_SLIDES: SlideItem[] = [
     condition: 'LIKE NEW',
     gradient: 'linear-gradient(135deg, #9E1B1B 0%, #b91c1c 60%, #7f1d1d 100%)',
     accentColor: '#fca5a5',
+    image: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=800&auto=format&fit=crop',
   },
   {
     id: '3',
@@ -44,16 +46,18 @@ const MOCK_SLIDES: SlideItem[] = [
     condition: 'GOOD',
     gradient: 'linear-gradient(135deg, #7c3aed 0%, #6d28d9 60%, #4c1d95 100%)',
     accentColor: '#c4b5fd',
+    image: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?q=80&w=800&auto=format&fit=crop',
   },
   {
     id: '4',
-    title: 'Raspberry Pi 4 — 4GB RAM',
+    title: 'Raspberry Pi 4 — 4GB RAM Kit',
     category: 'Electronics',
     price: 60,
     priceUnit: 'day',
     condition: 'EXCELLENT',
     gradient: 'linear-gradient(135deg, #d97706 0%, #b45309 60%, #92400e 100%)',
     accentColor: '#fcd34d',
+    image: 'https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=800&auto=format&fit=crop',
   },
 ];
 
@@ -73,18 +77,18 @@ const TrendingHeroSlider: React.FC<TrendingHeroSliderProps> = ({ listings = [] }
   const [activeIdx, setActiveIdx] = useState(0);
   const [wishlisted, setWishlisted] = useState<Set<number>>(new Set());
 
-  // Map real listings to slides or fall back to mocks
-  const slides: SlideItem[] = listings.length >= 3
-    ? listings.slice(0, 4).map((l, i) => ({
+  // Map real listings to slides or fall back to curated mock product slides
+  const slides: SlideItem[] = listings.length >= 2
+    ? listings.slice(0, 6).map((l, i) => ({
         id: l._id,
         title: l.title,
-        category: typeof l.category === 'object' ? l.category?.name : l.category,
+        category: typeof l.category === 'object' ? l.category?.name : (l.category || 'Campus Gear'),
         price: l.rentalPrice ?? l.price ?? 20,
-        priceUnit: l.priceUnit || 'day',
+        priceUnit: (l.priceUnit || 'day').toLowerCase(),
         condition: l.condition || 'GOOD',
         gradient: MOCK_SLIDES[i % MOCK_SLIDES.length].gradient,
         accentColor: MOCK_SLIDES[i % MOCK_SLIDES.length].accentColor,
-        image: l.images?.[0],
+        image: l.images?.[0] || MOCK_SLIDES[i % MOCK_SLIDES.length].image,
       }))
     : MOCK_SLIDES;
 
@@ -103,12 +107,11 @@ const TrendingHeroSlider: React.FC<TrendingHeroSliderProps> = ({ listings = [] }
   });
 
   const getCardStyle = (offset: number) => {
-    if (offset === 0) return 'z-30 scale-100 rotate-0 translate-x-0 opacity-100';
-    if (offset === -1 || offset === slides.length - 1) return 'z-10 scale-[0.88] -rotate-6 -translate-x-[68px] opacity-50 pointer-events-none';
-    if (offset === 1 || offset === -(slides.length - 1)) return 'z-10 scale-[0.88] rotate-6 translate-x-[68px] opacity-50 pointer-events-none';
+    if (offset === 0) return 'z-30 scale-100 rotate-0 translate-x-0 opacity-100 shadow-2xl';
+    if (offset === -1 || offset === slides.length - 1) return 'z-10 scale-[0.88] -rotate-6 -translate-x-[68px] opacity-60 pointer-events-none';
+    if (offset === 1 || offset === -(slides.length - 1)) return 'z-10 scale-[0.88] rotate-6 translate-x-[68px] opacity-60 pointer-events-none';
     return 'z-0 scale-[0.78] opacity-0 pointer-events-none';
   };
-
 
   return (
     <div className="relative flex flex-col gap-5">
@@ -132,21 +135,38 @@ const TrendingHeroSlider: React.FC<TrendingHeroSliderProps> = ({ listings = [] }
             return (
               <div
                 key={slide.id}
-                className={`absolute inset-0 rounded-[28px] transition-all duration-500 ease-spring cursor-pointer ${getCardStyle(normalizedOffset)}`}
+                className={`absolute inset-0 rounded-[28px] overflow-hidden transition-all duration-500 ease-spring cursor-pointer border border-white/15 dark:border-slate-700/50 ${getCardStyle(normalizedOffset)}`}
                 style={{ background: slide.gradient }}
                 onClick={() => {
                   if (normalizedOffset !== 0) setActiveIdx(idx);
                 }}
               >
+                {/* Background Product Image */}
+                {slide.image && (
+                  <img
+                    src={slide.image}
+                    alt={slide.title}
+                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 hover:scale-105"
+                  />
+                )}
+
+                {/* Dark Vignette / Gradient Overlay */}
+                <div
+                  className="absolute inset-0 pointer-events-none"
+                  style={{
+                    background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.45) 0%, rgba(15, 23, 42, 0.15) 40%, rgba(15, 23, 42, 0.88) 80%, rgba(15, 23, 42, 0.96) 100%)',
+                  }}
+                />
+
                 {/* Condition Chip */}
                 <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-10">
-                  <span className={`text-[9px] font-black uppercase tracking-wider text-white px-2.5 py-1 rounded-full ${CONDITION_COLORS[slide.condition] || 'bg-slate-600'}`}>
+                  <span className={`text-[9px] font-black uppercase tracking-wider text-white px-2.5 py-1 rounded-full shadow-sm ${CONDITION_COLORS[slide.condition] || 'bg-slate-600'}`}>
                     {slide.condition}
                   </span>
                   {normalizedOffset === 0 && (
                     <button
                       onClick={(e) => { e.stopPropagation(); toggleWishlist(idx); }}
-                      className="p-1.5 rounded-full bg-white/20 backdrop-blur-md hover:bg-white/30 transition-all"
+                      className="p-1.5 rounded-full bg-black/40 backdrop-blur-md hover:bg-black/60 transition-all border border-white/20"
                     >
                       <Heart
                         size={14}
@@ -157,51 +177,29 @@ const TrendingHeroSlider: React.FC<TrendingHeroSliderProps> = ({ listings = [] }
                   )}
                 </div>
 
-                {/* Center illustration */}
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div
-                    className="w-24 h-24 rounded-2xl flex items-center justify-center text-4xl shadow-2xl"
-                    style={{ background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.3)' }}
-                  >
-                    {slide.category === 'Calculators' && '🧮'}
-                    {slide.category === 'Books' && '📚'}
-                    {slide.category === 'Lab Gear' && '🔬'}
-                    {slide.category === 'Electronics' && '💻'}
-                    {!['Calculators','Books','Lab Gear','Electronics'].includes(slide.category) && '📦'}
-                  </div>
-                </div>
-
                 {/* Dark glass bottom tray */}
                 {normalizedOffset === 0 && (
                   <div
-                    className="absolute bottom-0 left-0 right-0 rounded-b-[28px] p-4"
-                    style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.4) 60%, transparent 100%)' }}
+                    className="absolute bottom-0 left-0 right-0 p-4 z-10"
                   >
-                    <p className="text-[9px] font-black uppercase tracking-wider mb-1" style={{ color: slide.accentColor }}>
+                    <p className="text-[10px] font-black uppercase tracking-wider mb-1 text-teal-300 drop-shadow-sm">
                       {slide.category}
                     </p>
-                    <p className="text-white font-display font-bold text-sm leading-tight line-clamp-2 mb-3">
+                    <p className="text-white font-display font-bold text-sm leading-tight line-clamp-2 mb-3 drop-shadow">
                       {slide.title}
                     </p>
                     <div className="flex items-center justify-between">
                       <div>
-                        <span className="text-white font-black font-display text-lg">₹{slide.price}</span>
-                        <span className="text-white/60 text-[10px] font-medium ml-1">/{slide.priceUnit}</span>
+                        <span className="text-white font-black font-display text-lg drop-shadow">₹{slide.price}</span>
+                        <span className="text-white/80 text-[10px] font-semibold ml-1">/{slide.priceUnit}</span>
                       </div>
                       <div className="flex gap-2">
                         <Link
                           to={`/listing/${slide.id}`}
                           onClick={e => e.stopPropagation()}
-                          className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-white bg-white/20 hover:bg-white/30 backdrop-blur-md px-3 py-1.5 rounded-full transition-all"
+                          className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-white bg-white/20 hover:bg-white/35 backdrop-blur-md px-3 py-1.5 rounded-full transition-all border border-white/30 shadow-sm"
                         >
-                          <Eye size={10} /> Quick View
-                        </Link>
-                        <Link
-                          to={`/listing/${slide.id}`}
-                          onClick={e => e.stopPropagation()}
-                          className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-white bg-white/25 hover:bg-white/35 backdrop-blur-md px-3 py-1.5 rounded-full transition-all border border-white/30"
-                        >
-                          Rent Now
+                          <Eye size={10} /> View
                         </Link>
                       </div>
                     </div>

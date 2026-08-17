@@ -317,7 +317,7 @@ export const Settings: React.FC = () => {
           <button
             type="submit"
             disabled={saving}
-            className="flex items-center space-x-2 bg-primary-600 hover:bg-primary-700 text-white font-bold px-6 py-2.5 rounded-2xl shadow-sm transition-all disabled:opacity-50"
+            className="flex items-center space-x-2 bg-brand-crimson hover:bg-brand-crimsonHover text-white font-bold px-7 py-3 rounded-2xl shadow-crimson hover:shadow-xl transition-all disabled:opacity-50 active:scale-95 text-sm"
           >
             {saving ? (
               <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
@@ -381,7 +381,7 @@ export const Settings: React.FC = () => {
               <button
                 type="button"
                 onClick={capturePhoto}
-                className="flex items-center space-x-2 bg-primary-600 hover:bg-primary-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors shadow-sm"
+                className="flex items-center space-x-2 bg-brand-crimson hover:bg-brand-crimsonHover text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors shadow-crimson"
               >
                 <Camera className="h-4 w-4" />
                 <span>Capture Photo</span>

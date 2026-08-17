@@ -5,13 +5,14 @@ import { useWishlist, ListingSummary } from '../context/WishlistContext';
 import { listingService } from '../services/listingService';
 import { rentalService } from '../services/rentalService';
 import { chatService } from '../services/chatService';
+import { reviewService } from '../services/reviewService';
 import { getImageUrl, getAvatarUrl } from '../utils/imageUrl';
 import { adminService } from '../services/adminService';
 import {
   Star, Eye, Repeat, ChevronLeft, ChevronRight, Calendar, MessageCircle,
-  AlertTriangle, Package, Share2, Heart, ShoppingBag, Flag, MapPin, X
+  AlertTriangle, Package, Share2, Heart, ShoppingBag, Flag, MapPin, X, BookOpen
 } from 'lucide-react';
-import { ArtworkTile, PaymentNotice } from '../components/RentoraBrand';
+import { PaymentNotice } from '../components/RentoraBrand';
 
 const conditionColors: Record<string, string> = {
   NEW: 'bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-400 border border-green-200 dark:border-green-800',
@@ -27,6 +28,7 @@ export const ListingDetails: React.FC = () => {
   const navigate = useNavigate();
 
   const [listing, setListing] = useState<any>(null);
+  const [ownerReviews, setOwnerReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentImg, setCurrentImg] = useState(0);
   const [requestOpen, setRequestOpen] = useState(false);
@@ -55,6 +57,17 @@ export const ListingDetails: React.FC = () => {
         if (res.data?.success) {
           setListing(res.data.listing);
           setBlockedDates(res.data.blockedDates || []);
+          const ownerId = res.data.listing.owner?._id || res.data.listing.owner;
+          if (ownerId) {
+            try {
+              const revRes = await reviewService.getUserReviews(ownerId);
+              if (revRes.data?.success) {
+                setOwnerReviews(revRes.data.reviews || []);
+              }
+            } catch (rErr) {
+              console.warn('[ListingDetails] Error fetching owner reviews:', rErr);
+            }
+          }
         }
       } catch (err) {
         console.error('[ListingDetails] Error:', err);
@@ -215,10 +228,19 @@ export const ListingDetails: React.FC = () => {
     );
   }
 
-  const isMockImage = !listing.images || listing.images.length === 0 || listing.images[0].includes('mock') || listing.images[0].includes('picsum');
-  const themes = ['mint', 'peach', 'lavender', 'blue', 'sand', 'rose'] as const;
-  const themeIndex = (listing.title.length + (listing.title.charCodeAt(0) || 0)) % themes.length;
-  const selectedTheme = themes[themeIndex];
+  const CATEGORY_FALLBACKS: Record<string, string> = {
+    'Books & Study Material': 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=800&auto=format&fit=crop',
+    'Electronics & Technical': 'https://images.unsplash.com/photo-1574607383476-f517f220d398?q=80&w=800&auto=format&fit=crop',
+    'Clothing & Accessories': 'https://images.unsplash.com/photo-1581093588401-fbb62a02f120?q=80&w=800&auto=format&fit=crop',
+    'Sports Equipment': 'https://images.unsplash.com/photo-1531415074968-036ba1b575da?q=80&w=800&auto=format&fit=crop',
+    'Gaming': 'https://images.unsplash.com/photo-1600080972464-8e5f35f63d08?q=80&w=800&auto=format&fit=crop',
+    'Other': 'https://images.unsplash.com/photo-1526738549149-8e07eca6c147?q=80&w=800&auto=format&fit=crop',
+  };
+
+  const catName = listing.category?.name || 'Other';
+  const defaultCategoryImg = CATEGORY_FALLBACKS[catName] || 'https://images.unsplash.com/photo-1526738549149-8e07eca6c147?q=80&w=800&auto=format&fit=crop';
+  const rawImg = listing.images?.[currentImg] || listing.images?.[0];
+  const displayImage = rawImg?.trim() ? getImageUrl(rawImg, defaultCategoryImg) : defaultCategoryImg;
 
   return (
     <div className="max-w-5xl mx-auto space-y-8 text-left">
@@ -233,39 +255,31 @@ export const ListingDetails: React.FC = () => {
       {/* Split 2-Column View */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         
-        {/* Left Column: Image / Artwork, Condition, PaymentNotice */}
+        {/* Left Column: Real Product Photo, Condition, PaymentNotice */}
         <div className="lg:col-span-5 space-y-6">
-          <div className="relative aspect-[4/3] bg-white dark:bg-slate-900 rounded-3xl overflow-hidden border border-slate-100 dark:border-slate-800 shadow-md group">
-            {isMockImage ? (
-              <ArtworkTile
-                category={listing.category?.name || 'Gear'}
-                theme={selectedTheme}
-                title={listing.title}
-                className="w-full h-full border-none rounded-none"
-              />
-            ) : (
+          <div className="relative aspect-[4/3] bg-slate-100 dark:bg-slate-800 rounded-3xl overflow-hidden border border-slate-100 dark:border-slate-800 shadow-md group">
+            <img
+              src={displayImage}
+              alt={listing.title}
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = defaultCategoryImg;
+              }}
+              className="h-full w-full object-cover transition-all duration-500"
+            />
+            {listing.images && listing.images.length > 1 && (
               <>
-                <img
-                  src={getImageUrl(listing.images[currentImg])}
-                  alt={listing.title}
-                  className="h-full w-full object-cover transition-all duration-500"
-                />
-                {listing.images.length > 1 && (
-                  <>
-                    <button
-                      onClick={() => setCurrentImg(i => Math.max(0, i - 1))}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/90 dark:bg-slate-900/90 p-2 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => setCurrentImg(i => Math.min(listing.images.length - 1, i + 1))}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/90 dark:bg-slate-900/90 p-2 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </button>
-                  </>
-                )}
+                <button
+                  onClick={() => setCurrentImg(i => Math.max(0, i - 1))}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/90 dark:bg-slate-900/90 p-2 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => setCurrentImg(i => Math.min(listing.images.length - 1, i + 1))}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/90 dark:bg-slate-900/90 p-2 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
               </>
             )}
 
@@ -276,7 +290,7 @@ export const ListingDetails: React.FC = () => {
           </div>
 
           {/* Thumbnails */}
-          {!isMockImage && listing.images.length > 1 && (
+          {listing.images && listing.images.length > 1 && (
             <div className="flex space-x-2 overflow-x-auto pb-1">
               {listing.images.map((img: string, i: number) => (
                 <button
@@ -508,6 +522,74 @@ export const ListingDetails: React.FC = () => {
         </div>
 
       </div>
+
+      {/* ══ Owner Reviews & Reputation Section ══════════════════ */}
+      <section className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-6 md:p-8 space-y-6 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-5">
+          <div>
+            <div className="flex items-center gap-2">
+              <Star className="h-5 w-5 text-amber-500 fill-current" />
+              <h3 className="text-lg font-black font-display text-slate-900 dark:text-white">
+                Seller Reputation & Reviews ({ownerReviews.length})
+              </h3>
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              Verified feedback from NIET students who completed exchanges with {listing.owner?.fullName || 'this seller'}
+            </p>
+          </div>
+
+          <Link
+            to={`/profile/${listing.owner?._id || listing.owner}`}
+            className="text-xs font-bold text-[#22716E] hover:underline flex items-center gap-1 shrink-0"
+          >
+            View Full Profile <ChevronRight size={14} />
+          </Link>
+        </div>
+
+        {ownerReviews.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {ownerReviews.slice(0, 4).map((rev: any) => (
+              <div
+                key={rev._id}
+                className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 space-y-2.5"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <img
+                      src={getAvatarUrl(rev.reviewer?.avatar, rev.reviewer?.fullName)}
+                      alt={rev.reviewer?.fullName}
+                      className="h-8 w-8 rounded-full object-cover border border-slate-200 dark:border-slate-700"
+                    />
+                    <div>
+                      <p className="text-xs font-bold text-slate-900 dark:text-white">
+                        {rev.reviewer?.fullName || 'Student'}
+                      </p>
+                      <p className="text-[10px] text-slate-400">
+                        {new Date(rev.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex text-amber-400 text-xs">
+                    {'★'.repeat(rev.rating)}
+                    <span className="text-slate-300 dark:text-slate-600">{'★'.repeat(Math.max(0, 5 - rev.rating))}</span>
+                  </div>
+                </div>
+                {rev.comment && (
+                  <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-medium">
+                    "{rev.comment}"
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-slate-400 dark:text-slate-500 space-y-2">
+            <BookOpen className="h-8 w-8 mx-auto text-slate-300 dark:text-slate-600" />
+            <p className="text-xs font-semibold">No reviews yet for this student lender.</p>
+            <p className="text-[11px]">Be among the first to rent and leave feedback after handover!</p>
+          </div>
+        )}
+      </section>
 
       {/* Interactive Rental Request Modal (<RequestModal />) */}
       {requestOpen && (
