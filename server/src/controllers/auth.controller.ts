@@ -1,5 +1,6 @@
 import { Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
+import { OAuth2Client } from 'google-auth-library';
 import { User } from '../models/user.model';
 import { OTP } from '../models/otp.model';
 import { sendOTPEmail } from '../services/mail.service';
@@ -8,6 +9,8 @@ import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '.
 import { config } from '../config/config';
 import CustomError from '../utils/customError';
 import { uploadImage, deleteImage } from '../services/cloudinary.service';
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 
 // Cookie options for secure HTTP-only cookies
@@ -514,6 +517,104 @@ export const loginVerifyOTP = async (req: CustomRequest, res: Response, next: Ne
       success: true,
       message: 'Login successful',
       accessToken,
+      user: {
+        id: user._id,
+        fullName: user.fullName,
+        email: user.email,
+        role: user.role,
+        course: user.course,
+        branch: user.branch,
+        year: user.year,
+        collegeName: user.collegeName,
+        avatar: user.avatar,
+        bio: user.bio,
+        ratingAverage: user.ratingAverage,
+        completedRentals: user.completedRentals,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+/**
+ * POST /auth/google
+ * Accepts a Google OAuth access token from the frontend (implicit flow via @react-oauth/google).
+ * Calls Google's userinfo endpoint to get the user's profile, then creates or logs in the user.
+ */
+export const googleAuth = async (req: CustomRequest, res: Response, next: NextFunction) => {
+  try {
+    const { credential } = req.body;
+    if (!credential) {
+      throw new CustomError('Google credential token is required', 400, 'MISSING_CREDENTIAL');
+    }
+
+    // Verify the access token by calling Google's userinfo endpoint over HTTPS
+    const userInfoRes = await fetch(
+      `https://www.googleapis.com/oauth2/v3/userinfo?access_token=${credential}`
+    );
+
+    if (!userInfoRes.ok) {
+      throw new CustomError('Invalid or expired Google token', 400, 'INVALID_GOOGLE_TOKEN');
+    }
+
+    const googleUser = await userInfoRes.json() as {
+      sub: string;
+      email: string;
+      email_verified: boolean;
+      name?: string;
+      picture?: string;
+    };
+
+    if (!googleUser.email || !googleUser.email_verified) {
+      throw new CustomError('Google account email is not verified', 400, 'GOOGLE_EMAIL_UNVERIFIED');
+    }
+
+    const { email, name, picture, sub: googleId } = googleUser;
+
+    // Find or create the user
+    let user = await User.findOne({ email });
+    let isNewUser = false;
+
+    if (user) {
+      // Existing user — just log them in
+      if (user.isBlocked) {
+        throw new CustomError('Your account has been blocked by administrators.', 403, 'USER_BLOCKED');
+      }
+    } else {
+      // New user — auto-create from Google profile (email already verified by Google)
+      isNewUser = true;
+      const isFirstUser = (await User.countDocuments({})) === 0;
+      const role = isFirstUser ? 'ADMIN' : 'STUDENT';
+
+      // Random password — they will always login via Google, never need this
+      const randomPassword = `google_${googleId}_${Math.random().toString(36)}`;
+      const salt = await bcrypt.genSalt(10);
+      const passwordHash = await bcrypt.hash(randomPassword, salt);
+
+      user = await User.create({
+        fullName: name || email.split('@')[0],
+        email,
+        passwordHash,
+        role,
+        course: 'B.Tech',
+        branch: 'Not Set',
+        year: 1,
+        collegeName: 'NIET Plot 19',
+        avatar: picture || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(name || email)}`,
+        isVerified: true,
+      });
+    }
+
+    const accessToken = generateAccessToken(user._id.toString(), user.role);
+    const refreshToken = generateRefreshToken(user._id.toString());
+    res.cookie('refreshToken', refreshToken, cookieOptions);
+
+    return res.json({
+      success: true,
+      message: 'Google sign-in successful',
+      accessToken,
+      isNewUser,
       user: {
         id: user._id,
         fullName: user.fullName,
