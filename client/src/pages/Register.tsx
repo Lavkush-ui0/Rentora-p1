@@ -86,20 +86,57 @@ export const Register: React.FC = () => {
   };
 
   const handleOtpChange = (element: HTMLInputElement, index: number) => {
-    if (isNaN(Number(element.value))) return;
+    const val = element.value;
+
+    // Handle multi-character input (e.g. pasting full 6-digit OTP)
+    if (val.length > 1) {
+      const digits = val.replace(/\D/g, '').slice(0, 6).split('');
+      if (digits.length > 0) {
+        const newOtp = [...otp];
+        digits.forEach((d, i) => {
+          if (index + i < 6) newOtp[index + i] = d;
+        });
+        setOtp(newOtp);
+        const targetIdx = Math.min(index + digits.length, 5);
+        const parent = element.parentElement;
+        if (parent) {
+          const inputs = parent.querySelectorAll<HTMLInputElement>('input');
+          if (inputs[targetIdx]) inputs[targetIdx].focus();
+        }
+      }
+      return;
+    }
+
+    const lastChar = val.slice(-1);
+    if (lastChar && isNaN(Number(lastChar))) return;
+
     const newOtp = [...otp];
-    newOtp[index] = element.value;
+    newOtp[index] = lastChar;
     setOtp(newOtp);
 
     // Auto-focus next input field
-    if (element.value !== '' && element.nextSibling) {
-      (element.nextSibling as HTMLInputElement).focus();
+    if (lastChar !== '') {
+      const parent = element.parentElement;
+      if (parent) {
+        const inputs = parent.querySelectorAll<HTMLInputElement>('input');
+        if (inputs[index + 1]) {
+          inputs[index + 1].focus();
+        }
+      }
     }
   };
 
   const handleOtpKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
-    if (e.key === 'Backspace' && otp[index] === '' && e.currentTarget.previousElementSibling) {
-      (e.currentTarget.previousElementSibling as HTMLInputElement).focus();
+    if (e.key === 'Backspace') {
+      if (otp[index] === '') {
+        const parent = e.currentTarget.parentElement;
+        if (parent) {
+          const inputs = parent.querySelectorAll<HTMLInputElement>('input');
+          if (inputs[index - 1]) {
+            inputs[index - 1].focus();
+          }
+        }
+      }
     }
   };
 
@@ -176,7 +213,7 @@ export const Register: React.FC = () => {
                   <input
                     key={idx}
                     type="text"
-                    maxLength={1}
+                    maxLength={6}
                     value={digit}
                     onChange={(e) => handleOtpChange(e.target, idx)}
                     onKeyDown={(e) => handleOtpKeyDown(e, idx)}
