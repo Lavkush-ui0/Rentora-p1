@@ -72,7 +72,7 @@ export const Login: React.FC = () => {
       navigate(redirectPath, { replace: true });
     } catch (err: any) {
       if (!err.response) {
-        setError('Cannot connect to Rentora server. Make sure the backend server (npm run dev) is running on port 5000.');
+        setError('Cannot connect to Rentora server. If running locally, make sure the backend server is running on port 5001. If on hosted app, the server may still be spinning up.');
       } else {
         setError(err.response.data?.message || err.response.data?.error || 'Login failed. Please check credentials.');
       }

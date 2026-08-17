@@ -34,7 +34,9 @@ app.use(
       if (!origin) return callback(null, true);
       if (
         origin === config.CLIENT_URL ||
-        /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)
+        /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin) ||
+        /\.vercel\.app$/.test(origin) ||
+        origin.includes('vercel.app')
       ) {
         return callback(null, true);
       }

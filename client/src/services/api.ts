@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: (import.meta.env.VITE_API_URL as string) || 'http://localhost:5000/api',
+  baseURL: (import.meta.env.VITE_API_URL as string) || 'http://localhost:5001/api',
   withCredentials: true, // Allows browser to exchange HTTP-only refresh cookies
 });
 
