@@ -1,5 +1,15 @@
 import nodemailer from 'nodemailer';
+import dns from 'dns';
 import logger from '../utils/logger';
+
+// Force Node.js DNS lookup to prefer IPv4 (fixes ENETUNREACH on Render/Cloud environments)
+try {
+  if (dns.setDefaultResultOrder) {
+    dns.setDefaultResultOrder('ipv4first');
+  }
+} catch (e) {
+  // Ignore if unsupported in old Node environments
+}
 
 let transporter: nodemailer.Transporter | null = null;
 
@@ -17,12 +27,16 @@ const getTransporter = (): nodemailer.Transporter | null => {
     return null;
   }
 
+  const portNum = parseInt(port || '587', 10);
+  const isSecure = process.env.SMTP_SECURE === 'true' || portNum === 465;
+
   try {
     transporter = nodemailer.createTransport({
       pool: true, // Use connection pooling
       host,
-      port: parseInt(port || '587', 10),
-      secure: process.env.SMTP_SECURE === 'true',
+      port: portNum,
+      secure: isSecure,
+      family: 4, // Force IPv4 to prevent ENETUNREACH IPv6 routing errors on Render
       auth: {
         user,
         pass,
@@ -34,8 +48,8 @@ const getTransporter = (): nodemailer.Transporter | null => {
       connectionTimeout: 10000, // 10 seconds
       greetingTimeout: 10000,   // 10 seconds
       socketTimeout: 15000,     // 15 seconds
-    });
-    logger.info(`📧 Nodemailer SMTP connection pool initialized for ${host}`);
+    } as nodemailer.TransportOptions);
+    logger.info(`📧 Nodemailer SMTP connection pool initialized for ${host}:${portNum} (IPv4)`);
   } catch (error) {
     logger.error(`❌ Failed to initialize Nodemailer SMTP connection pool: ${(error as Error).message}`);
     transporter = null;
