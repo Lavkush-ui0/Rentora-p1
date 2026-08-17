@@ -49,7 +49,7 @@ app.use(
 // Rate Limiting (Skipped in development mode to prevent 429 errors during local testing)
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  max: 1000, // Increased from 100
   message: {
     success: false,
     message: 'Too many requests from this IP, please try again after 15 minutes.',
@@ -64,7 +64,7 @@ app.use('/api', limiter);
 // Strict rate limiters for sensitive endpoints (Active in dev/prod, skipped in test)
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5,
+  max: 100, // Increased from 5 to prevent lockout after too many tries
   message: {
     success: false,
     message: 'Too many login attempts. Please try again after 15 minutes.',
@@ -77,10 +77,10 @@ const loginLimiter = rateLimit({
 
 const profileLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 10,
+  max: 50, // Increased from 10
   message: {
     success: false,
-    message: 'Too many profile updates/uploads. Limit is 10 per hour.',
+    message: 'Too many profile updates/uploads. Limit is 50 per hour.',
     code: 'PROFILE_RATE_LIMIT_EXCEEDED',
   },
   standardHeaders: true,
@@ -90,10 +90,10 @@ const profileLimiter = rateLimit({
 
 const otpLimiter = rateLimit({
   windowMs: 5 * 60 * 1000, // 5 minutes
-  max: 5,
+  max: 100, // Increased from 5 to prevent block during multiple resend tries
   message: {
     success: false,
-    message: 'Too many OTP requests. Limit is 5 per 5 minutes.',
+    message: 'Too many OTP requests. Limit is 100 per 5 minutes.',
     code: 'OTP_RATE_LIMIT_EXCEEDED',
   },
   standardHeaders: true,
