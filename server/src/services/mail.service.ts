@@ -1,12 +1,50 @@
 import nodemailer from 'nodemailer';
 import logger from '../utils/logger';
 
-export const sendOTPEmail = async (email: string, otp: string, type: 'register' | 'login' = 'register') => {
+let transporter: nodemailer.Transporter | null = null;
+
+const getTransporter = (): nodemailer.Transporter | null => {
+  if (transporter) {
+    return transporter;
+  }
+
   const host = process.env.SMTP_HOST;
   const port = process.env.SMTP_PORT;
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
 
+  if (!host || !user || !pass) {
+    return null;
+  }
+
+  try {
+    transporter = nodemailer.createTransport({
+      pool: true, // Use connection pooling
+      host,
+      port: parseInt(port || '587', 10),
+      secure: process.env.SMTP_SECURE === 'true',
+      auth: {
+        user,
+        pass,
+      },
+      maxConnections: 5,
+      maxMessages: 100,
+      rateDelta: 1000,
+      rateLimit: 5,
+      connectionTimeout: 10000, // 10 seconds
+      greetingTimeout: 10000,   // 10 seconds
+      socketTimeout: 15000,     // 15 seconds
+    });
+    logger.info(`📧 Nodemailer SMTP connection pool initialized for ${host}`);
+  } catch (error) {
+    logger.error(`❌ Failed to initialize Nodemailer SMTP connection pool: ${(error as Error).message}`);
+    transporter = null;
+  }
+
+  return transporter;
+};
+
+export const sendOTPEmail = async (email: string, otp: string, type: 'register' | 'login' = 'register') => {
   const isLogin = type === 'login';
   const subject = isLogin ? '🔑 Rentora Login Code' : '🔒 Rentora Verification Code';
   const title = isLogin ? 'Login to Rentora' : 'Verify Your Account';
@@ -14,24 +52,21 @@ export const sendOTPEmail = async (email: string, otp: string, type: 'register' 
     ? 'Use the code below to log in to your Rentora account. This code is valid for 10 minutes.'
     : 'Use the code below to complete your registration. This code will expire in 10 minutes.';
 
-  // Fallback if SMTP credentials are not configured
-  if (!host || !user || !pass) {
+  const smtpTransporter = getTransporter();
+
+  // Log OTP in development mode for easier debugging/testing
+  if (process.env.NODE_ENV === 'development') {
+    logger.info(`🔑 [Dev Mode OTP Log] To: ${email} | OTP: ${otp}`);
+  }
+
+  // Fallback if SMTP credentials are not configured or transport creation failed
+  if (!smtpTransporter) {
     logger.warn(`🔑 [Rentora ${isLogin ? 'Login' : 'Signup'} OTP Fallback] To: ${email} | Verification Code: ${otp} (Configure SMTP_HOST, SMTP_USER, SMTP_PASS in .env to send real emails)`);
     return;
   }
 
-  const transporter = nodemailer.createTransport({
-    host,
-    port: parseInt(port || '587'),
-    secure: process.env.SMTP_SECURE === 'true',
-    auth: {
-      user,
-      pass,
-    },
-  });
-
   const mailOptions = {
-    from: `"Rentora Verification" <${user}>`,
+    from: `"Rentora Verification" <${process.env.SMTP_USER}>`,
     to: email,
     subject,
     html: `
@@ -52,7 +87,7 @@ export const sendOTPEmail = async (email: string, otp: string, type: 'register' 
   };
 
   try {
-    await transporter.sendMail(mailOptions);
+    await smtpTransporter.sendMail(mailOptions);
     logger.info(`📧 ${isLogin ? 'Login' : 'Signup'} OTP email successfully sent to ${email}`);
   } catch (error) {
     logger.error(`❌ Failed to send ${isLogin ? 'login' : 'verification'} email via SMTP. Falling back to logger output:`);

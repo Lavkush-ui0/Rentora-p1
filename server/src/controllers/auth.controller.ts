@@ -72,8 +72,8 @@ export const register = async (req: CustomRequest, res: Response, next: NextFunc
       { upsert: true, new: true }
     );
 
-    // Send verification email
-    await sendOTPEmail(email, otp);
+    // Send verification email in the background to prevent blocking the response
+    sendOTPEmail(email, otp);
 
     return res.status(201).json({
       success: true,
@@ -409,8 +409,8 @@ export const resendOTP = async (req: CustomRequest, res: Response, next: NextFun
       { upsert: true, new: true }
     );
 
-    // Send verification email
-    await sendOTPEmail(email, otp);
+    // Send verification email in the background to prevent blocking the response
+    sendOTPEmail(email, otp);
 
     return res.status(200).json({
       success: true,
@@ -445,8 +445,8 @@ export const loginSendOTP = async (req: CustomRequest, res: Response, next: Next
       { upsert: true, new: true }
     );
 
-    // Send login OTP email
-    await sendOTPEmail(user.email, otp, 'login');
+    // Send login OTP email in the background to prevent blocking the response
+    sendOTPEmail(user.email, otp, 'login');
 
     return res.status(200).json({
       success: true,
