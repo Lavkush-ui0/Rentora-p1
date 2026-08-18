@@ -12,6 +12,10 @@ interface CacheEntry {
 const homepageCache = new Map<string, CacheEntry>();
 const CACHE_TTL_MS = 60 * 1000;
 
+export const clearHomepageCache = () => {
+  homepageCache.clear();
+};
+
 export const getHomepageData = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const limit = 6;

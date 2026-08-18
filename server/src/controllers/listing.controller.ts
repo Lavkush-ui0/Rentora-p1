@@ -6,6 +6,7 @@ import { CustomRequest } from '../types';
 import { RentalRequest } from '../models/rentalRequest.model';
 import { uploadImage, deleteImage } from '../services/cloudinary.service';
 import CustomError from '../utils/customError';
+import { clearHomepageCache } from './discovery.controller';
 
 export const createListing = async (req: CustomRequest, res: Response, next: NextFunction) => {
   try {
@@ -55,6 +56,8 @@ export const createListing = async (req: CustomRequest, res: Response, next: Nex
       status: 'ACTIVE',
       location: location || (req.user as any).collegeName || 'NIET Plot 19',
     });
+
+    clearHomepageCache();
 
     return res.status(201).json({
       success: true,
@@ -258,6 +261,7 @@ export const updateListing = async (req: CustomRequest, res: Response, next: Nex
     }
 
     await listing.save();
+    clearHomepageCache();
 
     return res.json({
       success: true,
@@ -290,6 +294,7 @@ export const deleteListing = async (req: CustomRequest, res: Response, next: Nex
     listing.status = 'REMOVED';
     listing.availability = false;
     await listing.save();
+    clearHomepageCache();
 
     return res.json({
       success: true,
@@ -326,10 +331,11 @@ export const pauseListing = async (req: CustomRequest, res: Response, next: Next
     }
 
     await listing.save();
+    clearHomepageCache();
 
     return res.json({
       success: true,
-      message: `Listing is now ${listing.status.toLowerCase()}`,
+      message: `Listing status updated to ${listing.status}`,
       listing,
     });
   } catch (error) {

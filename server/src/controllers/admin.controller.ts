@@ -7,6 +7,7 @@ import { RentalRequest } from '../models/rentalRequest.model';
 import { Conversation } from '../models/chat.model';
 import { CustomRequest } from '../types';
 import CustomError from '../utils/customError';
+import { clearHomepageCache } from './discovery.controller';
 
 // 1. User administration
 export const getUsers = async (req: CustomRequest, res: Response, next: NextFunction) => {
@@ -93,6 +94,7 @@ export const removeListing = async (req: CustomRequest, res: Response, next: Nex
     listing.status = 'REMOVED';
     listing.availability = false;
     await listing.save();
+    clearHomepageCache();
 
     return res.json({
       success: true,

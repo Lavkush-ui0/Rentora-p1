@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Eye, Heart, ChevronLeft, ChevronRight, Zap } from 'lucide-react';
+import { getImageUrl } from '../utils/imageUrl';
 
 interface SlideItem {
   id: string;
@@ -11,59 +12,33 @@ interface SlideItem {
   condition: string;
   gradient: string;
   accentColor: string;
-  image?: string;
+  image: string;
 }
 
-const MOCK_SLIDES: SlideItem[] = [
-  {
-    id: '1',
-    title: 'Casio FX-991ES Plus Scientific Calculator',
-    category: 'Calculators',
-    price: 30,
-    priceUnit: 'day',
-    condition: 'BRAND NEW',
-    gradient: 'linear-gradient(135deg, #14b8a6 0%, #0d9488 60%, #0f766e 100%)',
-    accentColor: '#5eead4',
-    image: 'https://images.unsplash.com/photo-1574607383476-f517f220d398?q=80&w=800&auto=format&fit=crop',
-  },
-  {
-    id: '2',
-    title: 'Engineering Maths — GATE Reference Set',
-    category: 'Books',
-    price: 15,
-    priceUnit: 'day',
-    condition: 'LIKE NEW',
-    gradient: 'linear-gradient(135deg, #9E1B1B 0%, #b91c1c 60%, #7f1d1d 100%)',
-    accentColor: '#fca5a5',
-    image: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=800&auto=format&fit=crop',
-  },
-  {
-    id: '3',
-    title: 'Lab Breadboard + Component Kit',
-    category: 'Lab Gear',
-    price: 20,
-    priceUnit: 'day',
-    condition: 'GOOD',
-    gradient: 'linear-gradient(135deg, #7c3aed 0%, #6d28d9 60%, #4c1d95 100%)',
-    accentColor: '#c4b5fd',
-    image: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?q=80&w=800&auto=format&fit=crop',
-  },
-  {
-    id: '4',
-    title: 'Raspberry Pi 4 — 4GB RAM Kit',
-    category: 'Electronics',
-    price: 60,
-    priceUnit: 'day',
-    condition: 'EXCELLENT',
-    gradient: 'linear-gradient(135deg, #d97706 0%, #b45309 60%, #92400e 100%)',
-    accentColor: '#fcd34d',
-    image: 'https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=800&auto=format&fit=crop',
-  },
+const CATEGORY_SLIDE_FALLBACKS: Record<string, string> = {
+  'Calculators': 'https://images.unsplash.com/photo-1574607383476-f517f220d398?q=80&w=800&auto=format&fit=crop',
+  'Books': 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=800&auto=format&fit=crop',
+  'Books & Study Material': 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=800&auto=format&fit=crop',
+  'Lab Gear': 'https://images.unsplash.com/photo-1581093588401-fbb62a02f120?q=80&w=800&auto=format&fit=crop',
+  'Electronics': 'https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=800&auto=format&fit=crop',
+  'Electronics & Technical': 'https://images.unsplash.com/photo-1574607383476-f517f220d398?q=80&w=800&auto=format&fit=crop',
+  'Clothing & Accessories': 'https://images.unsplash.com/photo-1581093588401-fbb62a02f120?q=80&w=800&auto=format&fit=crop',
+  'Sports Equipment': 'https://images.unsplash.com/photo-1531415074968-036ba1b575da?q=80&w=800&auto=format&fit=crop',
+  'Gaming': 'https://images.unsplash.com/photo-1600080972464-8e5f35f63d08?q=80&w=800&auto=format&fit=crop',
+};
+
+const DEFAULT_SLIDE_GRADIENTS = [
+  'linear-gradient(135deg, #14b8a6 0%, #0d9488 60%, #0f766e 100%)',
+  'linear-gradient(135deg, #9E1B1B 0%, #b91c1c 60%, #7f1d1d 100%)',
+  'linear-gradient(135deg, #7c3aed 0%, #6d28d9 60%, #4c1d95 100%)',
+  'linear-gradient(135deg, #d97706 0%, #b45309 60%, #92400e 100%)',
 ];
 
 const CONDITION_COLORS: Record<string, string> = {
   'BRAND NEW': 'bg-emerald-500',
+  'NEW': 'bg-emerald-500',
   'LIKE NEW': 'bg-teal-500',
+  'LIKE_NEW': 'bg-teal-500',
   'EXCELLENT': 'bg-sky-500',
   'GOOD': 'bg-amber-500',
   'FAIR': 'bg-orange-500',
@@ -77,20 +52,66 @@ const TrendingHeroSlider: React.FC<TrendingHeroSliderProps> = ({ listings = [] }
   const [activeIdx, setActiveIdx] = useState(0);
   const [wishlisted, setWishlisted] = useState<Set<number>>(new Set());
 
-  // Map real listings to slides or fall back to curated mock product slides
-  const slides: SlideItem[] = listings.length >= 2
-    ? listings.slice(0, 6).map((l, i) => ({
-        id: l._id,
-        title: l.title,
-        category: typeof l.category === 'object' ? l.category?.name : (l.category || 'Campus Gear'),
-        price: l.rentalPrice ?? l.price ?? 20,
-        priceUnit: (l.priceUnit || 'day').toLowerCase(),
-        condition: l.condition || 'GOOD',
-        gradient: MOCK_SLIDES[i % MOCK_SLIDES.length].gradient,
-        accentColor: MOCK_SLIDES[i % MOCK_SLIDES.length].accentColor,
-        image: l.images?.[0] || MOCK_SLIDES[i % MOCK_SLIDES.length].image,
-      }))
-    : MOCK_SLIDES;
+  // Strictly filter only ACTIVE and AVAILABLE listings
+  const activeListings = Array.isArray(listings)
+    ? listings.filter(l => l && l._id && l.status === 'ACTIVE' && l.availability !== false)
+    : [];
+
+  // Map real active listings to slides
+  const slides: SlideItem[] = activeListings.length > 0
+    ? activeListings.slice(0, 6).map((l, i) => {
+        const catName = typeof l.category === 'object' ? l.category?.name : (l.category || 'Campus Gear');
+        const fallbackImg = CATEGORY_SLIDE_FALLBACKS[catName] || 'https://images.unsplash.com/photo-1526738549149-8e07eca6c147?q=80&w=800&auto=format&fit=crop';
+        const rawImg = l.images && l.images.length > 0 ? l.images[0] : '';
+        const displayImg = rawImg?.trim() ? getImageUrl(rawImg, fallbackImg) : fallbackImg;
+
+        return {
+          id: l._id,
+          title: l.title,
+          category: catName,
+          price: l.rentalPrice ?? l.price ?? 20,
+          priceUnit: (l.priceUnit || 'day').toLowerCase(),
+          condition: (l.condition || 'GOOD').replace('_', ' '),
+          gradient: DEFAULT_SLIDE_GRADIENTS[i % DEFAULT_SLIDE_GRADIENTS.length],
+          accentColor: '#5eead4',
+          image: displayImg,
+        };
+      })
+    : [
+        {
+          id: 'casio-fx',
+          title: 'Casio Scientific Calculator fx-991EX',
+          category: 'Calculators',
+          price: 20,
+          priceUnit: 'week',
+          condition: 'LIKE NEW',
+          gradient: DEFAULT_SLIDE_GRADIENTS[0],
+          accentColor: '#5eead4',
+          image: 'https://images.unsplash.com/photo-1574607383476-f517f220d398?q=80&w=800&auto=format&fit=crop',
+        },
+        {
+          id: 'dsa-cormen',
+          title: 'Introduction to Algorithms (Cormen)',
+          category: 'Books',
+          price: 10,
+          priceUnit: 'day',
+          condition: 'GOOD',
+          gradient: DEFAULT_SLIDE_GRADIENTS[1],
+          accentColor: '#fca5a5',
+          image: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=800&auto=format&fit=crop',
+        },
+        {
+          id: 'chemistry-lab-coat',
+          title: 'NIET Chemistry Lab Coat (Medium)',
+          category: 'Clothing',
+          price: 5,
+          priceUnit: 'day',
+          condition: 'GOOD',
+          gradient: DEFAULT_SLIDE_GRADIENTS[2],
+          accentColor: '#c4b5fd',
+          image: 'https://images.unsplash.com/photo-1581093588401-fbb62a02f120?q=80&w=800&auto=format&fit=crop',
+        },
+      ];
 
   // Auto-advance
   useEffect(() => {

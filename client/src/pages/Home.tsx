@@ -103,7 +103,9 @@ export const Home: React.FC = () => {
     fetchData();
   }, [selectedLocation]);
 
-  const trendingForSlider = data?.trendingProducts ?? [];
+  const trendingForSlider = (
+    data?.trendingProducts?.length ? data.trendingProducts : allListings
+  ).filter((l: any) => l && l.status === 'ACTIVE' && l.availability !== false);
 
   return (
     <div className="space-y-20 pb-16">
