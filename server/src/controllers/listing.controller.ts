@@ -86,8 +86,20 @@ export const getListings = async (req: CustomRequest, res: Response, next: NextF
       filter.location = location;
     }
 
-    // Standard filter matches
-    if (category) filter.category = category;
+    // Category filter by ID, slug, or name
+    if (category && typeof category === 'string' && category.trim()) {
+      const cleanCat = category.trim();
+      if (cleanCat.match(/^[0-9a-fA-F]{24}$/)) {
+        filter.category = cleanCat;
+      } else {
+        const foundCat = await Category.findOne({
+          $or: [{ slug: cleanCat }, { name: new RegExp(`^${cleanCat}$`, 'i') }],
+        }).select('_id').lean();
+        if (foundCat) {
+          filter.category = foundCat._id;
+        }
+      }
+    }
     if (condition) filter.condition = condition;
     if (priceUnit) filter.priceUnit = priceUnit;
     

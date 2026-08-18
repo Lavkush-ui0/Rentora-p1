@@ -39,7 +39,7 @@ export const updateListingSchema = z.object({
 
 export const getListingsSchema = z.object({
   query: z.object({
-    category: z.string().regex(objectIdRegex).optional(),
+    category: z.string().optional(),
     minPrice: z.coerce.number().optional(),
     maxPrice: z.coerce.number().optional(),
     condition: z.enum(['NEW', 'LIKE_NEW', 'GOOD', 'FAIR']).optional(),
@@ -50,5 +50,6 @@ export const getListingsSchema = z.object({
     page: z.coerce.number().min(1).default(1),
     limit: z.coerce.number().min(1).max(100).default(10),
     location: z.string().optional(),
-  }),
+    owner: z.string().optional(),
+  }).passthrough(),
 });
