@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { listingService } from '../services/listingService';
 import { categoryService } from '../services/categoryService';
 import { useAuth } from '../context/AuthContext';
+import { compressImagesIfNeeded } from '../utils/imageCompressor';
 import { Upload, X, Image, AlertCircle, Sparkles } from 'lucide-react';
 import { ArtworkTile } from '../components/RentoraBrand';
 
@@ -75,7 +76,7 @@ export const ListItem: React.FC = () => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     const validFiles = files.filter(f => ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'].includes(f.type));
 
@@ -84,7 +85,10 @@ export const ListItem: React.FC = () => {
       return;
     }
 
-    const newImages = [...images, ...validFiles].slice(0, 5);
+    // Automatically compress any image exceeding 2MB down to < 2MB
+    const compressedFiles = await compressImagesIfNeeded(validFiles);
+
+    const newImages = [...images, ...compressedFiles].slice(0, 5);
     setImages(newImages);
 
     const newPreviews = newImages.map(f => URL.createObjectURL(f));

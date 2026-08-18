@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { compressImageIfNeeded } from '../utils/imageCompressor';
 import { Sun, Moon, User, Save, AlertCircle, CheckCircle2, Camera, Upload, Trash2, X } from 'lucide-react';
 
 export const Settings: React.FC = () => {
@@ -37,13 +38,11 @@ export const Settings: React.FC = () => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        setError('File size exceeds the 5MB limit.');
-        return;
-      }
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawFile = e.target.files?.[0];
+    if (rawFile) {
+      // Compress if > 2MB
+      const file = await compressImageIfNeeded(rawFile);
       setSelectedFile(file);
       setWebcamImage(null);
       

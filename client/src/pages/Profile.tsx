@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { authService } from '../services/authService';
 import { listingService } from '../services/listingService';
 import { reviewService } from '../services/reviewService';
+import { compressImageIfNeeded } from '../utils/imageCompressor';
 import { Star, Package, CheckCircle2, Calendar, BookOpen, Edit3, Camera, Loader2 } from 'lucide-react';
 import ProductCard from '../components/ProductCard';
 import { getAvatarUrl } from '../utils/imageUrl';
@@ -24,17 +25,15 @@ export const Profile: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (file.size > 5 * 1024 * 1024) {
-      alert('File size exceeds 5MB limit.');
-      return;
-    }
+    const rawFile = e.target.files?.[0];
+    if (!rawFile) return;
 
     setUploadingAvatar(true);
     setAvatarSuccess('');
     try {
+      // Automatically compress avatar if > 2MB
+      const file = await compressImageIfNeeded(rawFile);
+
       const formData = new FormData();
       formData.append('avatar', file);
       if (profile?.fullName) formData.append('fullName', profile.fullName);
