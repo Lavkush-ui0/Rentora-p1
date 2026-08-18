@@ -170,11 +170,21 @@ export const RentalRequests: React.FC = () => {
 
             return (
               <div key={req._id} className="bg-white dark:bg-slate-900 rounded-3xl border border-gray-100 dark:border-slate-800 p-5 flex flex-col sm:flex-row gap-4 hover:shadow-md transition-all">
-                <img
-                  src={getImageUrl(listing?.images?.[0], 'https://picsum.photos/150/150')}
-                  alt={listing?.title}
-                  className="h-24 w-24 sm:h-20 sm:w-20 rounded-2xl object-cover flex-shrink-0 border border-gray-100 dark:border-slate-800"
-                />
+                {listing?._id ? (
+                  <Link to={`/listing/${listing._id}`} className="flex-shrink-0">
+                    <img
+                      src={getImageUrl(listing.images?.[0], 'https://picsum.photos/150/150')}
+                      alt={listing.title}
+                      className="h-24 w-24 sm:h-20 sm:w-20 rounded-2xl object-cover border border-gray-100 dark:border-slate-800 hover:opacity-90 transition-opacity"
+                    />
+                  </Link>
+                ) : (
+                  <img
+                    src={getImageUrl(undefined, 'https://picsum.photos/150/150')}
+                    alt="Removed Item"
+                    className="h-24 w-24 sm:h-20 sm:w-20 rounded-2xl object-cover flex-shrink-0 border border-gray-100 dark:border-slate-800 opacity-60"
+                  />
+                )}
                 <div className="flex-1 space-y-2">
                   <div className="flex items-start justify-between flex-wrap gap-2">
                     <Link to={`/listing/${listing?._id}`} className="font-bold text-gray-900 dark:text-gray-100 hover:text-primary-600 transition-colors text-sm leading-tight">

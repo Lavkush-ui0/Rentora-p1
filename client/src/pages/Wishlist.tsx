@@ -129,11 +129,13 @@ export const Wishlist: React.FC = () => {
                 className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white dark:bg-slate-900 rounded-3xl border border-gray-100 dark:border-slate-800 p-5 shadow-sm hover:shadow-md transition-all"
               >
                 <div className="flex items-center space-x-4 w-full sm:w-auto">
-                  <img
-                    src={item.images?.[0] || 'https://picsum.photos/150/150'}
-                    alt={item.title}
-                    className="h-20 w-20 rounded-2xl object-cover border border-gray-100 dark:border-slate-800 shrink-0"
-                  />
+                  <Link to={`/listing/${item._id}`} className="shrink-0">
+                    <img
+                      src={item.images?.[0] || 'https://picsum.photos/150/150'}
+                      alt={item.title}
+                      className="h-20 w-20 rounded-2xl object-cover border border-gray-100 dark:border-slate-800 hover:opacity-90 transition-opacity"
+                    />
+                  </Link>
                   <div>
                     <Link
                       to={`/listing/${item._id}`}

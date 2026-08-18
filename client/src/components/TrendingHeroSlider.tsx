@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Eye, Heart, ChevronLeft, ChevronRight, Zap } from 'lucide-react';
 import { getImageUrl } from '../utils/imageUrl';
 
@@ -51,6 +51,7 @@ interface TrendingHeroSliderProps {
 const TrendingHeroSlider: React.FC<TrendingHeroSliderProps> = ({ listings = [] }) => {
   const [activeIdx, setActiveIdx] = useState(0);
   const [wishlisted, setWishlisted] = useState<Set<number>>(new Set());
+  const navigate = useNavigate();
 
   // Strictly filter only ACTIVE and AVAILABLE listings
   const activeListings = Array.isArray(listings)
@@ -159,7 +160,11 @@ const TrendingHeroSlider: React.FC<TrendingHeroSliderProps> = ({ listings = [] }
                 className={`absolute inset-0 rounded-[28px] overflow-hidden transition-all duration-500 ease-spring cursor-pointer border border-white/15 dark:border-slate-700/50 ${getCardStyle(normalizedOffset)}`}
                 style={{ background: slide.gradient }}
                 onClick={() => {
-                  if (normalizedOffset !== 0) setActiveIdx(idx);
+                  if (normalizedOffset !== 0) {
+                    setActiveIdx(idx);
+                  } else {
+                    navigate(`/listing/${slide.id}`);
+                  }
                 }}
               >
                 {/* Background Product Image */}
@@ -168,6 +173,13 @@ const TrendingHeroSlider: React.FC<TrendingHeroSliderProps> = ({ listings = [] }
                     src={slide.image}
                     alt={slide.title}
                     className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 hover:scale-105"
+                    onError={(e) => {
+                      const catName = slide.category;
+                      const fallback = CATEGORY_SLIDE_FALLBACKS[catName] || 'https://images.unsplash.com/photo-1526738549149-8e07eca6c147?q=80&w=800&auto=format&fit=crop';
+                      if ((e.target as HTMLImageElement).src !== fallback) {
+                        (e.target as HTMLImageElement).src = fallback;
+                      }
+                    }}
                   />
                 )}
 
@@ -178,7 +190,6 @@ const TrendingHeroSlider: React.FC<TrendingHeroSliderProps> = ({ listings = [] }
                     background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.45) 0%, rgba(15, 23, 42, 0.15) 40%, rgba(15, 23, 42, 0.88) 80%, rgba(15, 23, 42, 0.96) 100%)',
                   }}
                 />
-
                 {/* Condition Chip */}
                 <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-10">
                   <span className={`text-[9px] font-black uppercase tracking-wider text-white px-2.5 py-1 rounded-full shadow-sm ${CONDITION_COLORS[slide.condition] || 'bg-slate-600'}`}>
