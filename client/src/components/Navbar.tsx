@@ -179,11 +179,11 @@ export const Navbar: React.FC = () => {
           </div>
 
           {/* Right Area: Utility Actions */}
-          <div className="flex items-center space-x-2.5">
-            {/* Theme Toggle */}
+          <div className="flex items-center space-x-1.5 sm:space-x-2.5 flex-shrink-0">
+            {/* Theme Toggle (Hidden on mobile top bar, available in mobile drawer) */}
             <button
               onClick={toggleTheme}
-              className="p-2 rounded-xl text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 transition-colors"
+              className="hidden md:flex p-2 rounded-xl text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 transition-colors"
               title="Toggle Theme"
             >
               {theme === 'dark' ? <Sun className="h-4.5 w-4.5" /> : <Moon className="h-4.5 w-4.5" />}
@@ -191,10 +191,10 @@ export const Navbar: React.FC = () => {
 
             {user ? (
               <>
-                {/* Wishlist Button */}
+                {/* Wishlist Button (Hidden on mobile top bar, available in mobile drawer & bottom nav) */}
                 <Link
                   to="/wishlist"
-                  className="p-2 rounded-xl text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 relative transition-colors"
+                  className="hidden md:flex p-2 rounded-xl text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 relative transition-colors"
                   title="Saved Gear"
                 >
                   <Heart className={`h-4.5 w-4.5 ${wishlistCount > 0 ? 'text-red-500 fill-red-500' : ''}`} />
@@ -351,17 +351,35 @@ export const Navbar: React.FC = () => {
             <Link
               to="/explore"
               onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center space-x-2 p-2 rounded-xl text-slate-700 dark:text-slate-300 text-xs font-bold"
+              className="flex items-center space-x-2 p-2 rounded-xl text-slate-700 dark:text-slate-300 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
             >
               <Compass className="h-4.5 w-4.5 text-indigo-500" />
               <span>Explore Gear</span>
             </Link>
+
+            {/* Wishlist in Mobile Drawer */}
+            <Link
+              to="/wishlist"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center justify-between p-2 rounded-xl text-slate-700 dark:text-slate-300 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+            >
+              <div className="flex items-center space-x-2">
+                <Heart className={`h-4.5 w-4.5 ${wishlistCount > 0 ? 'text-red-500 fill-red-500' : 'text-rose-500'}`} />
+                <span>Saved Items & Wishlist</span>
+              </div>
+              {wishlistCount > 0 && (
+                <span className="px-2 py-0.5 rounded-full bg-red-500 text-white text-[10px] font-black">
+                  {wishlistCount}
+                </span>
+              )}
+            </Link>
+
             {user ? (
               <>
                 <Link
                   to="/list-item"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center space-x-2 p-2 rounded-xl text-slate-700 dark:text-slate-300 text-xs font-bold"
+                  className="flex items-center space-x-2 p-2 rounded-xl text-slate-700 dark:text-slate-300 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
                 >
                   <PlusCircle className="h-4.5 w-4.5 text-emerald-500" />
                   <span>List an Item</span>
@@ -369,7 +387,7 @@ export const Navbar: React.FC = () => {
                 <Link
                   to="/my-listings"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center space-x-2 p-2 rounded-xl text-slate-700 dark:text-slate-300 text-xs font-bold"
+                  className="flex items-center space-x-2 p-2 rounded-xl text-slate-700 dark:text-slate-300 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
                 >
                   <Package className="h-4.5 w-4.5 text-amber-500" />
                   <span>My Listings</span>
@@ -377,7 +395,7 @@ export const Navbar: React.FC = () => {
                 <Link
                   to="/my-rentals"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center space-x-2 p-2 rounded-xl text-slate-700 dark:text-slate-300 text-xs font-bold"
+                  className="flex items-center space-x-2 p-2 rounded-xl text-slate-700 dark:text-slate-300 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
                 >
                   <List className="h-4.5 w-4.5 text-blue-500" />
                   <span>Rentals Tracker</span>
@@ -385,7 +403,7 @@ export const Navbar: React.FC = () => {
                 <Link
                   to="/messages"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center space-x-2 p-2 rounded-xl text-slate-700 dark:text-slate-300 text-xs font-bold"
+                  className="flex items-center space-x-2 p-2 rounded-xl text-slate-700 dark:text-slate-300 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
                 >
                   <MessageSquare className="h-4.5 w-4.5 text-purple-500" />
                   <span>Chat & Messages</span>
@@ -395,7 +413,7 @@ export const Navbar: React.FC = () => {
                     setMobileMenuOpen(false);
                     handleLogout();
                   }}
-                  className="w-full text-left flex items-center space-x-2 p-2 rounded-xl text-red-600 dark:text-red-400 text-xs font-bold"
+                  className="w-full text-left flex items-center space-x-2 p-2 rounded-xl text-red-600 dark:text-red-400 text-xs font-bold hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
                 >
                   <LogOut className="h-4.5 w-4.5" />
                   <span>Sign Out</span>
@@ -419,6 +437,22 @@ export const Navbar: React.FC = () => {
                 </Link>
               </div>
             )}
+          </div>
+
+          {/* Quick Theme Switcher in Mobile Drawer */}
+          <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+            <button
+              onClick={toggleTheme}
+              className="w-full flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 text-xs font-bold transition-colors"
+            >
+              <div className="flex items-center space-x-2">
+                {theme === 'dark' ? <Moon className="h-4.5 w-4.5 text-indigo-400" /> : <Sun className="h-4.5 w-4.5 text-amber-500" />}
+                <span>Theme Mode</span>
+              </div>
+              <span className="text-[11px] font-black uppercase text-slate-400">
+                {theme === 'dark' ? 'Dark 🌙' : 'Light ☀️'}
+              </span>
+            </button>
           </div>
         </div>
       )}
