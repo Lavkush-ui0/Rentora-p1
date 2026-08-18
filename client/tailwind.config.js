@@ -25,7 +25,7 @@ export default {
           border:        '#42525B',
         },
 
-        /* ── Semantic Aliases ── */
+        /* ── Semantic & Primary Color Shades ── */
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',
         border:     'hsl(var(--border))',
@@ -34,8 +34,19 @@ export default {
           foreground: 'hsl(var(--card-foreground))',
         },
         primary: {
-          DEFAULT:    'hsl(var(--primary))',
-          foreground: 'hsl(var(--primary-foreground))',
+          DEFAULT:    '#9E1B1B',
+          50:         '#fef2f2',
+          100:        '#fee2e2',
+          200:        '#fecaca',
+          300:        '#fca5a5',
+          400:        '#f87171',
+          500:        '#b91c1c',
+          600:        '#9E1B1B',
+          700:        '#801414',
+          800:        '#661010',
+          900:        '#4d0b0b',
+          950:        '#2d0606',
+          foreground: '#FFFFFF',
         },
         sidebar: {
           DEFAULT:    'hsl(var(--sidebar))',
