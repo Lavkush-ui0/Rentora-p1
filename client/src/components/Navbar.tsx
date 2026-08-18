@@ -97,33 +97,34 @@ export const Navbar: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
           
-          {/* Left Area: Mobile Menu Trigger + Brand Info (for mobile) / Campus Location dropdown */}
-          <div className="flex items-center space-x-3">
+          {/* Left Area: Mobile Menu Trigger + Brand Info + Campus Location dropdown */}
+          <div className="flex items-center space-x-2 sm:space-x-3 min-w-0">
             {/* Mobile menu trigger */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2 rounded-xl text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 transition-colors"
+              className="lg:hidden p-2 -ml-1 rounded-xl text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 transition-colors flex-shrink-0"
+              aria-label="Toggle navigation menu"
             >
               {mobileMenuOpen ? <X className="h-5.5 w-5.5" /> : <Menu className="h-5.5 w-5.5" />}
             </button>
 
             {/* Logo on mobile */}
             <Link to="/" className="lg:hidden flex items-center flex-shrink-0">
-              <RentoraWordmark dark={theme === 'dark'} size={20} />
+              <RentoraWordmark dark={theme === 'dark'} size={18} />
             </Link>
 
-            {/* Campus Selector */}
-            <div className="relative location-selector flex-shrink-0">
+            {/* Campus Selector (shown on sm+ screens, mobile drawer has dedicated selector) */}
+            <div className="relative location-selector hidden sm:flex flex-shrink-0">
               <button
                 onClick={() => setLocationDropdownOpen(!locationDropdownOpen)}
                 className="flex items-center space-x-1 px-3 py-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs transition-all focus:outline-none border border-slate-200 dark:border-slate-800"
               >
                 <MapPin className="h-3.5 w-3.5 text-[#9E1B1B] dark:text-rose-400" />
-                <span className="max-w-[100px] sm:max-w-[145px] truncate">{selectedLocation}</span>
+                <span className="max-w-[110px] truncate">{selectedLocation}</span>
                 <ChevronDown className="h-3 w-3 text-slate-400" />
               </button>
 
-            {locationDropdownOpen && (
+              {locationDropdownOpen && (
                 <div className="absolute left-0 mt-2 w-48 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200/60 dark:border-slate-800 py-1.5 z-50">
                   <div className="px-3.5 py-1 text-[9px] font-black text-slate-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 font-display">
                     Landmark Spot
@@ -152,7 +153,7 @@ export const Navbar: React.FC = () => {
             </div>
 
             {user && (
-              <div className="hidden sm:flex items-center space-x-1.5 bg-[#22716E]/10 dark:bg-[#22716E]/20 text-[#22716E] dark:text-[#5FD2CA] px-3 py-1 rounded-full text-[10px] font-black tracking-widest border border-[#22716E]/20 font-display">
+              <div className="hidden md:flex items-center space-x-1.5 bg-[#22716E]/10 dark:bg-[#22716E]/20 text-[#22716E] dark:text-[#5FD2CA] px-3 py-1 rounded-full text-[10px] font-black tracking-widest border border-[#22716E]/20 font-display">
                 <GraduationCap className="h-3 w-3" />
                 <span>@niet.co.in</span>
               </div>
@@ -272,16 +273,16 @@ export const Navbar: React.FC = () => {
                 </div>
               </>
             ) : (
-              <div className="flex space-x-2">
+              <div className="flex items-center space-x-1.5 flex-shrink-0">
                 <Link
                   to="/login"
-                  className="px-3.5 py-1.5 rounded-full text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors border border-slate-200 dark:border-slate-800"
+                  className="px-2.5 sm:px-3.5 py-1.5 rounded-full text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors border border-slate-200 dark:border-slate-800 whitespace-nowrap"
                 >
                   Sign In
                 </Link>
                 <Link
                   to="/register"
-                  className="bg-[#9E1B1B] hover:bg-[#801414] text-white px-3.5 py-1.5 rounded-full text-xs font-bold transition-colors shadow-sm"
+                  className="bg-[#9E1B1B] hover:bg-[#801414] text-white px-2.5 sm:px-3.5 py-1.5 rounded-full text-xs font-bold transition-colors shadow-sm whitespace-nowrap hidden xs:inline-flex"
                 >
                   Register
                 </Link>
@@ -294,16 +295,48 @@ export const Navbar: React.FC = () => {
 
       {/* Mobile Drawer */}
       {mobileMenuOpen && (
-        <div className="lg:hidden border-t border-[#42525B]/15 bg-white dark:bg-slate-900 py-3 px-4 space-y-3 animate-in slide-in-from-top duration-250">
+        <div className="lg:hidden border-t border-[#42525B]/15 bg-white dark:bg-slate-900 py-3.5 px-4 space-y-4 animate-in slide-in-from-top duration-250">
+          {/* Mobile Campus Location Selector */}
+          <div className="bg-slate-50 dark:bg-slate-800/60 p-3 rounded-2xl border border-slate-200/70 dark:border-slate-700/60 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 font-display flex items-center gap-1.5">
+                <MapPin className="h-3.5 w-3.5 text-[#9E1B1B]" /> Campus Location
+              </span>
+              <span className="text-xs font-bold text-[#22716E] dark:text-[#5FD2CA]">
+                {selectedLocation}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-1.5 pt-1">
+              {CAMPUS_LOCATIONS.map((loc) => (
+                <button
+                  key={loc}
+                  onClick={() => {
+                    setSelectedLocation(loc);
+                    localStorage.setItem('rentora_location', loc);
+                    window.dispatchEvent(new Event('rentora_location_changed'));
+                    setMobileMenuOpen(false);
+                  }}
+                  className={`text-xs px-2.5 py-1.5 rounded-xl font-bold transition-all text-left truncate ${
+                    selectedLocation === loc
+                      ? 'bg-[#22716E] text-white shadow-sm'
+                      : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:bg-slate-100'
+                  }`}
+                >
+                  {loc}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <form onSubmit={handleSearchSubmit} className="relative">
             <input
               type="text"
-              placeholder="Search textbooks, calculator..."
+              placeholder="Search textbooks, calculator, gear..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-slate-50 text-slate-900 dark:bg-slate-800 dark:text-slate-100 placeholder-slate-400 pl-10 pr-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs"
+              className="w-full bg-slate-100/90 text-slate-900 dark:bg-slate-800 dark:text-slate-100 placeholder-slate-400 pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-medium"
             />
-            <Search className="absolute left-3.5 top-2.5 h-4 w-4 text-slate-400" />
+            <Search className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
           </form>
 
           <div className="space-y-1">
@@ -373,14 +406,14 @@ export const Navbar: React.FC = () => {
                 <Link
                   to="/login"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="w-full py-2 rounded-xl text-center font-bold text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 text-xs"
+                  className="w-full py-2.5 rounded-xl text-center font-bold text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 text-xs"
                 >
                   Sign In
                 </Link>
                 <Link
                   to="/register"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="w-full py-2 rounded-xl text-center font-bold bg-[#9E1B1B] text-white text-xs"
+                  className="w-full py-2.5 rounded-xl text-center font-bold bg-[#9E1B1B] text-white text-xs shadow-sm"
                 >
                   Register
                 </Link>
