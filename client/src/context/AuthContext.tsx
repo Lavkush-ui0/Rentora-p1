@@ -41,8 +41,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Initialize and verify session on mount
   useEffect(() => {
     const initAuth = async () => {
+      const storedToken = localStorage.getItem('accessToken');
+      if (!storedToken) {
+        setLoading(false);
+        return;
+      }
       try {
-        // Try to fetch profile (this triggers Axios interceptor and refreshes token if needed)
         const response = await api.get('/auth/profile');
         if (response.data?.success) {
           setUser(response.data.user);

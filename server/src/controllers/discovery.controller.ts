@@ -4,20 +4,31 @@ import { RentalRequest } from '../models/rentalRequest.model';
 import { Review } from '../models/review.model';
 import { User } from '../models/user.model';
 
+// In-memory cache for instant responses (60s TTL)
+interface CacheEntry {
+  data: any;
+  timestamp: number;
+}
+const homepageCache = new Map<string, CacheEntry>();
+const CACHE_TTL_MS = 60 * 1000;
+
 export const getHomepageData = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const limit = 6;
     const now = new Date();
     const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const { location } = req.query as any;
+    const cacheKey = `home_${location || 'All'}`;
 
-    // Find active users from the same college if location is provided
-    let userFilter: any = { isBlocked: false };
-    if (location && location !== 'All') {
-      userFilter.collegeName = location;
+    // Return cached payload if valid
+    const cached = homepageCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+      return res.json({
+        success: true,
+        data: cached.data,
+        cached: true,
+      });
     }
-    const matchingUsers = await User.find(userFilter).select('_id');
-    const userIds = matchingUsers.map((u: any) => u._id);
 
     // Base filter for listings
     const listingFilter: any = { status: 'ACTIVE', availability: true };
@@ -25,27 +36,69 @@ export const getHomepageData = async (req: Request, res: Response, next: NextFun
       listingFilter.location = location;
     }
 
-    // 1. Cheapest Products (Sort active listings by price ascending)
-    const cheapestProducts = await Listing.find(listingFilter)
-      .sort({ rentalPrice: 1 })
-      .limit(limit)
-      .populate('owner', 'fullName avatar ratingAverage');
+    // User filter for college
+    let userFilter: any = { isBlocked: false };
+    if (location && location !== 'All') {
+      userFilter.collegeName = location;
+    }
 
-    // 2. Top Demanded Products (Sort by total requestCount)
-    const topDemanded = await Listing.find(listingFilter)
-      .sort({ requestCount: -1, viewCount: -1 })
-      .limit(limit)
-      .populate('owner', 'fullName avatar ratingAverage');
+    // Run parallel queries
+    const [
+      cheapestProducts,
+      topDemanded,
+      trendingListingsAgg,
+      weeklyTopStudentsAgg,
+      topRatedListings,
+      matchingUsers
+    ] = await Promise.all([
+      // 1. Cheapest Products
+      Listing.find(listingFilter)
+        .sort({ rentalPrice: 1 })
+        .limit(limit)
+        .populate('owner', 'fullName avatar ratingAverage')
+        .lean(),
 
-    // 3. Trending This Week (listings with most requests created in the last 7 days)
-    const requestFilter: any = { createdAt: { $gte: oneWeekAgo } };
-    const trendingListingsAgg = await RentalRequest.aggregate([
-      { $match: requestFilter },
-      { $group: { _id: '$listing', count: { $sum: 1 } } },
-      { $sort: { count: -1 } },
-      { $limit: limit },
+      // 2. Top Demanded Products
+      Listing.find(listingFilter)
+        .sort({ requestCount: -1, viewCount: -1 })
+        .limit(limit)
+        .populate('owner', 'fullName avatar ratingAverage')
+        .lean(),
+
+      // 3. Trending IDs aggregate
+      RentalRequest.aggregate([
+        { $match: { createdAt: { $gte: oneWeekAgo } } },
+        { $group: { _id: '$listing', count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: limit },
+      ]),
+
+      // 4. Weekly Top Students aggregate
+      Review.aggregate([
+        { $match: { createdAt: { $gte: oneWeekAgo } } },
+        {
+          $group: {
+            _id: '$reviewee',
+            avgWeeklyRating: { $avg: '$rating' },
+            weeklyReviewCount: { $sum: 1 },
+          },
+        },
+        { $sort: { avgWeeklyRating: -1, weeklyReviewCount: -1 } },
+        { $limit: limit },
+      ]),
+
+      // 5. Top Rated Products
+      Listing.find(listingFilter)
+        .sort({ rating: -1, requestCount: -1, viewCount: -1 })
+        .limit(20)
+        .populate('owner', 'fullName avatar ratingAverage')
+        .lean(),
+
+      // User IDs
+      User.find(userFilter).select('_id').lean(),
     ]);
 
+    // Process Trending products
     let trendingProducts: any[] = [];
     if (trendingListingsAgg.length > 0) {
       const listingIds = trendingListingsAgg.map(item => item._id);
@@ -57,7 +110,9 @@ export const getHomepageData = async (req: Request, res: Response, next: NextFun
       if (location && location !== 'All') {
         trendingFilter.location = location;
       }
-      trendingProducts = await Listing.find(trendingFilter).populate('owner', 'fullName avatar ratingAverage');
+      trendingProducts = await Listing.find(trendingFilter)
+        .populate('owner', 'fullName avatar ratingAverage')
+        .lean();
     }
 
     // Fallback for trending products if weekly activity is low
@@ -73,35 +128,21 @@ export const getHomepageData = async (req: Request, res: Response, next: NextFun
       const extraListings = await Listing.find(extraFilter)
         .sort({ viewCount: -1 })
         .limit(limit - trendingProducts.length)
-        .populate('owner', 'fullName avatar ratingAverage');
+        .populate('owner', 'fullName avatar ratingAverage')
+        .lean();
       trendingProducts = [...trendingProducts, ...extraListings];
     }
 
-    // 4. Top Rated Students This Week (ratings received during current week)
-    const reviewFilter: any = { createdAt: { $gte: oneWeekAgo } };
-    if (location && location !== 'All') {
-      reviewFilter.reviewee = { $in: userIds };
-    }
-    const weeklyTopStudentsAgg = await Review.aggregate([
-      { $match: reviewFilter },
-      {
-        $group: {
-          _id: '$reviewee',
-          avgWeeklyRating: { $avg: '$rating' },
-          weeklyReviewCount: { $sum: 1 },
-        },
-      },
-      { $sort: { avgWeeklyRating: -1, weeklyReviewCount: -1 } },
-      { $limit: limit },
-    ]);
-
+    // Process Top Students
     let topStudents: any[] = [];
     if (weeklyTopStudentsAgg.length > 0) {
       const studentIds = weeklyTopStudentsAgg.map(item => item._id);
       topStudents = await User.find({
         _id: { $in: studentIds },
         isBlocked: false,
-      }).select('fullName avatar ratingAverage completedRentals bio course branch year collegeName');
+      })
+        .select('fullName avatar ratingAverage completedRentals bio course branch year collegeName')
+        .lean();
     }
 
     // Fallback: highly rated users with completed rentals
@@ -117,10 +158,10 @@ export const getHomepageData = async (req: Request, res: Response, next: NextFun
       const extraStudents = await User.find(fallbackUserFilter)
         .sort({ ratingAverage: -1, completedRentals: -1 })
         .limit(limit - topStudents.length)
-        .select('fullName avatar ratingAverage completedRentals bio course branch year collegeName');
+        .select('fullName avatar ratingAverage completedRentals bio course branch year collegeName')
+        .lean();
       topStudents = [...topStudents, ...extraStudents];
 
-      // If still less than 3, fallback globally to fill the podium
       if (topStudents.length < 3) {
         const globalFallbackFilter: any = {
           isBlocked: false,
@@ -130,17 +171,13 @@ export const getHomepageData = async (req: Request, res: Response, next: NextFun
         const globalExtraStudents = await User.find(globalFallbackFilter)
           .sort({ ratingAverage: -1, completedRentals: -1 })
           .limit(limit - topStudents.length)
-          .select('fullName avatar ratingAverage completedRentals bio course branch year collegeName');
+          .select('fullName avatar ratingAverage completedRentals bio course branch year collegeName')
+          .lean();
         topStudents = [...topStudents, ...globalExtraStudents];
       }
     }
 
-    // 5. Top Rated Products (Daily Refresh from Top 20 rated items)
-    const topRatedListings = await Listing.find(listingFilter)
-      .sort({ rating: -1, requestCount: -1, viewCount: -1 })
-      .limit(20)
-      .populate('owner', 'fullName avatar ratingAverage');
-
+    // Process Top Rated Listings
     const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / (24 * 60 * 60 * 1000));
     let topRatedProducts = [...topRatedListings];
     if (topRatedProducts.length > 8) {
@@ -148,17 +185,26 @@ export const getHomepageData = async (req: Request, res: Response, next: NextFun
       topRatedProducts = topRatedProducts.slice(startIndex, startIndex + 8);
     }
 
+    const payload = {
+      cheapestProducts,
+      topDemanded,
+      trendingProducts,
+      topStudents,
+      topRatedProducts,
+    };
+
+    // Save to in-memory cache
+    homepageCache.set(cacheKey, {
+      data: payload,
+      timestamp: Date.now(),
+    });
+
     return res.json({
       success: true,
-      data: {
-        cheapestProducts,
-        topDemanded,
-        trendingProducts,
-        topStudents,
-        topRatedProducts,
-      },
+      data: payload,
     });
   } catch (error) {
     return next(error);
   }
 };
+

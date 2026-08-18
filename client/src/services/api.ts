@@ -47,7 +47,8 @@ api.interceptors.response.use(
       error.response?.status === 401 && 
       !originalRequest._retry && 
       originalRequest.url !== '/auth/refresh-token' &&
-      originalRequest.url !== '/auth/login'
+      originalRequest.url !== '/auth/login' &&
+      getAccessToken()
     ) {
       originalRequest._retry = true;
       try {

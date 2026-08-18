@@ -128,14 +128,16 @@ export const getListings = async (req: CustomRequest, res: Response, next: NextF
       }
     }
 
-    const listings = await Listing.find(filter)
-      .sort(sortQuery)
-      .skip(skip)
-      .limit(limitNum)
-      .populate('owner', 'fullName avatar ratingAverage')
-      .populate('category', 'name slug');
-
-    const total = await Listing.countDocuments(filter);
+    const [listings, total] = await Promise.all([
+      Listing.find(filter)
+        .sort(sortQuery)
+        .skip(skip)
+        .limit(limitNum)
+        .populate('owner', 'fullName avatar ratingAverage')
+        .populate('category', 'name slug')
+        .lean(),
+      Listing.countDocuments(filter),
+    ]);
 
     return res.json({
       success: true,
