@@ -9,7 +9,7 @@ This guide provides step-by-step instructions for deploying **Rentora** (MongoDB
 ```
 +---------------------------------+       +------------------------------------+       +------------------------+
 |       Vercel (Frontend)         | ----> |     Render.com (Backend API)       | ----> |   MongoDB Atlas (DB)   |
-| https://rentora-client.vercel.app|       | https://rentora-backend.onrender.com|       |    Database Storage    |
+|  https://niet-rentora.vercel.app |       | https://rentora-backend.onrender.com|       |    Database Storage    |
 +---------------------------------+       +------------------------------------+       +------------------------+
                                                             |
                                                    (Socket.IO WebSockets)
@@ -61,7 +61,7 @@ This guide provides step-by-step instructions for deploying **Rentora** (MongoDB
 | `MONGODB_URI` | `mongodb+srv://<user>:<password>@cluster...` |
 | `JWT_ACCESS_SECRET` | `your_super_secret_access_key_123` |
 | `JWT_REFRESH_SECRET` | `your_super_secret_refresh_key_456` |
-| `CLIENT_URL` | `https://rentora-frontend.vercel.app` *(update after Step 3)* |
+| `CLIENT_URL` | `https://niet-rentora.vercel.app` *(update after Step 3)* |
 | `ALLOWED_EMAIL_DOMAIN` | `niet.co.in` |
 | `SMTP_HOST` | `smtp.gmail.com` |
 | `SMTP_PORT` | `587` |
@@ -103,7 +103,7 @@ This guide provides step-by-step instructions for deploying **Rentora** (MongoDB
 
 1. Return to **Render.com** > `rentora-backend` > **Environment**.
 2. Ensure `CLIENT_URL` matches your exact Vercel URL:
-   `https://rentora-frontend.vercel.app`
+   `https://niet-rentora.vercel.app`
 3. Click **Save Changes** (Render will auto-redeploy).
 4. Test application registration, login, real-time Socket.IO chat, and notifications on your live Vercel URL!
 

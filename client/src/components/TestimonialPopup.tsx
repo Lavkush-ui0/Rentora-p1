@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Star, MessageSquareQuote } from 'lucide-react';
 
 interface Testimonial {
@@ -45,60 +45,96 @@ export const TestimonialPopup: React.FC = () => {
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [isVisible, setIsVisible] = useState<boolean>(false);
   const [shouldRender, setShouldRender] = useState<boolean>(false);
+  
+  const dismissRef = useRef<((isManual: boolean) => void) | null>(null);
 
   useEffect(() => {
     let openTimer: any;
     let closeTimer: any;
     let nextTimer: any;
 
-    // Show the first popup 5 seconds after page load
-    openTimer = setTimeout(() => {
-      setShouldRender(true);
-      // Allow DOM insertion before triggering slide-in animation
-      setTimeout(() => setIsVisible(true), 50);
-      
-      // Auto close after 12 seconds
-      closeTimer = setTimeout(() => {
-        handleDismiss();
-      }, 12000);
-    }, 5000);
+    const clearTimers = () => {
+      if (openTimer) clearTimeout(openTimer);
+      if (closeTimer) clearTimeout(closeTimer);
+      if (nextTimer) clearTimeout(nextTimer);
+    };
 
-    const handleDismiss = () => {
+    const schedulePopup = (delay: number) => {
+      clearTimers();
+      openTimer = setTimeout(() => {
+        // Check if dismissed in localStorage (from manual close)
+        const dismissedUntil = localStorage.getItem('testimonial_dismissed_until');
+        if (dismissedUntil) {
+          const timestamp = parseInt(dismissedUntil, 10);
+          if (!isNaN(timestamp) && Date.now() < timestamp) {
+            // Still dismissed! Schedule next check after the block expires
+            const remaining = timestamp - Date.now();
+            schedulePopup(remaining + 1000); // 1s buffer
+            return;
+          }
+        }
+
+        // Show the popup
+        setShouldRender(true);
+        setTimeout(() => setIsVisible(true), 50);
+        
+        // Auto close after 12 seconds
+        closeTimer = setTimeout(() => {
+          dismissPopup(false);
+        }, 12000);
+      }, delay);
+    };
+
+    const dismissPopup = (isManual: boolean) => {
       setIsVisible(false);
-      // Wait for exit animation to finish before destroying/scheduling next
+      clearTimers();
+      
       setTimeout(() => {
         setShouldRender(false);
-        // Move to the next testimonial index
+        
+        // Advance to the next testimonial index
         setCurrentIndex((prevIndex) => (prevIndex + 1) % testimonials.length);
 
-        // Schedule next popup after 1 to 2 minutes (60k - 120k ms)
-        const randomDelay = Math.floor(Math.random() * 60000) + 60000;
-        nextTimer = setTimeout(() => {
-          setShouldRender(true);
-          setTimeout(() => setIsVisible(true), 50);
+        if (isManual) {
+          // If closed manually ("crossed"), block for 2-5 minutes (random duration between 120,000ms and 300,000ms)
+          const blockDuration = Math.floor(Math.random() * (300000 - 120000 + 1)) + 120000;
+          localStorage.setItem('testimonial_dismissed_until', (Date.now() + blockDuration).toString());
           
-          // Set close timer for this new popup
-          closeTimer = setTimeout(() => {
-            handleDismiss();
-          }, 12000);
-        }, randomDelay);
+          // Schedule next check after the block expires
+          schedulePopup(blockDuration + 1000);
+        } else {
+          // If auto-closed, schedule the next one in 1 to 2 minutes
+          const randomDelay = Math.floor(Math.random() * 60000) + 60000;
+          schedulePopup(randomDelay);
+        }
       }, 500); // match transition duration
     };
 
+    dismissRef.current = dismissPopup;
+
+    // Initial scheduling: check if currently blocked, or start after 5 seconds
+    const dismissedUntil = localStorage.getItem('testimonial_dismissed_until');
+    if (dismissedUntil) {
+      const timestamp = parseInt(dismissedUntil, 10);
+      if (!isNaN(timestamp) && Date.now() < timestamp) {
+        const remaining = timestamp - Date.now();
+        schedulePopup(remaining + 1000);
+      } else {
+        schedulePopup(5000);
+      }
+    } else {
+      schedulePopup(5000);
+    }
+
     return () => {
-      clearTimeout(openTimer);
-      clearTimeout(closeTimer);
-      clearTimeout(nextTimer);
+      clearTimers();
     };
-  }, [currentIndex]);
+  }, []);
 
   const handleManualClose = () => {
-    setIsVisible(false);
-    setTimeout(() => {
-      setShouldRender(false);
-      // Schedule the next one in 1-2 minutes
-      setCurrentIndex((prevIndex) => (prevIndex + 1) % testimonials.length);
-    }, 500);
+    if (dismissRef.current) {
+      dismissRef.current(true);
+    }
   };
 
   if (!shouldRender) return null;

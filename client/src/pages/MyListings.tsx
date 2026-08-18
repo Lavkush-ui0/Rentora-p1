@@ -117,13 +117,11 @@ export const MyListings: React.FC = () => {
         <div className="space-y-4">
           {listings.map((listing) => (
             <div key={listing._id} className="flex gap-4 bg-white dark:bg-slate-900 rounded-3xl border border-gray-100 dark:border-slate-800 p-4 hover:shadow-md transition-all">
-              <Link to={`/listing/${listing._id}`} className="flex-shrink-0">
-                <img
-                  src={getImageUrl(listing.images?.[0], 'https://picsum.photos/150/150')}
-                  alt={listing.title}
-                  className="h-24 w-24 object-cover rounded-2xl border border-gray-100 dark:border-slate-800 hover:opacity-90 transition-opacity"
-                />
-              </Link>
+              <img
+                src={getImageUrl(listing.images?.[0], 'https://picsum.photos/150/150')}
+                alt={listing.title}
+                className="h-24 w-24 object-cover rounded-2xl flex-shrink-0 border border-gray-100 dark:border-slate-800"
+              />
               <div className="flex-1 min-w-0 space-y-1.5">
                 <div className="flex items-start justify-between gap-2 flex-wrap">
                   <Link to={`/listing/${listing._id}`} className="font-bold text-gray-900 dark:text-gray-100 hover:text-primary-600 transition-colors text-sm leading-tight">
