@@ -235,12 +235,31 @@ describe('Rentora Integration Tests', () => {
           rentalPrice: 15,
           priceUnit: 'DAY',
           securityDeposit: 300,
+          images: ['https://picsum.photos/600/400'],
         });
 
       expect(res.status).toBe(201);
       expect(res.body.success).toBe(true);
       expect(res.body.listing.title).toBe('Mechanical Lab Kit');
       listingId = res.body.listing._id;
+    });
+
+    it('should reject creating listing without photos', async () => {
+      const res = await request(app)
+        .post('/api/listings')
+        .set('Authorization', `Bearer ${studentAToken}`)
+        .send({
+          title: 'Mechanical Lab Kit',
+          description: 'A complete mechanical tool kit with wrench and calipers.',
+          category: categoryId,
+          condition: 'LIKE_NEW',
+          rentalPrice: 15,
+          priceUnit: 'DAY',
+          securityDeposit: 300,
+        });
+
+      expect(res.status).toBe(400);
+      expect(res.body.code).toBe('PHOTO_REQUIRED');
     });
 
     it('should allow searching listings by title keywords', async () => {

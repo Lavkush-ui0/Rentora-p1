@@ -24,17 +24,16 @@ export const createListing = async (req: CustomRequest, res: Response, next: Nex
 
     // Handle uploaded files
     const imageUrls: string[] = [];
-    if (req.files && Array.isArray(req.files)) {
+    if (req.files && Array.isArray(req.files) && req.files.length > 0) {
       const uploadPromises = (req.files as Express.Multer.File[]).map(file =>
         uploadImage(file.buffer, 'rentora/listings', file.mimetype)
       );
       const results = await Promise.all(uploadPromises);
       imageUrls.push(...results);
-    }
-
-    // Default image if none uploaded
-    if (imageUrls.length === 0) {
-      imageUrls.push('https://picsum.photos/600/400'); // placeholder
+    } else if (req.body.images && Array.isArray(req.body.images) && req.body.images.length > 0) {
+      imageUrls.push(...req.body.images);
+    } else {
+      throw new CustomError('At least one item photo is required.', 400, 'PHOTO_REQUIRED');
     }
 
     // Create unique slug

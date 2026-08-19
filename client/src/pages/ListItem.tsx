@@ -106,6 +106,10 @@ export const ListItem: React.FC = () => {
     e.preventDefault();
     setError('');
 
+    if (images.length === 0) {
+      setError('You must upload at least one photo of the item.');
+      return;
+    }
     if (!form.category) { setError('Please select a category.'); return; }
     if (parseFloat(form.rentalPrice) < 0) { setError('Rental price cannot be negative.'); return; }
 
@@ -285,9 +289,11 @@ export const ListItem: React.FC = () => {
               />
             </div>
 
-            {/* Optional photo uploads */}
+            {/* Compulsory photo uploads */}
             <div>
-              <label className="block text-[10px] font-black text-slate-450 dark:text-slate-400 uppercase tracking-wider mb-3">Upload Custom Photos (Optional)</label>
+              <label className="block text-[10px] font-black text-slate-450 dark:text-slate-400 uppercase tracking-wider mb-3">
+                Upload Custom Photos <span className="text-red-500">*</span> (Required)
+              </label>
               <div className="flex flex-wrap gap-2.5">
                 {imagePreviews.map((preview, i) => (
                   <div key={i} className="relative h-20 w-20 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 flex-shrink-0">

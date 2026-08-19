@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Eye, Heart, ChevronLeft, ChevronRight, Zap } from 'lucide-react';
+import { getImageUrl } from '../utils/imageUrl';
 
 interface SlideItem {
   id: string;
@@ -12,6 +13,7 @@ interface SlideItem {
   gradient: string;
   accentColor: string;
   image?: string;
+  isMock?: boolean;
 }
 
 const MOCK_SLIDES: SlideItem[] = [
@@ -24,6 +26,7 @@ const MOCK_SLIDES: SlideItem[] = [
     condition: 'BRAND NEW',
     gradient: 'linear-gradient(135deg, #14b8a6 0%, #0d9488 60%, #0f766e 100%)',
     accentColor: '#5eead4',
+    isMock: true,
   },
   {
     id: '2',
@@ -34,6 +37,7 @@ const MOCK_SLIDES: SlideItem[] = [
     condition: 'LIKE NEW',
     gradient: 'linear-gradient(135deg, #9E1B1B 0%, #b91c1c 60%, #7f1d1d 100%)',
     accentColor: '#fca5a5',
+    isMock: true,
   },
   {
     id: '3',
@@ -44,6 +48,7 @@ const MOCK_SLIDES: SlideItem[] = [
     condition: 'GOOD',
     gradient: 'linear-gradient(135deg, #7c3aed 0%, #6d28d9 60%, #4c1d95 100%)',
     accentColor: '#c4b5fd',
+    isMock: true,
   },
   {
     id: '4',
@@ -54,6 +59,7 @@ const MOCK_SLIDES: SlideItem[] = [
     condition: 'EXCELLENT',
     gradient: 'linear-gradient(135deg, #d97706 0%, #b45309 60%, #92400e 100%)',
     accentColor: '#fcd34d',
+    isMock: true,
   },
 ];
 
@@ -73,23 +79,23 @@ const TrendingHeroSlider: React.FC<TrendingHeroSliderProps> = ({ listings = [] }
   const [activeIdx, setActiveIdx] = useState(0);
   const [wishlisted, setWishlisted] = useState<Set<number>>(new Set());
 
-  // Map real listings to slides or fall back to mocks
-  const slides: SlideItem[] = listings.length >= 3
-    ? listings.slice(0, 4).map((l, i) => ({
-        id: l._id,
-        title: l.title,
-        category: typeof l.category === 'object' ? l.category?.name : l.category,
-        price: l.rentalPrice ?? l.price ?? 20,
-        priceUnit: l.priceUnit || 'day',
-        condition: l.condition || 'GOOD',
-        gradient: MOCK_SLIDES[i % MOCK_SLIDES.length].gradient,
-        accentColor: MOCK_SLIDES[i % MOCK_SLIDES.length].accentColor,
-        image: l.images?.[0],
-      }))
-    : MOCK_SLIDES;
+  // Map real listings to slides (only show real user listings)
+  const slides: SlideItem[] = listings.map((l, i) => ({
+    id: l._id,
+    title: l.title,
+    category: typeof l.category === 'object' ? l.category?.name : l.category,
+    price: l.rentalPrice ?? l.price ?? 20,
+    priceUnit: l.priceUnit || 'day',
+    condition: l.condition || 'GOOD',
+    gradient: MOCK_SLIDES[i % MOCK_SLIDES.length].gradient,
+    accentColor: MOCK_SLIDES[i % MOCK_SLIDES.length].accentColor,
+    image: l.images?.[0],
+    isMock: false,
+  }));
 
-  // Auto-advance
+  // Auto-advance if multiple slides
   useEffect(() => {
+    if (slides.length <= 1) return;
     const t = setInterval(() => setActiveIdx(i => (i + 1) % slides.length), 4500);
     return () => clearInterval(t);
   }, [slides.length]);
@@ -109,6 +115,38 @@ const TrendingHeroSlider: React.FC<TrendingHeroSliderProps> = ({ listings = [] }
     return 'z-0 scale-[0.78] opacity-0 pointer-events-none';
   };
 
+  if (slides.length === 0) {
+    return (
+      <div className="relative flex flex-col gap-5">
+        {/* Header Pill */}
+        <div className="flex items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-700 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800/50">
+            <Zap size={10} fill="currentColor" /> Premium Campus Collections
+          </span>
+        </div>
+        <h2 className="font-display font-black text-xl text-slate-900 dark:text-slate-100 tracking-tight -mt-1">
+          Best Deals!
+        </h2>
+
+        {/* Placeholder Stage */}
+        <div className="relative h-[360px] flex items-center justify-center overflow-visible">
+          <Link
+            to="/list-item"
+            className="w-[240px] h-[320px] rounded-[28px] p-6 flex flex-col items-center justify-center text-center border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-[#22716E]/40 hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-all duration-200 card-lift"
+          >
+            <div className="text-4xl mb-4">🚀</div>
+            <p className="font-display font-bold text-sm text-slate-800 dark:text-slate-200">No active listings yet</p>
+            <p className="text-[10px] text-slate-400 mt-2 leading-relaxed max-w-[180px]">
+              Be the first to list your study tools, tech, or books and see them featured in this premium slider!
+            </p>
+            <span className="mt-6 text-[10px] font-black uppercase tracking-wider text-white bg-[#22716E] px-4 py-2 rounded-full shadow-sm hover:bg-[#1a5a57] transition-all">
+              List an Item
+            </span>
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative flex flex-col gap-5">
@@ -126,8 +164,8 @@ const TrendingHeroSlider: React.FC<TrendingHeroSliderProps> = ({ listings = [] }
       <div className="perspective-stage relative h-[360px] flex items-center justify-center overflow-visible">
         <div className="relative w-[240px] h-[320px]">
           {slides.map((slide, idx) => {
-            const offset = (idx - activeIdx + slides.length) % slides.length;
-            const normalizedOffset = offset > slides.length / 2 ? offset - slides.length : offset;
+            const offset = slides.length > 1 ? (idx - activeIdx + slides.length) % slides.length : 0;
+            const normalizedOffset = slides.length > 1 && offset > slides.length / 2 ? offset - slides.length : offset;
 
             return (
               <div
@@ -157,18 +195,26 @@ const TrendingHeroSlider: React.FC<TrendingHeroSliderProps> = ({ listings = [] }
                   )}
                 </div>
 
-                {/* Center illustration */}
+                {/* Center illustration / Image */}
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <div
-                    className="w-24 h-24 rounded-2xl flex items-center justify-center text-4xl shadow-2xl"
-                    style={{ background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.3)' }}
-                  >
-                    {slide.category === 'Calculators' && '🧮'}
-                    {slide.category === 'Books' && '📚'}
-                    {slide.category === 'Lab Gear' && '🔬'}
-                    {slide.category === 'Electronics' && '💻'}
-                    {!['Calculators','Books','Lab Gear','Electronics'].includes(slide.category) && '📦'}
-                  </div>
+                  {slide.image ? (
+                    <img
+                      src={getImageUrl(slide.image)}
+                      alt={slide.title}
+                      className="w-24 h-24 rounded-2xl object-cover shadow-2xl border border-white/20"
+                    />
+                  ) : (
+                    <div
+                      className="w-24 h-24 rounded-2xl flex items-center justify-center text-4xl shadow-2xl"
+                      style={{ background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.3)' }}
+                    >
+                      {slide.category === 'Calculators' && '🧮'}
+                      {slide.category === 'Books' && '📚'}
+                      {slide.category === 'Lab Gear' && '🔬'}
+                      {slide.category === 'Electronics' && '💻'}
+                      {!['Calculators','Books','Lab Gear','Electronics'].includes(slide.category) && '📦'}
+                    </div>
+                  )}
                 </div>
 
                 {/* Dark glass bottom tray */}
@@ -190,14 +236,14 @@ const TrendingHeroSlider: React.FC<TrendingHeroSliderProps> = ({ listings = [] }
                       </div>
                       <div className="flex gap-2">
                         <Link
-                          to={`/listing/${slide.id}`}
+                          to={slide.isMock ? "/explore" : `/listing/${slide.id}`}
                           onClick={e => e.stopPropagation()}
                           className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-white bg-white/20 hover:bg-white/30 backdrop-blur-md px-3 py-1.5 rounded-full transition-all"
                         >
                           <Eye size={10} /> Quick View
                         </Link>
                         <Link
-                          to={`/listing/${slide.id}`}
+                          to={slide.isMock ? `/explore?search=${encodeURIComponent(slide.category)}` : `/listing/${slide.id}`}
                           onClick={e => e.stopPropagation()}
                           className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-white bg-white/25 hover:bg-white/35 backdrop-blur-md px-3 py-1.5 rounded-full transition-all border border-white/30"
                         >
@@ -214,37 +260,39 @@ const TrendingHeroSlider: React.FC<TrendingHeroSliderProps> = ({ listings = [] }
       </div>
 
       {/* Controls */}
-      <div className="flex items-center justify-center gap-4">
-        <button
-          onClick={prev}
-          className="h-9 w-9 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-50 hover:border-[#22716E] hover:text-[#22716E] transition-all shadow-sm"
-        >
-          <ChevronLeft size={16} />
-        </button>
+      {slides.length > 1 && (
+        <div className="flex items-center justify-center gap-4">
+          <button
+            onClick={prev}
+            className="h-9 w-9 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-650 dark:text-slate-300 hover:bg-slate-50 hover:border-[#22716E] hover:text-[#22716E] transition-all shadow-sm"
+          >
+            <ChevronLeft size={16} />
+          </button>
 
-        {/* Pill indicators */}
-        <div className="flex gap-1.5">
-          {slides.map((_, idx) => (
-            <button
-              key={idx}
-              onClick={() => setActiveIdx(idx)}
-              className="transition-all duration-300 rounded-full"
-              style={{
-                width: idx === activeIdx ? 28 : 6,
-                height: 6,
-                background: idx === activeIdx ? '#22716E' : '#CBD5E1',
-              }}
-            />
-          ))}
+          {/* Pill indicators */}
+          <div className="flex gap-1.5">
+            {slides.map((_, idx) => (
+              <button
+                key={idx}
+                onClick={() => setActiveIdx(idx)}
+                className="transition-all duration-300 rounded-full"
+                style={{
+                  width: idx === activeIdx ? 28 : 6,
+                  height: 6,
+                  background: idx === activeIdx ? '#22716E' : '#CBD5E1',
+                }}
+              />
+            ))}
+          </div>
+
+          <button
+            onClick={next}
+            className="h-9 w-9 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-650 dark:text-slate-300 hover:bg-slate-50 hover:border-[#22716E] hover:text-[#22716E] transition-all shadow-sm"
+          >
+            <ChevronRight size={16} />
+          </button>
         </div>
-
-        <button
-          onClick={next}
-          className="h-9 w-9 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-50 hover:border-[#22716E] hover:text-[#22716E] transition-all shadow-sm"
-        >
-          <ChevronRight size={16} />
-        </button>
-      </div>
+      )}
     </div>
   );
 };
