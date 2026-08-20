@@ -30,6 +30,7 @@ interface AuthContextType {
   loginVerifyOTP: (email: string, otp: string) => Promise<any>;
   googleLogin: (credential: string) => Promise<void>;
   refreshUser: () => Promise<void>;
+  deleteUserAccount: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -186,6 +187,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const deleteUserAccount = async () => {
+    setLoading(true);
+    try {
+      await api.delete('/auth/profile');
+    } finally {
+      setAccessToken('');
+      setUser(null);
+      setLoading(false);
+    }
+  };
+
   const googleLogin = async (credential: string) => {
     setLoading(true);
     try {
@@ -218,6 +230,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loginVerifyOTP,
         googleLogin,
         refreshUser,
+        deleteUserAccount,
       }}
     >
       {children}

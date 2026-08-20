@@ -4,6 +4,7 @@ import { OAuth2Client } from 'google-auth-library';
 import { google } from 'googleapis';
 import { User } from '../models/user.model';
 import { OTP } from '../models/otp.model';
+import { Listing } from '../models/listing.model';
 import { sendOTPEmail } from '../services/mail.service';
 import { CustomRequest } from '../types';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../utils/token';
@@ -622,6 +623,55 @@ export const googleAuth = async (req: CustomRequest, res: Response, next: NextFu
         ratingAverage: user.ratingAverage,
         completedRentals: user.completedRentals,
       },
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const deleteAccount = async (req: CustomRequest, res: Response, next: NextFunction) => {
+  try {
+    if (!req.user) {
+      throw new CustomError('Authentication required', 401, 'UNAUTHORIZED');
+    }
+
+    const userId = req.user._id;
+    const user = await User.findById(userId);
+    if (!user) {
+      throw new CustomError('User not found', 404, 'NOT_FOUND');
+    }
+
+    // 1. Delete user's avatar from Cloudinary
+    if (user.avatar && !user.avatar.includes('dicebear.com') && !user.avatar.includes('picsum.photos')) {
+      await deleteImage(user.avatar);
+    }
+
+    // 2. Find and delete all user's listings and their images from Cloudinary
+    const userListings = await Listing.find({ owner: userId });
+    for (const listing of userListings) {
+      if (listing.images && listing.images.length > 0) {
+        for (const imageUrl of listing.images) {
+          if (!imageUrl.includes('picsum.photos')) {
+            await deleteImage(imageUrl);
+          }
+        }
+      }
+    }
+    await Listing.deleteMany({ owner: userId });
+
+    // 3. Delete the user document
+    await User.findByIdAndDelete(userId);
+
+    // 4. Clear cookies
+    res.clearCookie('refreshToken', {
+      httpOnly: true,
+      secure: cookieOptions.secure,
+      sameSite: cookieOptions.sameSite,
+    });
+
+    return res.json({
+      success: true,
+      message: 'Account and all associated listings deleted successfully.',
     });
   } catch (error) {
     return next(error);

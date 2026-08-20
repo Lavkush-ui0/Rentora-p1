@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { compressImageIfNeeded } from '../utils/imageCompressor';
@@ -6,11 +7,16 @@ import { Sun, Moon, User, Save, AlertCircle, CheckCircle2, Camera, Upload, Trash
 import { COURSES, BRANCHES_MAP, BRANCH_SPECIALIZATIONS_MAP } from '../utils/constants';
 
 export const Settings: React.FC = () => {
-  const { user, updateUser } = useAuth();
+  const navigate = useNavigate();
+  const { user, updateUser, deleteUserAccount } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
+
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
   const [form, setForm] = useState({
     fullName: user?.fullName || '',
@@ -179,6 +185,21 @@ export const Settings: React.FC = () => {
       setError(err.response?.data?.message || 'Failed to update profile. Please try again.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText.toUpperCase() !== 'DELETE') return;
+    setDeleting(true);
+    setError('');
+    try {
+      await deleteUserAccount();
+      navigate('/login');
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to delete account. Please try again.');
+      setDeleteModalOpen(false);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -416,6 +437,80 @@ export const Settings: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Danger Zone */}
+      <div className="bg-red-50/30 dark:bg-red-950/10 rounded-3xl border border-red-100 dark:border-red-900/30 p-6 space-y-4 animate-in fade-in duration-300">
+        <div className="flex items-center space-x-2">
+          <Trash2 className="h-5 w-5 text-red-650 dark:text-red-400" />
+          <h2 className="text-base font-black font-outfit text-red-650 dark:text-red-400">Danger Zone</h2>
+        </div>
+        <p className="text-xs text-gray-550 dark:text-gray-400 leading-relaxed">
+          Once you delete your account, there is no going back. All your active listings, rentals history, chat history, and personal details will be permanently removed.
+        </p>
+        <button
+          type="button"
+          onClick={() => setDeleteModalOpen(true)}
+          className="bg-red-600 hover:bg-red-700 text-white font-bold px-5 py-2.5 rounded-xl text-xs transition-colors hover:shadow-lg"
+        >
+          Delete Account
+        </button>
+      </div>
+
+      {/* Delete Account Confirmation Modal */}
+      {deleteModalOpen && (
+        <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-950 rounded-3xl border border-gray-150 dark:border-slate-850 p-6 max-w-md w-full space-y-4 shadow-2xl relative overflow-hidden animate-in zoom-in-95 duration-200">
+            <button
+              onClick={() => {
+                setDeleteModalOpen(false);
+                setDeleteConfirmText('');
+              }}
+              type="button"
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-650 dark:hover:text-gray-250 transition-colors"
+            >
+              <X className="h-6 w-6" />
+            </button>
+            <h3 className="text-lg font-black font-outfit text-red-650 dark:text-red-400">Delete Account Permanently?</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+              This will permanently delete your account, listings, and details. To confirm, please type <strong className="text-gray-900 dark:text-gray-100">DELETE</strong> below.
+            </p>
+            <input
+              type="text"
+              placeholder="Type DELETE to confirm"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              className="w-full bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-gray-100 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 focus:outline-none focus:border-red-500 text-sm font-semibold"
+            />
+            <div className="flex space-x-3 justify-end pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setDeleteModalOpen(false);
+                  setDeleteConfirmText('');
+                }}
+                className="px-4 py-2 border border-gray-200 dark:border-slate-700 text-gray-750 dark:text-gray-300 font-bold text-xs rounded-xl hover:bg-gray-50 dark:hover:bg-slate-850 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={deleteConfirmText.toUpperCase() !== 'DELETE' || deleting}
+                onClick={handleDeleteAccount}
+                className="flex items-center space-x-2 bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {deleting ? (
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4" />
+                    <span>Yes, Delete Account</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Camera Modal Overlay */}
       {cameraActive && (
         <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-md flex items-center justify-center p-4">

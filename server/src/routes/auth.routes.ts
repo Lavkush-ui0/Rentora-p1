@@ -7,6 +7,7 @@ import {
   getProfile,
   getProfileById,
   updateProfile,
+  deleteAccount,
   verifyOTP,
   resendOTP,
   loginSendOTP,
@@ -34,5 +35,6 @@ router.post('/google', googleAuth);
 router.get('/profile', authenticateUser, getProfile);
 router.get('/profile/:id', getProfileById);
 router.patch('/profile', authenticateUser, upload.single('avatar'), updateProfile);
+router.delete('/profile', authenticateUser, deleteAccount);
 
 export default router;
