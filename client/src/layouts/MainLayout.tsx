@@ -10,7 +10,6 @@ import MobileBottomNav from '../components/MobileBottomNav';
 import TestimonialPopup from '../components/TestimonialPopup';
 import chatService from '../services/chatService';
 import { RentoraWordmark } from '../components/RentoraBrand';
-import { getAvatarUrl } from '../utils/imageUrl';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -174,7 +173,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             <div className="flex items-center justify-between">
               <Link to={`/profile/${user.id}`} className="flex items-center space-x-2.5 group">
                 <img 
-                  src={getAvatarUrl(user.avatar, user.fullName)} 
+                  src={user.avatar} 
                   alt={user.fullName} 
                   className="h-9 w-9 rounded-full object-cover border border-[#42525B]/40 group-hover:border-[#9E1B1B] transition-colors" 
                 />

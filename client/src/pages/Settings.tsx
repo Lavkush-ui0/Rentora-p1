@@ -4,7 +4,6 @@ import { useTheme } from '../context/ThemeContext';
 import { compressImageIfNeeded } from '../utils/imageCompressor';
 import { Sun, Moon, User, Save, AlertCircle, CheckCircle2, Camera, Upload, Trash2, X } from 'lucide-react';
 import { COURSES, BRANCHES_MAP, BRANCH_SPECIALIZATIONS_MAP } from '../utils/constants';
-import { getAvatarUrl } from '../utils/imageUrl';
 
 export const Settings: React.FC = () => {
   const { user, updateUser } = useAuth();
@@ -55,7 +54,7 @@ export const Settings: React.FC = () => {
     }
   }, [selectedBranch, specialization]);
 
-  const [previewUrl, setPreviewUrl] = useState<string>(user?.avatar && user.avatar !== 'data:,' ? getAvatarUrl(user.avatar, user.fullName) : '');
+  const [previewUrl, setPreviewUrl] = useState<string>(user?.avatar && user.avatar !== 'data:,' ? user.avatar : '');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [cameraActive, setCameraActive] = useState(false);
   const [webcamImage, setWebcamImage] = useState<string | null>(null);
@@ -64,7 +63,7 @@ export const Settings: React.FC = () => {
 
   useEffect(() => {
     if (user?.avatar && user.avatar !== 'data:,') {
-      setPreviewUrl(getAvatarUrl(user.avatar, user.fullName));
+      setPreviewUrl(user.avatar);
     } else {
       setPreviewUrl('');
     }

@@ -166,7 +166,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const updateUser = async (data: any) => {
-    const response = await api.patch('/auth/profile', data);
+    const config = data instanceof FormData
+      ? { headers: { 'Content-Type': 'multipart/form-data' } }
+      : undefined;
+    const response = await api.patch('/auth/profile', data, config);
     if (response.data?.success) {
       setUser(response.data.user);
     }
