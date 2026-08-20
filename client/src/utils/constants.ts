@@ -45,20 +45,38 @@ export const BRANCHES_MAP: Record<string, { value: string; label: string }[]> = 
   ]
 };
 
-export const CSE_SPECIALIZATIONS = [
-  { value: 'Core', label: 'Core / General' },
-  { value: 'AIML', label: 'AIML (AI & Machine Learning)' },
-  { value: 'AI', label: 'AI (Artificial Intelligence)' },
-  { value: 'DS', label: 'DS (Data Science)' },
-  { value: 'CS', label: 'CS (Cyber-Security)' },
-  { value: 'IoT', label: 'IoT (Internet of Things)' },
-  { value: 'Regional', label: 'Regional' },
-  { value: 'Working Professionals', label: 'Working Professionals (WP)' },
-  { value: 'Twinning', label: 'Twinning Program' },
-  { value: 'AI Twinning', label: 'AI/International Twinning' },
-  { value: 'AIML Twinning', label: 'AIML/International Twinning' },
-  { value: 'Other', label: 'Other' }
-];
+export const BRANCH_SPECIALIZATIONS_MAP: Record<string, { value: string; label: string }[]> = {
+  'CSE': [
+    { value: 'Core', label: 'Core / General' },
+    { value: 'AIML', label: 'AIML (AI & Machine Learning)' },
+    { value: 'AI', label: 'AI (Artificial Intelligence)' },
+    { value: 'DS', label: 'DS (Data Science)' },
+    { value: 'CS', label: 'CS (Cyber-Security)' },
+    { value: 'IoT', label: 'IoT (Internet of Things)' },
+    { value: 'Regional', label: 'Regional' },
+    { value: 'Working Professionals', label: 'Working Professionals (WP)' },
+    { value: 'Twinning', label: 'Twinning Program' },
+    { value: 'AI Twinning', label: 'AI/International Twinning' },
+    { value: 'AIML Twinning', label: 'AIML/International Twinning' },
+    { value: 'Other', label: 'Other' }
+  ],
+  'ECE': [
+    { value: 'Core', label: 'Core / General' },
+    { value: 'VLSI', label: 'VLSI (VLSI Design and technology)' },
+    { value: 'Working Professionals', label: 'Working Professionals (WP)' },
+    { value: 'Other', label: 'Other' }
+  ],
+  'ME': [
+    { value: 'Core', label: 'Core / General' },
+    { value: 'Working Professionals', label: 'Working Professionals (WP)' },
+    { value: 'Other', label: 'Other' }
+  ],
+  'IT': [
+    { value: 'Core', label: 'Core / General' },
+    { value: 'Twinning', label: 'Twinning Program' },
+    { value: 'Other', label: 'Other' }
+  ]
+};
 
 export const CAMPUS_LOCATIONS = [
   'NIET Plot 19',

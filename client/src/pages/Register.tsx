@@ -8,7 +8,7 @@ import rentoraLogo from '../assets/rentora-logo.png';
 import logoName from '../assets/logo-name.png';
 import logoNameWhite from '../assets/logo-name-white.png';
 import api from '../services/api';
-import { COURSES, BRANCHES_MAP, CSE_SPECIALIZATIONS, CAMPUS_LOCATIONS } from '../utils/constants';
+import { COURSES, BRANCHES_MAP, BRANCH_SPECIALIZATIONS_MAP, CAMPUS_LOCATIONS } from '../utils/constants';
 
 export const Register: React.FC = () => {
   const { registerUser, verifyOTP, googleLogin } = useAuth();
@@ -68,8 +68,9 @@ export const Register: React.FC = () => {
       return;
     }
 
-    if (selectedBranch === 'CSE' && specialization && specialization !== 'Core') {
-      setForm(f => ({ ...f, branch: `CSE (${specialization})` }));
+    const specs = BRANCH_SPECIALIZATIONS_MAP[selectedBranch];
+    if (specs && specialization && specialization !== 'Core') {
+      setForm(f => ({ ...f, branch: `${selectedBranch} (${specialization})` }));
     } else {
       setForm(f => ({ ...f, branch: selectedBranch }));
     }
@@ -427,10 +428,12 @@ export const Register: React.FC = () => {
                 </div>
               </div>
 
-              {/* CSE Specialization field - displayed conditionally */}
-              {selectedBranch === 'CSE' && (
+              {/* Branch Specialization field - displayed conditionally */}
+              {BRANCH_SPECIALIZATIONS_MAP[selectedBranch] && (
                 <div className="animate-in fade-in slide-in-from-top-2 duration-200">
-                  <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">CSE Specialization</label>
+                  <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                    {selectedBranch} Specialization
+                  </label>
                   <select
                     required
                     value={specialization}
@@ -438,7 +441,7 @@ export const Register: React.FC = () => {
                     className="w-full bg-gray-50 text-gray-900 dark:bg-slate-800 dark:text-gray-100 px-4 py-3 rounded-2xl border border-gray-200 dark:border-slate-700 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-sm font-medium appearance-none cursor-pointer"
                   >
                     <option value="">Select Specialization</option>
-                    {CSE_SPECIALIZATIONS.map(s => (
+                    {BRANCH_SPECIALIZATIONS_MAP[selectedBranch].map(s => (
                       <option key={s.value} value={s.value}>{s.label}</option>
                     ))}
                   </select>
