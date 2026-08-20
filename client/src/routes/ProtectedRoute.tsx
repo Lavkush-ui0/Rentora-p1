@@ -34,6 +34,21 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowe
     return <Navigate to="/home" replace />;
   }
 
+  // Check if profile is incomplete (Name, Branch, Course, and Year are compulsory)
+  // Google signups start with branch === 'Not Set'
+  const isProfileIncomplete =
+    user.role !== 'ADMIN' && (
+      !user.fullName ||
+      !user.course ||
+      !user.branch ||
+      user.branch === 'Not Set' ||
+      !user.year
+    );
+
+  if (isProfileIncomplete && location.pathname !== '/settings') {
+    return <Navigate to="/settings" state={{ from: location, incompleteProfile: true }} replace />;
+  }
+
   return <>{children}</>;
 };
 

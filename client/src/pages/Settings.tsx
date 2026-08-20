@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { compressImageIfNeeded } from '../utils/imageCompressor';
@@ -8,6 +8,7 @@ import { COURSES, BRANCHES_MAP, BRANCH_SPECIALIZATIONS_MAP } from '../utils/cons
 
 export const Settings: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, updateUser, deleteUserAccount } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [saving, setSaving] = useState(false);
@@ -31,7 +32,7 @@ export const Settings: React.FC = () => {
 
   // Initialize selectedBranch and specialization from user data on mount / user change
   useEffect(() => {
-    if (user?.branch) {
+    if (user?.branch && user.branch !== 'Not Set') {
       const match = user.branch.match(/^([^(]+)(?:\s*\(([^)]+)\))?$/);
       if (match) {
         const baseBranch = match[1].trim();
@@ -42,6 +43,9 @@ export const Settings: React.FC = () => {
         setSelectedBranch(user.branch);
         setSpecialization('Core');
       }
+    } else {
+      setSelectedBranch('');
+      setSpecialization('');
     }
   }, [user?.branch]);
 
@@ -163,6 +167,29 @@ export const Settings: React.FC = () => {
     setSaving(true);
     setError('');
     setSuccess('');
+
+    if (!form.fullName.trim()) {
+      setError('Full Name is required.');
+      setSaving(false);
+      return;
+    }
+    if (!form.course) {
+      setError('Course is required.');
+      setSaving(false);
+      return;
+    }
+    if (!form.branch || form.branch === 'Not Set') {
+      setError('Branch is required.');
+      setSaving(false);
+      return;
+    }
+    const yearNum = parseInt(form.year);
+    if (!form.year || isNaN(yearNum) || yearNum < 1 || yearNum > 5) {
+      setError('Year of Study must be a number between 1 and 5.');
+      setSaving(false);
+      return;
+    }
+
     try {
       const formData = new FormData();
       formData.append('fullName', form.fullName);
@@ -234,6 +261,17 @@ export const Settings: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Incomplete Profile Alert Banner */}
+      {(location.state?.incompleteProfile || (user && (user.role !== 'ADMIN' && (!user.fullName || !user.course || !user.branch || user.branch === 'Not Set' || !user.year)))) && (
+        <div className="flex items-start space-x-2.5 bg-amber-50 dark:bg-amber-950/20 border border-amber-250 dark:border-amber-900/35 p-4 rounded-3xl text-amber-700 dark:text-amber-400 text-sm animate-in slide-in-from-top-2 duration-200">
+          <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-bold">Complete Your Profile</p>
+            <p className="text-xs mt-0.5">Please provide your Full Name, Course, Branch, and Year of study. These details are compulsory to access Rentora.</p>
+          </div>
+        </div>
+      )}
 
       {/* Edit Profile */}
       <div className="bg-white dark:bg-slate-900 rounded-3xl border border-gray-100 dark:border-slate-800 p-6">
