@@ -19,8 +19,18 @@ export const Register: React.FC = () => {
       setGoogleLoading(true);
       try {
         const res = await googleLogin(tokenResponse.access_token);
-        if (res?.isNewUser) {
-          navigate('/settings', { replace: true });
+        const user = res?.user;
+        const isProfileIncomplete = 
+          user && user.role !== 'ADMIN' && (
+            !user.fullName || 
+            !user.course || 
+            !user.branch || 
+            user.branch === 'Not Set' || 
+            !user.year
+          );
+
+        if (res?.isNewUser || isProfileIncomplete) {
+          navigate('/settings', { replace: true, state: { incompleteProfile: true } });
         } else {
           navigate('/', { replace: true });
         }

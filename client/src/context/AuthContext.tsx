@@ -21,7 +21,7 @@ interface AuthContextType {
   user: UserType | null;
   loading: boolean;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<any>;
   registerUser: (data: any) => Promise<any>;
   logout: () => Promise<void>;
   updateUser: (data: any) => Promise<void>;
@@ -83,6 +83,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           localStorage.setItem('rentora_location', response.data.user.collegeName);
           window.dispatchEvent(new Event('rentora_location_changed'));
         }
+        return response.data;
       }
     } finally {
       setLoading(false);

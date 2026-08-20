@@ -22,8 +22,18 @@ export const Login: React.FC = () => {
         // @react-oauth/google gives us an access token; we send it to the backend
         // which uses google-auth-library to verify it
         const res = await googleLogin(tokenResponse.access_token);
-        if (res?.isNewUser) {
-          navigate('/settings', { replace: true });
+        const user = res?.user;
+        const isProfileIncomplete = 
+          user && user.role !== 'ADMIN' && (
+            !user.fullName || 
+            !user.course || 
+            !user.branch || 
+            user.branch === 'Not Set' || 
+            !user.year
+          );
+
+        if (res?.isNewUser || isProfileIncomplete) {
+          navigate('/settings', { replace: true, state: { incompleteProfile: true } });
         } else {
           const destination = (location.state as any)?.from?.pathname || '/';
           navigate(destination, { replace: true });
@@ -72,8 +82,22 @@ export const Login: React.FC = () => {
     setLoading(true);
 
     try {
-      await login(email, password);
-      navigate(redirectPath, { replace: true });
+      const res = await login(email, password);
+      const user = res?.user;
+      const isProfileIncomplete = 
+        user && user.role !== 'ADMIN' && (
+          !user.fullName || 
+          !user.course || 
+          !user.branch || 
+          user.branch === 'Not Set' || 
+          !user.year
+        );
+
+      if (isProfileIncomplete) {
+        navigate('/settings', { replace: true, state: { incompleteProfile: true } });
+      } else {
+        navigate(redirectPath, { replace: true });
+      }
     } catch (err: any) {
       if (!err.response) {
         setError('Cannot connect to Rentora server. If running locally, make sure the backend server is running on port 5001. If on hosted app, the server may still be spinning up.');
@@ -117,8 +141,22 @@ export const Login: React.FC = () => {
 
     setVerificationLoading(true);
     try {
-      await loginVerifyOTP(email, fullOtp);
-      navigate(redirectPath, { replace: true });
+      const res = await loginVerifyOTP(email, fullOtp);
+      const user = res?.user;
+      const isProfileIncomplete = 
+        user && user.role !== 'ADMIN' && (
+          !user.fullName || 
+          !user.course || 
+          !user.branch || 
+          user.branch === 'Not Set' || 
+          !user.year
+        );
+
+      if (isProfileIncomplete) {
+        navigate('/settings', { replace: true, state: { incompleteProfile: true } });
+      } else {
+        navigate(redirectPath, { replace: true });
+      }
     } catch (err: any) {
       setError(err.response?.data?.message || err.response?.data?.error || 'Verification failed. Please try again.');
     } finally {
