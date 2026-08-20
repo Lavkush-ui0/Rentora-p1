@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { compressImageIfNeeded } from '../utils/imageCompressor';
 import { Sun, Moon, User, Save, AlertCircle, CheckCircle2, Camera, Upload, Trash2, X } from 'lucide-react';
+import { COURSES, BRANCHES_MAP, CSE_SPECIALIZATIONS } from '../utils/constants';
 
 export const Settings: React.FC = () => {
   const { user, updateUser } = useAuth();
@@ -18,6 +19,39 @@ export const Settings: React.FC = () => {
     branch: user?.branch || '',
     year: user?.year?.toString() || '',
   });
+
+  const [selectedBranch, setSelectedBranch] = useState('');
+  const [specialization, setSpecialization] = useState('');
+
+  // Initialize selectedBranch and specialization from user data on mount / user change
+  useEffect(() => {
+    if (user?.branch) {
+      const match = user.branch.match(/^([^(]+)(?:\s*\(([^)]+)\))?$/);
+      if (match) {
+        const baseBranch = match[1].trim();
+        const spec = match[2] ? match[2].trim() : 'Core';
+        setSelectedBranch(baseBranch);
+        setSpecialization(spec);
+      } else {
+        setSelectedBranch(user.branch);
+        setSpecialization('Core');
+      }
+    }
+  }, [user?.branch]);
+
+  // Sync selectedBranch and specialization to form.branch
+  useEffect(() => {
+    if (!selectedBranch) {
+      setForm(f => ({ ...f, branch: '' }));
+      return;
+    }
+
+    if (selectedBranch === 'CSE' && specialization && specialization !== 'Core') {
+      setForm(f => ({ ...f, branch: `CSE (${specialization})` }));
+    } else {
+      setForm(f => ({ ...f, branch: selectedBranch }));
+    }
+  }, [selectedBranch, specialization]);
 
   const [previewUrl, setPreviewUrl] = useState<string>(user?.avatar && user.avatar !== 'data:,' ? user.avatar : '');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -281,23 +315,37 @@ export const Settings: React.FC = () => {
           <div className="grid grid-cols-3 gap-4">
             <div>
               <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Course</label>
-              <input
-                type="text"
+              <select
                 name="course"
                 value={form.course}
-                onChange={handleChange}
-                className="w-full bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-gray-100 px-3 py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 focus:outline-none focus:border-primary-500 text-sm"
-              />
+                onChange={(e) => {
+                  setForm(f => ({ ...f, course: e.target.value, branch: '' }));
+                  setSelectedBranch('');
+                  setSpecialization('');
+                }}
+                className="w-full bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-gray-100 px-3 py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 focus:outline-none focus:border-primary-500 text-sm appearance-none cursor-pointer"
+              >
+                <option value="">Select</option>
+                {COURSES.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Branch</label>
-              <input
-                type="text"
+              <select
                 name="branch"
-                value={form.branch}
-                onChange={handleChange}
-                className="w-full bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-gray-100 px-3 py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 focus:outline-none focus:border-primary-500 text-sm"
-              />
+                value={selectedBranch}
+                onChange={(e) => {
+                  setSelectedBranch(e.target.value);
+                  setSpecialization('');
+                }}
+                disabled={!form.course}
+                className="w-full bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-gray-100 px-3 py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 focus:outline-none focus:border-primary-500 text-sm appearance-none cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                <option value="">Select</option>
+                {(BRANCHES_MAP[form.course] || []).map(b => (
+                  <option key={b.value} value={b.value}>{b.label}</option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Year</label>
@@ -312,6 +360,24 @@ export const Settings: React.FC = () => {
               />
             </div>
           </div>
+
+          {/* CSE Specialization field - displayed conditionally */}
+          {selectedBranch === 'CSE' && (
+            <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+              <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">CSE Specialization</label>
+              <select
+                required
+                value={specialization}
+                onChange={(e) => setSpecialization(e.target.value)}
+                className="w-full bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-gray-100 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 focus:outline-none focus:border-primary-500 text-sm appearance-none cursor-pointer"
+              >
+                <option value="">Select Specialization</option>
+                {CSE_SPECIALIZATIONS.map(s => (
+                  <option key={s.value} value={s.value}>{s.label}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <button
             type="submit"

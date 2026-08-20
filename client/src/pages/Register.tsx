@@ -8,14 +8,7 @@ import rentoraLogo from '../assets/rentora-logo.png';
 import logoName from '../assets/logo-name.png';
 import logoNameWhite from '../assets/logo-name-white.png';
 import api from '../services/api';
-
-const COURSES = ['B.Tech', 'M.Tech', 'MBA', 'MCA', 'BCA', 'B.Sc', 'Other'];
-const BRANCHES = ['CSE', 'ECE', 'ME', 'CE', 'EE', 'IT', 'Other'];
-const CAMPUS_LOCATIONS = [
-  'NIET Plot 19',
-  'NIET Plot 15',
-  'NIET Plot 14'
-];
+import { COURSES, BRANCHES_MAP, CSE_SPECIALIZATIONS, CAMPUS_LOCATIONS } from '../utils/constants';
 
 export const Register: React.FC = () => {
   const { registerUser, verifyOTP, googleLogin } = useAuth();
@@ -57,6 +50,30 @@ export const Register: React.FC = () => {
     year: '',
     collegeName: '',
   });
+
+  const [selectedBranch, setSelectedBranch] = useState('');
+  const [specialization, setSpecialization] = useState('');
+
+  // Reset selected branch and specialization when course changes
+  useEffect(() => {
+    setSelectedBranch('');
+    setSpecialization('');
+    setForm(f => ({ ...f, branch: '' }));
+  }, [form.course]);
+
+  // Sync selectedBranch and specialization to form.branch
+  useEffect(() => {
+    if (!selectedBranch) {
+      setForm(f => ({ ...f, branch: '' }));
+      return;
+    }
+
+    if (selectedBranch === 'CSE' && specialization && specialization !== 'Core') {
+      setForm(f => ({ ...f, branch: `CSE (${specialization})` }));
+    } else {
+      setForm(f => ({ ...f, branch: selectedBranch }));
+    }
+  }, [selectedBranch, specialization]);
 
   // Countdown timer for OTP resend
   useEffect(() => {
@@ -381,7 +398,7 @@ export const Register: React.FC = () => {
                       required
                       value={form.course}
                       onChange={handleChange}
-                      className="w-full bg-gray-50 text-gray-900 dark:bg-slate-800 dark:text-gray-100 pl-10 pr-4 py-3 rounded-2xl border border-gray-200 dark:border-slate-700 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-sm font-medium appearance-none"
+                      className="w-full bg-gray-50 text-gray-900 dark:bg-slate-800 dark:text-gray-100 pl-10 pr-4 py-3 rounded-2xl border border-gray-200 dark:border-slate-700 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-sm font-medium appearance-none cursor-pointer"
                     >
                       <option value="">Select</option>
                       {COURSES.map(c => <option key={c} value={c}>{c}</option>)}
@@ -394,15 +411,39 @@ export const Register: React.FC = () => {
                   <select
                     name="branch"
                     required
-                    value={form.branch}
-                    onChange={handleChange}
-                    className="w-full bg-gray-50 text-gray-900 dark:bg-slate-800 dark:text-gray-100 px-4 py-3 rounded-2xl border border-gray-200 dark:border-slate-700 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-sm font-medium appearance-none"
+                    value={selectedBranch}
+                    onChange={(e) => {
+                      setSelectedBranch(e.target.value);
+                      setSpecialization('');
+                    }}
+                    disabled={!form.course}
+                    className="w-full bg-gray-50 text-gray-900 dark:bg-slate-800 dark:text-gray-100 px-4 py-3 rounded-2xl border border-gray-200 dark:border-slate-700 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-sm font-medium appearance-none cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     <option value="">Select</option>
-                    {BRANCHES.map(b => <option key={b} value={b}>{b}</option>)}
+                    {(BRANCHES_MAP[form.course] || []).map(b => (
+                      <option key={b.value} value={b.value}>{b.label}</option>
+                    ))}
                   </select>
                 </div>
               </div>
+
+              {/* CSE Specialization field - displayed conditionally */}
+              {selectedBranch === 'CSE' && (
+                <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+                  <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">CSE Specialization</label>
+                  <select
+                    required
+                    value={specialization}
+                    onChange={(e) => setSpecialization(e.target.value)}
+                    className="w-full bg-gray-50 text-gray-900 dark:bg-slate-800 dark:text-gray-100 px-4 py-3 rounded-2xl border border-gray-200 dark:border-slate-700 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-sm font-medium appearance-none cursor-pointer"
+                  >
+                    <option value="">Select Specialization</option>
+                    {CSE_SPECIALIZATIONS.map(s => (
+                      <option key={s.value} value={s.value}>{s.label}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {/* Year */}
               <div>
