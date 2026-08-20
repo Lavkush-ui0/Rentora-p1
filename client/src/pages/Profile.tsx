@@ -1,19 +1,24 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { authService } from '../services/authService';
 import { listingService } from '../services/listingService';
 import { reviewService } from '../services/reviewService';
 import { compressImageIfNeeded } from '../utils/imageCompressor';
-import { Star, Package, CheckCircle2, Calendar, BookOpen, Edit3, Camera, Loader2 } from 'lucide-react';
+import { Star, Package, CheckCircle2, Calendar, BookOpen, Edit3, Camera, Loader2, Trash2, X } from 'lucide-react';
 import ProductCard from '../components/ProductCard';
 import { getAvatarUrl } from '../utils/imageUrl';
 
 export const Profile: React.FC = () => {
   const { id } = useParams<{ id?: string }>();
-  const { user, updateUser } = useAuth();
+  const navigate = useNavigate();
+  const { user, updateUser, deleteUserAccount } = useAuth();
   const profileId = id || user?.id;
   const isOwnProfile = !id || id === user?.id;
+
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
   const [profile, setProfile] = useState<any>(null);
   const [listings, setListings] = useState<any[]>([]);
@@ -56,6 +61,21 @@ export const Profile: React.FC = () => {
       alert(err?.response?.data?.message || 'Failed to upload profile picture.');
     } finally {
       setUploadingAvatar(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText.toUpperCase() !== 'DELETE') return;
+    setDeleting(true);
+    try {
+      await deleteUserAccount();
+      navigate('/login');
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to delete account. Please try again.');
+      setDeleteModalOpen(false);
+    } finally {
+      setDeleting(false);
+      setDeleteConfirmText('');
     }
   };
 
@@ -167,7 +187,7 @@ export const Profile: React.FC = () => {
             </div>
           </div>
           {isOwnProfile && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
@@ -181,6 +201,14 @@ export const Profile: React.FC = () => {
                 <Edit3 className="h-3.5 w-3.5" />
                 <span>Edit Profile</span>
               </Link>
+              <button
+                type="button"
+                onClick={() => setDeleteModalOpen(true)}
+                className="flex items-center space-x-1.5 px-3.5 py-2 rounded-2xl border border-red-200 dark:border-red-900/30 text-xs font-bold text-red-655 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all shadow-sm"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                <span>Delete Account</span>
+              </button>
             </div>
           )}
         </div>
@@ -333,6 +361,62 @@ export const Profile: React.FC = () => {
           </div>
         )}
       </section>
+
+      {/* Delete Account Confirmation Modal */}
+      {deleteModalOpen && (
+        <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-950 rounded-3xl border border-gray-150 dark:border-slate-850 p-6 max-w-md w-full space-y-4 shadow-2xl relative overflow-hidden animate-in zoom-in-95 duration-200">
+            <button
+              onClick={() => {
+                setDeleteModalOpen(false);
+                setDeleteConfirmText('');
+              }}
+              type="button"
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-650 dark:hover:text-gray-250 transition-colors"
+            >
+              <X className="h-6 w-6" />
+            </button>
+            <h3 className="text-lg font-black font-outfit text-red-650 dark:text-red-400">Delete Account Permanently?</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+              This will permanently delete your account, listings, and details. To confirm, please type <strong className="text-gray-900 dark:text-gray-100">DELETE</strong> below.
+            </p>
+            <input
+              type="text"
+              placeholder="Type DELETE to confirm"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              className="w-full bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-gray-100 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 focus:outline-none focus:border-red-500 text-sm font-semibold"
+            />
+            <div className="flex space-x-3 justify-end pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setDeleteModalOpen(false);
+                  setDeleteConfirmText('');
+                }}
+                className="px-4 py-2 border border-gray-200 dark:border-slate-700 text-gray-750 dark:text-gray-300 font-bold text-xs rounded-xl hover:bg-gray-50 dark:hover:bg-slate-850 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={deleteConfirmText.toUpperCase() !== 'DELETE' || deleting}
+                onClick={handleDeleteAccount}
+                className="flex items-center space-x-2 bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {deleting ? (
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4" />
+                    <span>Yes, Delete Account</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
