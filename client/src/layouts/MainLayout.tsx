@@ -21,6 +21,22 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const navigate = useNavigate();
   const [unreadMessages, setUnreadMessages] = useState(0);
 
+  const isProfileIncomplete = 
+    user && user.role !== 'ADMIN' && (
+      !user.fullName || 
+      !user.course || 
+      !user.branch || 
+      user.branch === 'Not Set' || 
+      !user.year
+    );
+
+  // Global redirect: if profile is incomplete, user cannot browse any pages besides /settings
+  useEffect(() => {
+    if (isProfileIncomplete && location.pathname !== '/settings') {
+      navigate('/settings', { state: { incompleteProfile: true }, replace: true });
+    }
+  }, [isProfileIncomplete, location.pathname, navigate]);
+
   // Fetch unread chat messages for live counter badge
   useEffect(() => {
     if (user) {
@@ -87,13 +103,23 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
         {/* Action Button: List Item */}
         <div className="px-4 pt-4 pb-3">
-          <Link
-            to="/list-item"
-            className="flex items-center justify-center space-x-2 bg-[#9E1B1B] hover:bg-[#801414] text-white py-2.5 px-4 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-150 shadow-crimson hover:shadow-lg active:scale-[0.98] w-full font-display"
-          >
-            <PlusCircle className="h-4 w-4" />
-            <span>+ List an Item</span>
-          </Link>
+          {isProfileIncomplete ? (
+            <div
+              className="flex items-center justify-center space-x-2 bg-slate-700/50 text-slate-500 py-2.5 px-4 rounded-xl text-xs font-bold uppercase tracking-wider cursor-not-allowed w-full font-display opacity-50"
+              title="Complete your profile to list items"
+            >
+              <PlusCircle className="h-4 w-4" />
+              <span>+ List an Item</span>
+            </div>
+          ) : (
+            <Link
+              to="/list-item"
+              className="flex items-center justify-center space-x-2 bg-[#9E1B1B] hover:bg-[#801414] text-white py-2.5 px-4 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-150 shadow-crimson hover:shadow-lg active:scale-[0.98] w-full font-display"
+            >
+              <PlusCircle className="h-4 w-4" />
+              <span>+ List an Item</span>
+            </Link>
+          )}
         </div>
 
         {/* Main Navigation Links */}
@@ -102,6 +128,20 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             {navItems.map((item) => {
               const Icon = item.icon;
               const active = isActive(item.path);
+              if (isProfileIncomplete) {
+                return (
+                  <div
+                    key={item.label}
+                    className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-[12.5px] font-medium text-slate-500 cursor-not-allowed select-none opacity-45"
+                    title="Complete your profile to unlock navigation"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <Icon className="h-4 w-4 flex-shrink-0" />
+                      <span className="font-display tracking-tight">{item.label}</span>
+                    </div>
+                  </div>
+                );
+              }
               return (
                 <Link
                   key={item.label}
@@ -153,6 +193,18 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             </span>
             {categories.map((cat) => {
               const Icon = cat.icon;
+              if (isProfileIncomplete) {
+                return (
+                  <div
+                    key={cat.label}
+                    className="flex items-center space-x-3 px-3.5 py-2 text-xs font-bold text-slate-650 cursor-not-allowed select-none opacity-30"
+                    title="Complete your profile to unlock shortcuts"
+                  >
+                    <Icon className="h-4 w-4 text-[#42525B]" />
+                    <span className="font-display tracking-tight">{cat.label}</span>
+                  </div>
+                );
+              }
               return (
                 <Link
                   key={cat.label}
