@@ -18,8 +18,12 @@ export const Register: React.FC = () => {
     onSuccess: async (tokenResponse) => {
       setGoogleLoading(true);
       try {
-        await googleLogin(tokenResponse.access_token);
-        navigate('/');
+        const res = await googleLogin(tokenResponse.access_token);
+        if (res?.isNewUser) {
+          navigate('/settings', { replace: true });
+        } else {
+          navigate('/', { replace: true });
+        }
       } catch {
         // error is shown via error state in context
       } finally {

@@ -21,9 +21,13 @@ export const Login: React.FC = () => {
         // Exchange the access token for an ID token via Google's userinfo endpoint
         // @react-oauth/google gives us an access token; we send it to the backend
         // which uses google-auth-library to verify it
-        await googleLogin(tokenResponse.access_token);
-        const destination = (location.state as any)?.from?.pathname || '/';
-        navigate(destination, { replace: true });
+        const res = await googleLogin(tokenResponse.access_token);
+        if (res?.isNewUser) {
+          navigate('/settings', { replace: true });
+        } else {
+          const destination = (location.state as any)?.from?.pathname || '/';
+          navigate(destination, { replace: true });
+        }
       } catch (err: any) {
         setError(err?.response?.data?.message || 'Google sign-in failed. Please try again.');
       } finally {
