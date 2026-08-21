@@ -4,7 +4,7 @@ import { Category } from '../models/category.model';
 import { User } from '../models/user.model';
 import { CustomRequest } from '../types';
 import { RentalRequest } from '../models/rentalRequest.model';
-import { uploadImage, deleteImage } from '../services/cloudinary.service';
+import { uploadImage, deleteImage } from '../services/image.service';
 import CustomError from '../utils/customError';
 import { clearHomepageCache } from './discovery.controller';
 

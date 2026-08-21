@@ -22,11 +22,6 @@ const envSchema = z.object({
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   GOOGLE_REFRESH_TOKEN: z.string().optional(),
-
-  // Cloudinary Settings
-  CLOUDINARY_CLOUD_NAME: z.string().default('mock_cloud'),
-  CLOUDINARY_API_KEY: z.string().default('mock_key'),
-  CLOUDINARY_API_SECRET: z.string().default('mock_secret'),
 });
 
 const result = envSchema.safeParse(process.env);

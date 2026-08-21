@@ -10,7 +10,7 @@ import { CustomRequest } from '../types';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../utils/token';
 import { config } from '../config/config';
 import CustomError from '../utils/customError';
-import { uploadImage, deleteImage } from '../services/cloudinary.service';
+import { uploadImage, deleteImage } from '../services/image.service';
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
