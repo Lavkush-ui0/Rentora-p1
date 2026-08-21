@@ -128,9 +128,14 @@ app.use((req: any, res, next) => {
   next();
 });
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'OK', uptime: process.uptime() });
+// Health check endpoints for keep-alive cron jobs & uptime monitors
+app.get(['/', '/health', '/api/health'], (req, res) => {
+  res.status(200).json({
+    status: 'OK',
+    service: 'Rentora Backend API',
+    uptime: `${Math.floor(process.uptime())}s`,
+    timestamp: new Date().toISOString(),
+  });
 });
 
 // API Routes
