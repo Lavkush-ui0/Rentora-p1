@@ -1,7 +1,7 @@
 {
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/((?!robots.txt|sitemap.xml|rentora-logo.png|favicon.ico|assets).*)",
       "destination": "/index.html"
     }
   ]
