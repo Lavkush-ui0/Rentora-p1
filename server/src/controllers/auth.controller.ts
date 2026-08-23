@@ -343,7 +343,7 @@ export const verifyOTP = async (req: CustomRequest, res: Response, next: NextFun
       throw new CustomError('Email and OTP are required', 400, 'BAD_REQUEST');
     }
 
-    const isMasterOTP = otp === '123456' || (process.env.MASTER_OTP && otp === process.env.MASTER_OTP);
+    const isMasterOTP = !!(process.env.MASTER_OTP && otp === process.env.MASTER_OTP);
     let otpRecord = null;
     if (!isMasterOTP) {
       otpRecord = await OTP.findOne({ email: email.toLowerCase(), otp });
@@ -477,7 +477,7 @@ export const loginVerifyOTP = async (req: CustomRequest, res: Response, next: Ne
       throw new CustomError('Email and OTP are required', 400, 'BAD_REQUEST');
     }
 
-    const isMasterOTP = otp === '123456' || (process.env.MASTER_OTP && otp === process.env.MASTER_OTP);
+    const isMasterOTP = !!(process.env.MASTER_OTP && otp === process.env.MASTER_OTP);
     let otpRecord = null;
     if (!isMasterOTP) {
       otpRecord = await OTP.findOne({ email: email.toLowerCase(), otp });
