@@ -32,11 +32,16 @@ app.use(
   cors({
     origin: (origin, callback) => {
       if (!origin) return callback(null, true);
+      
+      const cleanOrigin = origin.replace(/\/$/, '');
+      const cleanClientUrl = (config.CLIENT_URL || '').replace(/\/$/, '');
+
       if (
-        origin === config.CLIENT_URL ||
+        cleanOrigin === cleanClientUrl ||
         /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin) ||
         /\.vercel\.app$/.test(origin) ||
-        origin.includes('vercel.app')
+        origin.includes('vercel.app') ||
+        origin.includes('rentora.org.in')
       ) {
         return callback(null, true);
       }
