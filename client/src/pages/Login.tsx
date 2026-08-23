@@ -414,11 +414,7 @@ export const Login: React.FC = () => {
               </button>
             </form>
 
-            <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/30 rounded-2xl text-center">
-              <p className="text-xs text-amber-700 dark:text-amber-400 font-medium">
-                ⚠️ Institutional spam filters (like Outlook) may block or delay our automated emails. If you do not receive the code, please use the fallback OTP <span className="font-bold text-amber-800 dark:text-amber-300">123456</span> to log in.
-              </p>
-            </div>
+
 
             <div className="text-center pt-2">
               {timer > 0 ? (
