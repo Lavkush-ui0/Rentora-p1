@@ -3,6 +3,7 @@ import express from 'express';
 import http from 'http';
 import cors from 'cors';
 import helmet from 'helmet';
+import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import { connectDB } from './config/db';
 import { config } from './config/config';
@@ -13,6 +14,9 @@ import logger from './utils/logger';
 
 const app = express();
 const server = http.createServer(app);
+
+// Compress all HTTP response payloads (reduces wire transfer size by 80-90%)
+app.use(compression());
 
 // Trust reverse proxy (Render, Cloudflare, etc.) to get correct client IP for rate limiting
 app.set('trust proxy', 1);
@@ -133,9 +137,14 @@ app.use((req: any, res, next) => {
   next();
 });
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'OK', uptime: process.uptime() });
+// Health check endpoints for keep-alive cron jobs & uptime monitors
+app.get(['/', '/health', '/api/health'], (req, res) => {
+  res.status(200).json({
+    status: 'OK',
+    service: 'Rentora Backend API',
+    uptime: `${Math.floor(process.uptime())}s`,
+    timestamp: new Date().toISOString(),
+  });
 });
 
 // API Routes

@@ -38,9 +38,31 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
 export const Explore: React.FC = () => {
   const [searchParams] = useSearchParams();
 
-  const [listings, setListings] = useState<any[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [location, setLocation] = useState(localStorage.getItem('rentora_location') || 'All');
+
+  // Instant local cache initialization for 0ms initial paint
+  const [listings, setListings] = useState<any[]>(() => {
+    try {
+      const cached = sessionStorage.getItem('rentora_explore_listings');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [categories, setCategories] = useState<any[]>(() => {
+    try {
+      const cached = sessionStorage.getItem('rentora_categories');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [loading, setLoading] = useState(() => {
+    return !sessionStorage.getItem('rentora_explore_listings');
+  });
+
   const [pagination, setPagination] = useState({ total: 0, page: 1, totalPages: 1 });
   const [filterOpen, setFilterOpen] = useState(false);
 
@@ -52,7 +74,6 @@ export const Explore: React.FC = () => {
   const [minPrice, setMinPrice] = useState(searchParams.get('minPrice') || '');
   const [maxPrice, setMaxPrice] = useState(searchParams.get('maxPrice') || '');
   const [page, setPage] = useState(parseInt(searchParams.get('page') || '1'));
-  const [location, setLocation] = useState(localStorage.getItem('rentora_location') || 'All');
 
   useEffect(() => {
     const handleLocationChange = () => {
@@ -66,12 +87,17 @@ export const Explore: React.FC = () => {
   const fetchCategories = useCallback(async () => {
     try {
       const res = await categoryService.getCategories();
-      if (res.data?.success) setCategories(res.data.categories);
+      if (res.data?.success) {
+        setCategories(res.data.categories);
+        try { sessionStorage.setItem('rentora_categories', JSON.stringify(res.data.categories)); } catch {}
+      }
     } catch (err) { console.error(err); }
   }, []);
 
   const fetchListings = useCallback(async () => {
-    setLoading(true);
+    if (!listings.length) {
+      setLoading(true);
+    }
     try {
       const params: any = { sort, page, limit: 9 };
       if (search) params.search = search;
@@ -86,6 +112,9 @@ export const Explore: React.FC = () => {
       if (res.data?.success) {
         setListings(res.data.listings);
         setPagination(res.data.pagination);
+        if (!hasFilters && page === 1) {
+          try { sessionStorage.setItem('rentora_explore_listings', JSON.stringify(res.data.listings)); } catch {}
+        }
       }
     } catch (err) { console.error(err); }
     finally { setLoading(false); }

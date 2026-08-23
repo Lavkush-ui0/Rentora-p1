@@ -69,12 +69,36 @@ interface HomepageData {
 }
 
 export const Home: React.FC = () => {
-  const [data, setData] = useState<HomepageData | null>(null);
-  const [allListings, setAllListings] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [selectedLocation, setSelectedLocation] = useState(
     localStorage.getItem('rentora_location') || 'All'
   );
+
+  // Initialize immediately from local cache so cards render in 0 milliseconds
+  const [data, setData] = useState<HomepageData | null>(() => {
+    try {
+      const loc = localStorage.getItem('rentora_location') || 'All';
+      const cached = sessionStorage.getItem(`rentora_home_data_${loc}`);
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const [allListings, setAllListings] = useState<any[]>(() => {
+    try {
+      const loc = localStorage.getItem('rentora_location') || 'All';
+      const cached = sessionStorage.getItem(`rentora_all_listings_${loc}`);
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  // Only show skeleton loaders if no cached data exists at all
+  const [loading, setLoading] = useState<boolean>(() => {
+    const loc = localStorage.getItem('rentora_location') || 'All';
+    return !sessionStorage.getItem(`rentora_home_data_${loc}`);
+  });
 
   useEffect(() => {
     const handleLocationChange = () => {
@@ -86,14 +110,31 @@ export const Home: React.FC = () => {
 
   useEffect(() => {
     const fetchData = async () => {
-      setLoading(true);
+      // If we don't have cached data for this location, show loader
+      const cached = sessionStorage.getItem(`rentora_home_data_${selectedLocation}`);
+      if (!cached) {
+        setLoading(true);
+      }
+
       try {
         const [homeRes, listingsRes] = await Promise.all([
           discoveryService.getHomepageData({ location: selectedLocation }),
           listingService.getListings({ limit: 8, status: 'ACTIVE', location: selectedLocation }),
         ]);
-        if (homeRes.data?.success) setData(homeRes.data.data);
-        if (listingsRes.data?.success) setAllListings(listingsRes.data.listings);
+
+        if (homeRes.data?.success) {
+          setData(homeRes.data.data);
+          try {
+            sessionStorage.setItem(`rentora_home_data_${selectedLocation}`, JSON.stringify(homeRes.data.data));
+          } catch {}
+        }
+
+        if (listingsRes.data?.success) {
+          setAllListings(listingsRes.data.listings);
+          try {
+            sessionStorage.setItem(`rentora_all_listings_${selectedLocation}`, JSON.stringify(listingsRes.data.listings));
+          } catch {}
+        }
       } catch (err) {
         console.error('[Home] Error fetching data:', err);
       } finally {

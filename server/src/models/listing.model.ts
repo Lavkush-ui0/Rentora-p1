@@ -110,6 +110,13 @@ const ListingSchema = new Schema<IListing>(
   }
 );
 
+// Create compound indexes for ultra-fast catalog and discovery sorting
+ListingSchema.index({ status: 1, availability: 1, createdAt: -1 });
+ListingSchema.index({ status: 1, availability: 1, rentalPrice: 1 });
+ListingSchema.index({ status: 1, availability: 1, requestCount: -1, viewCount: -1 });
+ListingSchema.index({ status: 1, availability: 1, location: 1 });
+ListingSchema.index({ owner: 1, status: 1 });
+
 // Create compound text index for keyword search
 ListingSchema.index(
   { title: 'text', description: 'text' },
