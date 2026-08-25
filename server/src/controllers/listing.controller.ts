@@ -16,6 +16,26 @@ export const createListing = async (req: CustomRequest, res: Response, next: Nex
 
     const { title, description, category, condition, rentalPrice, priceUnit, securityDeposit, location } = req.body;
 
+    // Enforce daily listing limits: max 2 products per day and check if rejected today
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    
+    const dailyCount = await Listing.countDocuments({
+      owner: req.user._id,
+      createdAt: { $gte: oneDayAgo }
+    });
+    if (dailyCount >= 2) {
+      throw new CustomError('You can only list up to 2 products per day.', 400, 'DAILY_LIMIT_EXCEEDED');
+    }
+
+    const rejectedToday = await Listing.countDocuments({
+      owner: req.user._id,
+      approvalStatus: 'REJECTED',
+      updatedAt: { $gte: oneDayAgo }
+    });
+    if (rejectedToday > 0) {
+      throw new CustomError('Your listing was rejected today. Please try again tomorrow.', 400, 'REJECTED_COOLDOWN');
+    }
+
     // Verify category exists
     const categoryExists = await Category.findById(category);
     if (!categoryExists) {
@@ -222,6 +242,19 @@ export const updateListing = async (req: CustomRequest, res: Response, next: Nex
     const isAdmin = req.user.role === 'ADMIN';
     if (!isOwner && !isAdmin) {
       throw new CustomError('You are not authorized to update this listing', 403, 'FORBIDDEN');
+    }
+
+    // If regular user, check if any of their listings got rejected today
+    if (!isAdmin) {
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const rejectedToday = await Listing.countDocuments({
+        owner: req.user._id,
+        approvalStatus: 'REJECTED',
+        updatedAt: { $gte: oneDayAgo }
+      });
+      if (rejectedToday > 0) {
+        throw new CustomError('Your listing was rejected today. Please wait until tomorrow to update or list items.', 400, 'REJECTED_COOLDOWN');
+      }
     }
 
     const { title, description, category, condition, rentalPrice, priceUnit, securityDeposit, availability, status, location } = req.body;
