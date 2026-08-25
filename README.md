@@ -133,3 +133,6 @@ npm run build
 - **Security Headers**: Express protected with `helmet()` and CORS credentials controls.
 - **Input Validation**: All requests parsed and sanitized using `Zod` schemas.
 - **Image Fallback**: Integrated Cloudinary service with mock fallback support if API keys are omitted.
+<img width="1470" height="782" alt="Screenshot 2026-08-25 at 8 49 51 PM" src="https://github.com/user-attachments/assets/f30416b1-fe60-4615-ac28-6b7fde31bbd4" />
+<img width="1236" height="790" alt="Screenshot 2026-08-25 at 8 50 54 PM" src="https://github.com/user-attachments/assets/44e6cba5-a7ca-4260-8e80-f818fb90af88" />
+
