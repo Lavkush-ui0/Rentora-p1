@@ -113,9 +113,14 @@ export const login = async (req: CustomRequest, res: Response, next: NextFunctio
       throw new CustomError('Invalid email or password', 400, 'INVALID_CREDENTIALS');
     }
 
+    // Generate new unique session ID
+    const sessionId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    user.currentSessionId = sessionId;
+    await user.save();
+
     // Generate tokens
-    const accessToken = generateAccessToken(user._id.toString(), user.role);
-    const refreshToken = generateRefreshToken(user._id.toString());
+    const accessToken = generateAccessToken(user._id.toString(), user.role, sessionId);
+    const refreshToken = generateRefreshToken(user._id.toString(), sessionId);
 
     // Send HTTP-only cookie
     res.cookie('refreshToken', refreshToken, cookieOptions);
@@ -177,11 +182,16 @@ export const refreshToken = async (req: CustomRequest, res: Response, next: Next
       throw new CustomError('User not found', 401, 'USER_NOT_FOUND');
     }
 
+    // Verify session is active
+    if (user.currentSessionId && (!decoded.sessionId || decoded.sessionId !== user.currentSessionId)) {
+      throw new CustomError('Session invalidated: Logged in from another device/browser.', 401, 'SESSION_OVERWRITTEN');
+    }
+
     if (user.isBlocked) {
       throw new CustomError('Your account is blocked', 403, 'USER_BLOCKED');
     }
 
-    const accessToken = generateAccessToken(user._id.toString(), user.role);
+    const accessToken = generateAccessToken(user._id.toString(), user.role, user.currentSessionId);
 
     return res.json({
       success: true,
@@ -508,9 +518,14 @@ export const loginVerifyOTP = async (req: CustomRequest, res: Response, next: Ne
       await OTP.deleteOne({ email: email.toLowerCase() });
     }
 
+    // Generate new unique session ID
+    const sessionId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    user.currentSessionId = sessionId;
+    await user.save();
+
     // Generate tokens
-    const accessToken = generateAccessToken(user._id.toString(), user.role);
-    const refreshToken = generateRefreshToken(user._id.toString());
+    const accessToken = generateAccessToken(user._id.toString(), user.role, sessionId);
+    const refreshToken = generateRefreshToken(user._id.toString(), sessionId);
 
     // Send HTTP-only cookie
     res.cookie('refreshToken', refreshToken, cookieOptions);

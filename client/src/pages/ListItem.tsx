@@ -44,6 +44,33 @@ export const ListItem: React.FC = () => {
 
   const { id } = useParams<{ id: string }>();
   const [existingImageUrls, setExistingImageUrls] = useState<string[]>([]);
+  const [shareLocation, setShareLocation] = useState(false);
+  const [coordinates, setCoordinates] = useState<{ latitude: number; longitude: number } | null>(null);
+
+  const handleLocationToggle = () => {
+    if (!shareLocation) {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            setCoordinates({
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+            });
+            setShareLocation(true);
+          },
+          () => {
+            alert('Unable to retrieve location coordinates. Please grant location permissions to this website.');
+            setShareLocation(false);
+          }
+        );
+      } else {
+        alert('Geolocation is not supported by your browser.');
+      }
+    } else {
+      setShareLocation(false);
+      setCoordinates(null);
+    }
+  };
 
   // Customizable Card Theme
   const [selectedTheme, setSelectedTheme] = useState<'mint' | 'peach' | 'lavender' | 'blue' | 'sand' | 'rose'>('blue');
@@ -174,6 +201,10 @@ export const ListItem: React.FC = () => {
       formData.append('priceUnit', form.priceUnit);
       formData.append('securityDeposit', form.securityDeposit || '0');
       formData.append('location', form.location);
+      if (shareLocation && coordinates) {
+        formData.append('latitude', String(coordinates.latitude));
+        formData.append('longitude', String(coordinates.longitude));
+      }
       images.forEach(img => formData.append('images', img));
 
       let res;
@@ -227,6 +258,25 @@ export const ListItem: React.FC = () => {
         <div className="lg:col-span-7">
           <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-6 space-y-5 shadow-sm">
             
+            {/* Location Consent & Coordinates tracking */}
+            <div className="bg-slate-50 dark:bg-slate-950/20 border border-slate-150 dark:border-slate-800/40 p-4 rounded-2xl flex items-center justify-between gap-4">
+              <div className="space-y-0.5">
+                <p className="text-xs font-bold text-slate-800 dark:text-gray-200">Attach Security Location Coordinates</p>
+                <p className="text-[10px] text-gray-400">Attach coordinates for safety audits. Lenders are tracked to prevent listing fraud.</p>
+              </div>
+              <button
+                type="button"
+                onClick={handleLocationToggle}
+                className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all ${
+                  shareLocation
+                    ? 'bg-green-600 hover:bg-green-700 text-white'
+                    : 'bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200'
+                }`}
+              >
+                {shareLocation ? '📍 Attached' : 'Attach GPS'}
+              </button>
+            </div>
+
             {/* Title */}
             <div>
               <label className="block text-[10px] font-black text-slate-450 dark:text-slate-400 uppercase tracking-wider mb-2">Item Name / Title</label>

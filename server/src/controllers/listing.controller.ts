@@ -60,6 +60,11 @@ export const createListing = async (req: CustomRequest, res: Response, next: Nex
     const cleanTitle = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     const uniqueSlug = `${cleanTitle}-${Math.random().toString(36).substring(2, 7)}`;
 
+    // Extract location coordinates and client IP
+    const { latitude, longitude } = req.body;
+    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip;
+    const postIpAddress = Array.isArray(clientIp) ? clientIp[0] : clientIp;
+
     const newListing = await Listing.create({
       owner: req.user._id,
       title,
@@ -75,6 +80,8 @@ export const createListing = async (req: CustomRequest, res: Response, next: Nex
       status: 'PAUSED',
       approvalStatus: 'PENDING',
       location: location || (req.user as any).collegeName || 'NIET Plot 19',
+      postIpAddress,
+      postCoordinates: latitude && longitude ? { latitude: Number(latitude), longitude: Number(longitude) } : undefined,
     });
 
     clearHomepageCache();

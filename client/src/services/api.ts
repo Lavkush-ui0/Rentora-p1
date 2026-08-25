@@ -69,6 +69,7 @@ api.interceptors.response.use(
         console.warn('[Axios Interceptor] Refresh failed. Logging out user...');
         setAccessToken('');
         window.dispatchEvent(new Event('auth_logout'));
+        window.location.href = '/login';
         return Promise.reject(refreshError);
       }
     }

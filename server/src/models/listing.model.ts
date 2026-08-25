@@ -20,6 +20,11 @@ export interface IListing extends Document {
   requestCount: number;
   rating: number;
   location: string;
+  postIpAddress?: string;
+  postCoordinates?: {
+    latitude: number;
+    longitude: number;
+  };
   createdAt: Date;
   updatedAt: Date;
 }
@@ -120,6 +125,14 @@ const ListingSchema = new Schema<IListing>(
       trim: true,
       index: true,
       default: 'NIET Plot 19',
+    },
+    postIpAddress: {
+      type: String,
+      default: '',
+    },
+    postCoordinates: {
+      latitude: { type: Number, default: 0 },
+      longitude: { type: Number, default: 0 },
     },
   },
   {

@@ -17,6 +17,7 @@ export interface IUser extends Document {
   completedRentals: number;
   isBlocked: boolean;
   isVerified: boolean;
+  currentSessionId?: string;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(password: string): Promise<boolean>;
@@ -88,6 +89,10 @@ const UserSchema = new Schema<IUser>(
     completedRentals: {
       type: Number,
       default: 0,
+    },
+    currentSessionId: {
+      type: String,
+      default: '',
     },
     isBlocked: {
       type: Boolean,

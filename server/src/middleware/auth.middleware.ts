@@ -27,6 +27,11 @@ export const authenticateUser = async (
       throw new CustomError('User not found', 401, 'USER_NOT_FOUND');
     }
 
+    // Single active session check: verify that this session matches the user's current session
+    if (user.currentSessionId && (!decoded.sessionId || decoded.sessionId !== user.currentSessionId)) {
+      throw new CustomError('Session invalidated: Logged in from another device/browser.', 401, 'SESSION_OVERWRITTEN');
+    }
+
     if (user.isBlocked) {
       throw new CustomError('Your account has been blocked. Please contact administration.', 403, 'USER_BLOCKED');
     }
