@@ -553,6 +553,7 @@ export const AdminDashboard: React.FC = () => {
                         <th className="px-6 py-4">User</th>
                         <th className="px-6 py-4">Email</th>
                         <th className="px-6 py-4">Role</th>
+                        <th className="px-6 py-4">Last Post</th>
                         <th className="px-6 py-4">Status</th>
                         <th className="px-6 py-4 text-right">Actions</th>
                       </tr>
@@ -570,6 +571,9 @@ export const AdminDashboard: React.FC = () => {
                           </td>
                           <td className="px-6 py-4 text-gray-500 dark:text-gray-400">{u.email}</td>
                           <td className="px-6 py-4 font-semibold uppercase text-[10px]">{u.role}</td>
+                          <td className="px-6 py-4 text-gray-550 dark:text-gray-455 font-bold">
+                            {u.lastPostAt ? new Date(u.lastPostAt).toLocaleString() : 'Never'}
+                          </td>
                           <td className="px-6 py-4">
                             <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${
                               u.isBlocked
@@ -615,7 +619,7 @@ export const AdminDashboard: React.FC = () => {
                         <th className="px-6 py-4">Item</th>
                         <th className="px-6 py-4">Owner</th>
                         <th className="px-6 py-4">Price</th>
-                        <th className="px-6 py-4">Category</th>
+                        <th className="px-6 py-4">Upload Date & Time</th>
                         <th className="px-6 py-4 text-center">Requests</th>
                         <th className="px-6 py-4 text-center">Submissions</th>
                         <th className="px-6 py-4">Status</th>
@@ -645,7 +649,9 @@ export const AdminDashboard: React.FC = () => {
                           <td className="px-6 py-4 font-bold text-primary-600 dark:text-primary-400">
                             ₹{l.rentalPrice}/{l.priceUnit?.toLowerCase()}
                           </td>
-                          <td className="px-6 py-4 text-gray-500 dark:text-gray-400">{l.category?.name}</td>
+                          <td className="px-6 py-4 text-gray-500 dark:text-gray-400 font-medium">
+                            {new Date(l.createdAt).toLocaleString()}
+                          </td>
                           <td className="px-6 py-4 text-center font-bold">{l.requestCount}</td>
                           <td className="px-6 py-4 text-center font-bold">{l.submissionCount ?? 1}</td>
                           <td className="px-6 py-4">

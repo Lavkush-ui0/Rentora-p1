@@ -13,9 +13,22 @@ import { clearHomepageCache } from './discovery.controller';
 export const getUsers = async (req: CustomRequest, res: Response, next: NextFunction) => {
   try {
     const users = await User.find({}).sort({ createdAt: -1 });
+    
+    const usersWithLastPost = await Promise.all(users.map(async (u) => {
+      const lastListing = await Listing.findOne({ owner: u._id, status: { $ne: 'REMOVED' } })
+        .sort({ createdAt: -1 })
+        .select('createdAt')
+        .lean();
+      
+      return {
+        ...u.toObject(),
+        lastPostAt: lastListing ? lastListing.createdAt : null
+      };
+    }));
+
     return res.json({
       success: true,
-      users,
+      users: usersWithLastPost,
     });
   } catch (error) {
     return next(error);
