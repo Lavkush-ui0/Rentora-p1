@@ -638,6 +638,24 @@ export const AdminDashboard: React.FC = () => {
                             <div className="min-w-0">
                               <p className="font-bold text-gray-900 dark:text-white truncate max-w-[160px]">{l.title}</p>
                               <p className="text-[10px] text-gray-400 mt-0.5">Deposit: ₹{l.securityDeposit}</p>
+                              {l.postIpAddress && (
+                                <p className="text-[9px] text-slate-500 dark:text-slate-400 font-mono mt-0.5">IP: {l.postIpAddress}</p>
+                              )}
+                              {l.postCoordinates?.latitude && l.postCoordinates?.longitude ? (
+                                <div className="mt-1 flex items-center space-x-1">
+                                  <span className="text-[9px] text-green-600 dark:text-green-400 font-semibold font-mono">📍 GPS Attached</span>
+                                  <a
+                                    href={`https://www.google.com/maps?q=${l.postCoordinates.latitude},${l.postCoordinates.longitude}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="px-1.5 py-0.5 bg-blue-50 hover:bg-blue-100 text-blue-600 dark:bg-blue-950/20 dark:text-blue-400 text-[8px] font-black uppercase rounded-md transition-all inline-block"
+                                  >
+                                    Track User Location
+                                  </a>
+                                </div>
+                              ) : (
+                                <p className="text-[9px] text-gray-400 dark:text-gray-500 italic mt-0.5">No GPS coords attached</p>
+                              )}
                             </div>
                           </td>
                           <td className="px-6 py-4">
