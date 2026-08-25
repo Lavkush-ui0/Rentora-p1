@@ -17,6 +17,8 @@ export const createListingSchema = z.object({
     securityDeposit: z.coerce.number().min(0, 'Security deposit must be non-negative').optional(),
     location: z.string().min(1, 'Location/Campus is required').optional(),
     images: z.array(z.string()).optional(),
+    latitude: z.coerce.number().optional(),
+    longitude: z.coerce.number().optional(),
   }),
 });
 
@@ -35,6 +37,8 @@ export const updateListingSchema = z.object({
     ).optional(),
     status: z.enum(['ACTIVE', 'PAUSED', 'RENTED', 'REMOVED']).optional(),
     location: z.string().optional(),
+    latitude: z.coerce.number().optional(),
+    longitude: z.coerce.number().optional(),
   }),
 });
 
