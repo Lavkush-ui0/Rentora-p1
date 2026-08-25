@@ -15,6 +15,7 @@ export interface IListing extends Document {
   status: 'ACTIVE' | 'PAUSED' | 'RENTED' | 'REMOVED';
   approvalStatus: 'PENDING' | 'APPROVED' | 'REJECTED';
   rejectionReason?: string;
+  submissionCount: number;
   viewCount: number;
   requestCount: number;
   rating: number;
@@ -96,6 +97,10 @@ const ListingSchema = new Schema<IListing>(
     rejectionReason: {
       type: String,
       default: '',
+    },
+    submissionCount: {
+      type: Number,
+      default: 1,
     },
     viewCount: {
       type: Number,

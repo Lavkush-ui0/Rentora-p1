@@ -307,6 +307,7 @@ export const updateListing = async (req: CustomRequest, res: Response, next: Nex
       listing.status = 'PAUSED';
       listing.availability = false;
       listing.rejectionReason = ''; // Clear any prior rejection reason
+      listing.submissionCount = (listing.submissionCount || 1) + 1; // Increment submission attempts count
     }
 
     await listing.save();

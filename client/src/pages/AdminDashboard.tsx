@@ -610,7 +610,8 @@ export const AdminDashboard: React.FC = () => {
                         <th className="px-6 py-4">Owner</th>
                         <th className="px-6 py-4">Price</th>
                         <th className="px-6 py-4">Category</th>
-                        <th className="px-6 py-4">Requests</th>
+                        <th className="px-6 py-4 text-center">Requests</th>
+                        <th className="px-6 py-4 text-center">Submissions</th>
                         <th className="px-6 py-4">Status</th>
                         <th className="px-6 py-4 text-right">Actions</th>
                       </tr>
@@ -629,12 +630,18 @@ export const AdminDashboard: React.FC = () => {
                               <p className="text-[10px] text-gray-400 mt-0.5">Deposit: ₹{l.securityDeposit}</p>
                             </div>
                           </td>
-                          <td className="px-6 py-4 text-gray-500 dark:text-gray-400 font-bold">{l.owner?.fullName || 'Deleted'}</td>
+                          <td className="px-6 py-4">
+                            <div className="text-gray-900 dark:text-white font-bold">{l.owner?.fullName || 'Deleted'}</div>
+                            {l.owner?.email && (
+                              <div className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">{l.owner.email}</div>
+                            )}
+                          </td>
                           <td className="px-6 py-4 font-bold text-primary-600 dark:text-primary-400">
                             ₹{l.rentalPrice}/{l.priceUnit?.toLowerCase()}
                           </td>
                           <td className="px-6 py-4 text-gray-500 dark:text-gray-400">{l.category?.name}</td>
                           <td className="px-6 py-4 text-center font-bold">{l.requestCount}</td>
+                          <td className="px-6 py-4 text-center font-bold">{l.submissionCount ?? 1}</td>
                           <td className="px-6 py-4">
                             <span className={`px-2.5 py-0.5 text-[10px] font-bold rounded-full ${
                               l.status === 'ACTIVE'
@@ -903,10 +910,17 @@ export const AdminDashboard: React.FC = () => {
                               <ListingsIcon className="h-10 w-10 text-gray-300 dark:text-slate-600" />
                             </div>
                           )}
-                          {/* Pending badge */}
-                          <span className="absolute top-3 left-3 bg-orange-500 text-white text-[10px] font-black px-2.5 py-1 rounded-full flex items-center gap-1">
-                            <Clock className="h-3 w-3" /> PENDING
-                          </span>
+                          {/* Pending badge and submission count */}
+                          <div className="absolute top-3 left-3 flex flex-col gap-1 items-start">
+                            <span className="bg-orange-500 text-white text-[10px] font-black px-2.5 py-1 rounded-full flex items-center gap-1 shadow-sm">
+                              <Clock className="h-3 w-3" /> PENDING
+                            </span>
+                            {listing.submissionCount !== undefined && (
+                              <span className="bg-blue-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-sm">
+                                Submit Count: {listing.submissionCount}
+                              </span>
+                            )}
+                          </div>
                           {/* Image count */}
                           {listing.images?.length > 1 && (
                             <span className="absolute top-3 right-3 bg-black/50 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
