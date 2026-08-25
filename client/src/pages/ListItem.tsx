@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { listingService } from '../services/listingService';
 import { categoryService } from '../services/categoryService';
 import { useAuth } from '../context/AuthContext';
@@ -42,6 +42,9 @@ export const ListItem: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const { id } = useParams<{ id: string }>();
+  const [existingImageUrls, setExistingImageUrls] = useState<string[]>([]);
+
   // Customizable Card Theme
   const [selectedTheme, setSelectedTheme] = useState<'mint' | 'peach' | 'lavender' | 'blue' | 'sand' | 'rose'>('blue');
 
@@ -55,6 +58,49 @@ export const ListItem: React.FC = () => {
     securityDeposit: '0',
     location: user?.collegeName || 'NIET Plot 19',
   });
+
+  // Load listing details if editing
+  useEffect(() => {
+    if (id) {
+      const fetchListing = async () => {
+        setLoading(true);
+        try {
+          const res = await listingService.getListingById(id);
+          if (res.data?.success) {
+            const listing = res.data.listing;
+            
+            // Extract description and card theme if present
+            let cleanDesc = listing.description;
+            let themeVal = 'blue';
+            const themeMatch = listing.description.match(/<!-- theme: (\w+) -->/);
+            if (themeMatch) {
+              themeVal = themeMatch[1];
+              cleanDesc = listing.description.replace(/<!-- theme: \w+ -->/, '').trim();
+            }
+            
+            setForm({
+              title: listing.title,
+              description: cleanDesc,
+              category: listing.category?._id || listing.category,
+              condition: listing.condition,
+              rentalPrice: String(listing.rentalPrice),
+              priceUnit: listing.priceUnit,
+              securityDeposit: String(listing.securityDeposit),
+              location: listing.location,
+            });
+            setSelectedTheme(themeVal as any);
+            setExistingImageUrls(listing.images || []);
+          }
+        } catch (err) {
+          console.error(err);
+          setError('Failed to load listing details.');
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchListing();
+    }
+  }, [id]);
 
   useEffect(() => {
     if (user?.collegeName) {
@@ -106,7 +152,7 @@ export const ListItem: React.FC = () => {
     e.preventDefault();
     setError('');
 
-    if (images.length === 0) {
+    if (images.length === 0 && existingImageUrls.length === 0) {
       setError('You must upload at least one photo of the item.');
       return;
     }
@@ -130,12 +176,23 @@ export const ListItem: React.FC = () => {
       formData.append('location', form.location);
       images.forEach(img => formData.append('images', img));
 
-      const res = await listingService.createListing(formData);
+      let res;
+      if (id) {
+        res = await listingService.updateListing(id, formData);
+      } else {
+        res = await listingService.createListing(formData);
+      }
+
       if (res.data?.success) {
-        navigate(`/listing/${res.data.listing._id}`);
+        if (id) {
+          // If edited, redirect back to My Listings to show the PENDING status
+          navigate('/my-listings');
+        } else {
+          navigate(`/listing/${res.data.listing._id}`);
+        }
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to create listing. Please try again.');
+      setError(err.response?.data?.message || 'Failed to save listing. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -148,8 +205,12 @@ export const ListItem: React.FC = () => {
   return (
     <div className="max-w-5xl mx-auto space-y-6 text-left">
       <div>
-        <h1 className="text-2xl font-black font-display uppercase tracking-tight text-slate-900 dark:text-gray-100">List an Item</h1>
-        <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Upload study materials, engineering kits, or calculators for campus sharing.</p>
+        <h1 className="text-2xl font-black font-display uppercase tracking-tight text-slate-900 dark:text-gray-100">
+          {id ? 'Edit Listing' : 'List an Item'}
+        </h1>
+        <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
+          {id ? 'Update your listing details. Note that changes require admin approval.' : 'Upload study materials, engineering kits, or calculators for campus sharing.'}
+        </p>
       </div>
 
       {error && (
@@ -292,8 +353,23 @@ export const ListItem: React.FC = () => {
             {/* Compulsory photo uploads */}
             <div>
               <label className="block text-[10px] font-black text-slate-450 dark:text-slate-400 uppercase tracking-wider mb-3">
-                Upload Custom Photos <span className="text-red-500">*</span> (Required)
+                Listing Photos <span className="text-red-500">*</span>
               </label>
+              
+              {/* Display existing images if any */}
+              {existingImageUrls.length > 0 && (
+                <div className="space-y-2 mb-3">
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Current Photos (will be replaced if you upload new ones below):</p>
+                  <div className="flex flex-wrap gap-2.5">
+                    {existingImageUrls.map((url, i) => (
+                      <div key={i} className="relative h-20 w-20 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 flex-shrink-0">
+                        <img src={url} alt="" className="h-full w-full object-cover" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="flex flex-wrap gap-2.5">
                 {imagePreviews.map((preview, i) => (
                   <div key={i} className="relative h-20 w-20 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 flex-shrink-0">
@@ -307,10 +383,12 @@ export const ListItem: React.FC = () => {
                     </button>
                   </div>
                 ))}
-                {images.length < 5 && (
+                {images.length + existingImageUrls.length < 5 && (
                   <label className="h-20 w-20 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 flex flex-col items-center justify-center cursor-pointer hover:border-[#9E1B1B] hover:bg-[#9E1B1B]/5 transition-all flex-shrink-0">
                     <Image className="h-5 w-5 text-slate-400 mb-0.5" />
-                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Add</span>
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">
+                      {existingImageUrls.length > 0 ? 'Replace' : 'Add'}
+                    </span>
                     <input type="file" multiple accept="image/*" className="hidden" onChange={handleImageSelect} />
                   </label>
                 )}
@@ -327,7 +405,7 @@ export const ListItem: React.FC = () => {
               ) : (
                 <>
                   <Upload className="h-4.5 w-4.5" />
-                  <span>Publish Campus Listing</span>
+                  <span>{id ? 'Update Listing Details' : 'Publish Campus Listing'}</span>
                 </>
               )}
             </button>

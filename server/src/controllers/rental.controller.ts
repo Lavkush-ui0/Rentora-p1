@@ -31,6 +31,31 @@ export const createRentalRequest = async (req: CustomRequest, res: Response, nex
       throw new CustomError('You cannot request your own listing', 400, 'SELF_RENTAL_PROHIBITED');
     }
 
+    // Limit request rate per listing per renter: max 2 times a day and 5 times a week
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    const [dailyCount, weeklyCount] = await Promise.all([
+      RentalRequest.countDocuments({
+        renter: req.user._id,
+        listing: listingId,
+        createdAt: { $gte: oneDayAgo }
+      }),
+      RentalRequest.countDocuments({
+        renter: req.user._id,
+        listing: listingId,
+        createdAt: { $gte: oneWeekAgo }
+      })
+    ]);
+
+    if (dailyCount >= 2) {
+      throw new CustomError('You have reached the limit of 2 requests per day for this item.', 400, 'DAILY_LIMIT_EXCEEDED');
+    }
+
+    if (weeklyCount >= 5) {
+      throw new CustomError('You have reached the limit of 5 requests per week for this item.', 400, 'WEEKLY_LIMIT_EXCEEDED');
+    }
+
     const start = new Date(startDate);
     const end = new Date(endDate);
 

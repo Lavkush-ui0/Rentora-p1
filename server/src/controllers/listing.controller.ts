@@ -268,12 +268,20 @@ export const updateListing = async (req: CustomRequest, res: Response, next: Nex
       listing.images = results;
     }
 
+    // If regular user (non-admin) updates the listing, it must go back to PENDING approval
+    if (!isAdmin) {
+      listing.approvalStatus = 'PENDING';
+      listing.status = 'PAUSED';
+      listing.availability = false;
+      listing.rejectionReason = ''; // Clear any prior rejection reason
+    }
+
     await listing.save();
     clearHomepageCache();
 
     return res.json({
       success: true,
-      message: 'Listing updated successfully',
+      message: isAdmin ? 'Listing updated successfully.' : 'Listing updated and submitted for admin review.',
       listing,
     });
   } catch (error) {

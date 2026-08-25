@@ -97,6 +97,17 @@ const App: React.FC = () => {
                 />
 
                 <Route
+                  path="/edit-item/:id"
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout>
+                        <ListItem />
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
                   path="/my-listings"
                   element={
                     <ProtectedRoute>

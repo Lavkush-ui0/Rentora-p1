@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { listingService } from '../services/listingService';
 import { Link } from 'react-router-dom';
-import { Plus, PauseCircle, PlayCircle, Trash2, Eye, Package, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { Plus, PauseCircle, PlayCircle, Trash2, Eye, Package, Clock, CheckCircle, XCircle, Edit3 } from 'lucide-react';
 import { getImageUrl } from '../utils/imageUrl';
 
 const statusColors: Record<string, string> = {
@@ -178,18 +178,29 @@ export const MyListings: React.FC = () => {
 
                 {/* Action Buttons */}
                 <div className="flex flex-wrap gap-2 pt-1">
-                  {listing.status !== 'REMOVED' && listing.approvalStatus !== 'PENDING' && (
+                  {listing.status !== 'REMOVED' && (
                     <>
-                      <button
-                        onClick={() => handleTogglePause(listing._id)}
-                        disabled={actionLoading === listing._id + 'pause' || listing.status === 'RENTED'}
-                        className="flex items-center space-x-1 px-3 py-1.5 border border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-300 text-xs font-bold rounded-xl hover:bg-gray-50 dark:hover:bg-slate-800 transition-all disabled:opacity-40"
+                      {listing.approvalStatus !== 'PENDING' && (
+                        <button
+                          onClick={() => handleTogglePause(listing._id)}
+                          disabled={actionLoading === listing._id + 'pause' || listing.status === 'RENTED'}
+                          className="flex items-center space-x-1 px-3 py-1.5 border border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-300 text-xs font-bold rounded-xl hover:bg-gray-50 dark:hover:bg-slate-800 transition-all disabled:opacity-40"
+                        >
+                          {listing.status === 'ACTIVE'
+                            ? <><PauseCircle className="h-3.5 w-3.5" /><span>Pause</span></>
+                            : <><PlayCircle className="h-3.5 w-3.5" /><span>Resume</span></>
+                          }
+                        </button>
+                      )}
+
+                      <Link
+                        to={`/edit-item/${listing._id}`}
+                        className="flex items-center space-x-1 px-3 py-1.5 border border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-300 text-xs font-bold rounded-xl hover:bg-gray-50 dark:hover:bg-slate-800 transition-all"
                       >
-                        {listing.status === 'ACTIVE'
-                          ? <><PauseCircle className="h-3.5 w-3.5" /><span>Pause</span></>
-                          : <><PlayCircle className="h-3.5 w-3.5" /><span>Resume</span></>
-                        }
-                      </button>
+                        <Edit3 className="h-3.5 w-3.5" />
+                        <span>Edit</span>
+                      </Link>
+
                       <button
                         onClick={() => handleDelete(listing._id)}
                         disabled={actionLoading === listing._id + 'delete'}
@@ -200,20 +211,10 @@ export const MyListings: React.FC = () => {
                       </button>
                     </>
                   )}
-                  {listing.approvalStatus === 'PENDING' && (
-                    <p className="text-[10px] text-orange-500 dark:text-orange-400 font-medium flex items-center gap-1">
+                  {listing.approvalStatus === 'PENDING' && listing.status !== 'REMOVED' && (
+                    <p className="text-[10px] text-orange-500 dark:text-orange-400 font-medium flex items-center gap-1 w-full mt-1.5">
                       <Clock className="h-3 w-3" /> Awaiting admin approval — your listing will go live once approved.
                     </p>
-                  )}
-                  {listing.approvalStatus !== 'PENDING' && listing.status !== 'REMOVED' && (
-                    <button
-                      onClick={() => handleDelete(listing._id)}
-                      disabled={actionLoading === listing._id + 'delete'}
-                      className="flex items-center space-x-1 px-3 py-1.5 border border-red-100 dark:border-red-900/30 text-red-600 dark:text-red-400 text-xs font-bold rounded-xl hover:bg-red-50 dark:hover:bg-red-950/20 transition-all disabled:opacity-40"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                      <span>Remove</span>
-                    </button>
                   )}
                 </div>
               </div>
