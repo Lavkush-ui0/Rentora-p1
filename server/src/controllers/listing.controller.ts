@@ -60,8 +60,11 @@ export const createListing = async (req: CustomRequest, res: Response, next: Nex
     const cleanTitle = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     const uniqueSlug = `${cleanTitle}-${Math.random().toString(36).substring(2, 7)}`;
 
-    // Extract location coordinates and client IP
+    // Extract location coordinates and client IP (mandatory)
     const { latitude, longitude } = req.body;
+    if (!latitude || !longitude) {
+      throw new CustomError('GPS Location Coordinates are required to list an item on the portal.', 400, 'COORDINATES_REQUIRED');
+    }
     const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip;
     const postIpAddress = Array.isArray(clientIp) ? clientIp[0] : clientIp;
 
@@ -264,7 +267,15 @@ export const updateListing = async (req: CustomRequest, res: Response, next: Nex
       }
     }
 
-    const { title, description, category, condition, rentalPrice, priceUnit, securityDeposit, availability, status, location } = req.body;
+    const { title, description, category, condition, rentalPrice, priceUnit, securityDeposit, availability, status, location, latitude, longitude } = req.body;
+
+    if (!latitude || !longitude) {
+      throw new CustomError('GPS Location Coordinates are required to edit/resubmit an item on the portal.', 400, 'COORDINATES_REQUIRED');
+    }
+
+    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip;
+    listing.postIpAddress = Array.isArray(clientIp) ? clientIp[0] : clientIp;
+    listing.postCoordinates = { latitude: Number(latitude), longitude: Number(longitude) };
 
     if (category) {
       const categoryExists = await Category.findById(category);

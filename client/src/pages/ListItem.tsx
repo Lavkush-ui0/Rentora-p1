@@ -86,6 +86,24 @@ export const ListItem: React.FC = () => {
     location: user?.collegeName || 'NIET Plot 19',
   });
 
+  useEffect(() => {
+    // Automatically trigger GPS coordinates request on mount
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setCoordinates({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          });
+          setShareLocation(true);
+        },
+        () => {
+          console.warn('[ListItem] Geolocation permission denied or unavailable on mount.');
+        }
+      );
+    }
+  }, []);
+
   // Load listing details if editing
   useEffect(() => {
     if (id) {
@@ -117,6 +135,15 @@ export const ListItem: React.FC = () => {
             });
             setSelectedTheme(themeVal as any);
             setExistingImageUrls(listing.images || []);
+            
+            // If editing, try to load its coordinates
+            if (listing.postCoordinates?.latitude) {
+              setCoordinates({
+                latitude: listing.postCoordinates.latitude,
+                longitude: listing.postCoordinates.longitude,
+              });
+              setShareLocation(true);
+            }
           }
         } catch (err) {
           console.error(err);
@@ -178,6 +205,11 @@ export const ListItem: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    if (!shareLocation || !coordinates) {
+      setError('You must grant GPS location access to list/edit this item. Location tracking is mandatory for campus security.');
+      return;
+    }
 
     if (images.length === 0 && existingImageUrls.length === 0) {
       setError('You must upload at least one photo of the item.');
@@ -259,9 +291,13 @@ export const ListItem: React.FC = () => {
           <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 p-6 space-y-5 shadow-sm">
             
             {/* Location Consent & Coordinates tracking */}
-            <div className="bg-slate-50 dark:bg-slate-950/20 border border-slate-150 dark:border-slate-800/40 p-4 rounded-2xl flex items-center justify-between gap-4">
+            <div className={`p-4 rounded-2xl flex items-center justify-between gap-4 border transition-all ${
+              shareLocation
+                ? 'bg-slate-50 dark:bg-slate-950/20 border-slate-150 dark:border-slate-800/40'
+                : 'bg-red-50 dark:bg-red-950/10 border-red-200 dark:border-red-900/30'
+            }`}>
               <div className="space-y-0.5">
-                <p className="text-xs font-bold text-slate-800 dark:text-gray-200">Attach Security Location Coordinates</p>
+                <p className="text-xs font-bold text-slate-800 dark:text-gray-200">Attach Security Location Coordinates (Required)</p>
                 <p className="text-[10px] text-gray-400">Attach coordinates for safety audits. Lenders are tracked to prevent listing fraud.</p>
               </div>
               <button
@@ -270,7 +306,7 @@ export const ListItem: React.FC = () => {
                 className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all ${
                   shareLocation
                     ? 'bg-green-600 hover:bg-green-700 text-white'
-                    : 'bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200'
+                    : 'bg-red-650 hover:bg-red-700 text-white animate-pulse'
                 }`}
               >
                 {shareLocation ? '📍 Attached' : 'Attach GPS'}
