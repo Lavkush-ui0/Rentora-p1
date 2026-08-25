@@ -28,7 +28,6 @@ interface AuthContextType {
   verifyOTP: (email: string, otp: string) => Promise<any>;
   loginSendOTP: (email: string) => Promise<any>;
   loginVerifyOTP: (email: string, otp: string) => Promise<any>;
-  googleLogin: (credential: string) => Promise<any>;
   refreshUser: () => Promise<void>;
   deleteUserAccount: () => Promise<void>;
 }
@@ -199,24 +198,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const googleLogin = async (credential: string) => {
-    setLoading(true);
-    try {
-      const response = await api.post('/auth/google', { credential });
-      if (response.data?.success) {
-        setAccessToken(response.data.accessToken);
-        setUser(response.data.user);
-        if (response.data.user?.collegeName) {
-          localStorage.setItem('rentora_location', response.data.user.collegeName);
-          window.dispatchEvent(new Event('rentora_location_changed'));
-        }
-        return response.data;
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <AuthContext.Provider
       value={{
@@ -230,7 +211,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         verifyOTP,
         loginSendOTP,
         loginVerifyOTP,
-        googleLogin,
         refreshUser,
         deleteUserAccount,
       }}

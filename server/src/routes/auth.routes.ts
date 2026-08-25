@@ -12,7 +12,6 @@ import {
   resendOTP,
   loginSendOTP,
   loginVerifyOTP,
-  googleAuth,
 } from '../controllers/auth.controller';
 import { authenticateUser } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validate';
@@ -29,7 +28,6 @@ router.post('/verify-otp', verifyOTP);
 router.post('/resend-otp', resendOTP);
 router.post('/login-send-otp', loginSendOTP);
 router.post('/login-verify-otp', loginVerifyOTP);
-router.post('/google', googleAuth);
 
 // Protected routes
 router.get('/profile', authenticateUser, getProfile);

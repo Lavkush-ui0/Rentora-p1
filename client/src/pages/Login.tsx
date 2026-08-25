@@ -1,55 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { useGoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { Mail, Lock, LogIn, AlertCircle } from 'lucide-react';
 import { RentoraWordmark } from '../components/RentoraBrand';
 
 export const Login: React.FC = () => {
-  const { login, loginSendOTP, loginVerifyOTP, googleLogin } = useAuth();
+  const { login, loginSendOTP, loginVerifyOTP } = useAuth();
   const { theme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
-  const [googleLoading, setGoogleLoading] = useState(false);
 
-  const handleGoogleLogin = useGoogleLogin({
-    onSuccess: async (tokenResponse) => {
-      setGoogleLoading(true);
-      setError('');
-      try {
-        // Exchange the access token for an ID token via Google's userinfo endpoint
-        // @react-oauth/google gives us an access token; we send it to the backend
-        // which uses google-auth-library to verify it
-        const res = await googleLogin(tokenResponse.access_token);
-        const user = res?.user;
-        const isProfileIncomplete = 
-          user && user.role !== 'ADMIN' && (
-            !user.fullName || 
-            !user.course || 
-            !user.branch || 
-            user.branch === 'Not Set' || 
-            !user.year
-          );
-
-        if (res?.isNewUser || isProfileIncomplete) {
-          navigate('/settings', { replace: true, state: { incompleteProfile: true } });
-        } else {
-          const destination = (location.state as any)?.from?.pathname || '/';
-          navigate(destination, { replace: true });
-        }
-      } catch (err: any) {
-        setError(err?.response?.data?.message || 'Google sign-in failed. Please try again.');
-      } finally {
-        setGoogleLoading(false);
-      }
-    },
-    onError: () => {
-      setError('Google sign-in was cancelled or failed.');
-    },
-    flow: 'implicit',
-  });
-  
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -76,9 +37,19 @@ export const Login: React.FC = () => {
     return () => clearInterval(interval);
   }, [otpSent, timer]);
 
+  const validateDomain = (emailVal: string) => {
+    const domain = emailVal.split('@')[1];
+    if (domain && domain.toLowerCase() !== 'niet.co.in') {
+      setError('Only NIET email addresses (@niet.co.in) are allowed.');
+      return false;
+    }
+    return true;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    if (!validateDomain(email)) return;
     setLoading(true);
 
     try {
@@ -112,6 +83,7 @@ export const Login: React.FC = () => {
   const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    if (!validateDomain(email)) return;
     setLoading(true);
     try {
       await loginSendOTP(email);
@@ -447,33 +419,12 @@ export const Login: React.FC = () => {
           </div>
         )}
 
-        {/* Google Sign-In Divider */}
-        <div className="flex items-center gap-3 my-5">
-          <div className="flex-1 h-px bg-gray-200 dark:bg-slate-700" />
-          <span className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">or</span>
-          <div className="flex-1 h-px bg-gray-200 dark:bg-slate-700" />
+        {/* Domain notice */}
+        <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/30 rounded-2xl text-center">
+          <p className="text-xs text-amber-700 dark:text-amber-400 font-medium">
+            🎓 Rentora is exclusively for NIET students. Only <strong>@niet.co.in</strong> email addresses are accepted.
+          </p>
         </div>
-
-        {/* Google Sign-In Button */}
-        <button
-          id="google-login-btn"
-          type="button"
-          onClick={() => handleGoogleLogin()}
-          disabled={googleLoading}
-          className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-2xl border-2 border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700 hover:border-gray-300 dark:hover:border-slate-600 transition-all font-semibold text-gray-700 dark:text-gray-200 text-sm shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
-        >
-          {googleLoading ? (
-            <div className="h-5 w-5 animate-spin rounded-full border-2 border-gray-400 border-t-transparent" />
-          ) : (
-            <svg className="h-5 w-5" viewBox="0 0 24 24">
-              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/>
-              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-            </svg>
-          )}
-          <span>{googleLoading ? 'Signing in...' : 'Continue with Google'}</span>
-        </button>
 
         {/* Footer */}
         <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-6">
