@@ -8,6 +8,7 @@ import {
   getPendingListings,
   approveListing,
   rejectListing,
+  getRejectedTodayListings,
   getCategories,
   createCategory,
   updateCategory,
@@ -33,6 +34,7 @@ router.delete('/listings/:id', removeListing);
 
 // Listing Approvals
 router.get('/listings/pending', getPendingListings);
+router.get('/listings/rejected-today', getRejectedTodayListings);
 router.patch('/listings/:id/approve', approveListing);
 router.patch('/listings/:id/reject', rejectListing);
 

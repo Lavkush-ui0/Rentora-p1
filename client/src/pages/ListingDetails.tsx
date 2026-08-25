@@ -186,6 +186,28 @@ export const ListingDetails: React.FC = () => {
   const isAvailable = listing?.status === 'ACTIVE' && listing?.availability;
   const todayStr = new Date().toISOString().split('T')[0];
 
+  const handleAdminDismissReports = async () => {
+    try {
+      const repRes = await adminService.getReports();
+      if (repRes.data?.success) {
+        // Look for any reports that match this listing ID
+        const targetIdStr = String(listing._id);
+        const listingReports = repRes.data.reports.filter((r: any) => 
+          String(r.targetId) === targetIdStr && r.status === 'OPEN'
+        );
+        if (listingReports.length === 0) {
+          alert('No active reports found for this post.');
+          return;
+        }
+        await Promise.all(listingReports.map((r: any) => adminService.updateReportStatus(r._id, 'DISMISSED')));
+        alert('All reports for this post have been dismissed.');
+        navigate('/admin/reports');
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to dismiss reports.');
+    }
+  };
+
   // Calculate rental cost helper
   const calculateTotalCost = () => {
     if (!startDate || !endDate) return 0;
@@ -245,6 +267,32 @@ export const ListingDetails: React.FC = () => {
   return (
     <div className="max-w-5xl mx-auto space-y-8 text-left">
       
+      {isAdmin && (
+        <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/40 p-4 rounded-3xl flex flex-wrap items-center justify-between gap-4 shadow-sm animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className="flex items-center space-x-2.5 text-red-600 dark:text-red-400">
+            <AlertTriangle className="h-5 w-5 shrink-0 animate-pulse" />
+            <div>
+              <p className="text-xs font-black uppercase tracking-wider">Admin Post Inspector</p>
+              <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">This post has reports or requires moderation check. Actions taken here resolve reported statuses.</p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-3 shrink-0">
+            <button
+              onClick={handleAdminDismissReports}
+              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-2xl transition-all shadow-sm shadow-green-500/10"
+            >
+              Dismiss Reports
+            </button>
+            <button
+              onClick={handleAdminTakeDown}
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-2xl transition-all shadow-sm shadow-red-500/10"
+            >
+              Take Down Post
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Breadcrumb */}
       <nav className="flex items-center space-x-2 text-xs text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">
         <Link to="/explore" className="hover:text-[#9E1B1B] transition-colors font-display">Explore</Link>

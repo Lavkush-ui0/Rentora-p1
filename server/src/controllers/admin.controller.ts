@@ -173,6 +173,27 @@ export const rejectListing = async (req: CustomRequest, res: Response, next: Nex
   }
 };
 
+// Get listings rejected within the last 24 hours
+export const getRejectedTodayListings = async (req: CustomRequest, res: Response, next: NextFunction) => {
+  try {
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const listings = await Listing.find({
+      approvalStatus: 'REJECTED',
+      updatedAt: { $gte: oneDayAgo }
+    })
+      .sort({ updatedAt: -1 })
+      .populate('owner', 'fullName email avatar')
+      .populate('category', 'name slug');
+
+    return res.json({
+      success: true,
+      listings,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
 // 3. Category management
 export const getCategories = async (req: CustomRequest, res: Response, next: NextFunction) => {
   try {

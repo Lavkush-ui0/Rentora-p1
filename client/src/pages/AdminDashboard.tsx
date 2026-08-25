@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, Link } from 'react-router-dom';
 import { adminService } from '../services/adminService';
 import {
   Users as UsersIcon, Package as ListingsIcon, CheckCircle2, Plus,
@@ -210,6 +210,8 @@ export const AdminDashboard: React.FC = () => {
     ? 'listings'
     : path.includes('/approvals')
     ? 'approvals'
+    : path.includes('/rejected')
+    ? 'rejected'
     : path.includes('/categories')
     ? 'categories'
     : path.includes('/reports')
@@ -220,6 +222,7 @@ export const AdminDashboard: React.FC = () => {
   const [users, setUsers] = useState<any[]>([]);
   const [listings, setListings] = useState<any[]>([]);
   const [pendingListings, setPendingListings] = useState<any[]>([]);
+  const [rejectedListings, setRejectedListings] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [reports, setReports] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -247,6 +250,9 @@ export const AdminDashboard: React.FC = () => {
       } else if (currentTab === 'approvals') {
         const pendRes = await adminService.getPendingListings();
         if (pendRes.data?.success) setPendingListings(pendRes.data.listings);
+      } else if (currentTab === 'rejected') {
+        const rejRes = await adminService.getRejectedTodayListings();
+        if (rejRes.data?.success) setRejectedListings(rejRes.data.listings);
       } else if (currentTab === 'categories') {
         const catRes = await adminService.getCategories();
         if (catRes.data?.success) setCategories(catRes.data.categories);
@@ -818,6 +824,14 @@ export const AdminDashboard: React.FC = () => {
                           <td className="px-6 py-4 text-right space-x-1 whitespace-nowrap">
                             {r.status === 'OPEN' && (
                               <>
+                                {r.targetType === 'LISTING' && (
+                                  <Link
+                                    to={`/listing/${r.targetId}`}
+                                    className="px-3 py-1.5 border border-primary-200 text-primary-600 dark:border-primary-900/30 dark:text-primary-400 text-xs font-bold rounded-xl hover:bg-primary-50 dark:hover:bg-primary-950/15 transition-all inline-block align-middle"
+                                  >
+                                    Go to Post
+                                  </Link>
+                                )}
                                 {r.targetType === 'LISTING' && r.targetDetails && r.targetDetails.status !== 'REMOVED' && (
                                   <button
                                     onClick={() => handleRemoveAndResolveReport(r._id, r.targetId)}
@@ -989,6 +1003,97 @@ export const AdminDashboard: React.FC = () => {
                               Reject
                             </button>
                           </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            {/* SUBVIEW 7: REJECTED TODAY */}
+            {currentTab === 'rejected' && (
+              <div className="space-y-6">
+                {rejectedListings.length === 0 ? (
+                  <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-3xl p-16 text-center">
+                    <div className="h-16 w-16 rounded-3xl bg-gray-55 dark:bg-slate-800 text-gray-400 flex items-center justify-center mx-auto mb-4">
+                      <Clock className="h-8 w-8" />
+                    </div>
+                    <h3 className="font-outfit font-black text-lg text-gray-900 dark:text-white">Clean log</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">No items have been rejected today.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {rejectedListings.map((listing: any) => (
+                      <div
+                        key={listing._id}
+                        className="bg-white dark:bg-slate-900 border border-red-200 dark:border-red-900/30 rounded-3xl overflow-hidden shadow-sm animate-in fade-in duration-200"
+                      >
+                        {/* Listing Image */}
+                        <div className="relative h-48 bg-gray-100 dark:bg-slate-800 overflow-hidden">
+                          {listing.images?.[0] ? (
+                            <img
+                              src={listing.images[0]}
+                              alt={listing.title}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <ListingsIcon className="h-10 w-10 text-gray-300 dark:text-slate-600" />
+                            </div>
+                          )}
+                          {/* Rejected badge */}
+                          <div className="absolute top-3 left-3 flex flex-col gap-1 items-start">
+                            <span className="bg-red-600 text-white text-[10px] font-black px-2.5 py-1 rounded-full flex items-center gap-1 shadow-sm">
+                              <XCircle className="h-3 w-3" /> REJECTED TODAY
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Listing Details */}
+                        <div className="p-5 space-y-3">
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <h3 className="font-outfit font-black text-gray-900 dark:text-white text-base leading-snug">{listing.title}</h3>
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{listing.category?.name}</p>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <p className="text-sm font-black text-primary-600 dark:text-primary-400">₹{listing.rentalPrice}</p>
+                              <p className="text-[10px] text-gray-400">/ {listing.priceUnit?.toLowerCase()}</p>
+                            </div>
+                          </div>
+
+                          <div className="bg-red-50/50 dark:bg-red-950/10 border border-red-100 dark:border-red-950/20 p-3 rounded-2xl">
+                            <p className="text-[10px] font-black text-red-600 dark:text-red-400 uppercase">Rejection Reason:</p>
+                            <p className="text-xs text-gray-700 dark:text-gray-300 mt-0.5 italic">"{listing.rejectionReason || 'Does not meet guidelines.'}"</p>
+                          </div>
+
+                          <div className="flex flex-wrap gap-2 text-[10px] font-bold text-gray-500">
+                            <span>📍 {listing.location}</span>
+                            <span>•</span>
+                            <span>Submissions: {listing.submissionCount ?? 1}</span>
+                          </div>
+
+                          {/* Owner info */}
+                          <div className="flex items-center gap-2 pt-1.5 border-t border-gray-100 dark:border-slate-800">
+                            <img
+                              src={listing.owner?.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${listing.owner?.fullName}`}
+                              alt=""
+                              className="h-7 w-7 rounded-full object-cover"
+                            />
+                            <div>
+                              <p className="text-xs font-bold text-gray-800 dark:text-gray-200">{listing.owner?.fullName}</p>
+                              <p className="text-[10px] text-gray-400">{listing.owner?.email}</p>
+                            </div>
+                          </div>
+
+                          {/* Action Button */}
+                          <button
+                            onClick={() => handleApproveListing(listing._id)}
+                            className="w-full flex items-center justify-center gap-2 py-2.5 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-2xl transition-all shadow-md shadow-green-500/10"
+                          >
+                            <CheckCircle className="h-4 w-4" />
+                            Approve Now
+                          </button>
                         </div>
                       </div>
                     ))}

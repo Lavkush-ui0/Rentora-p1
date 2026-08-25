@@ -10,6 +10,7 @@ export const adminService = {
 
   // Listing Approvals
   getPendingListings: () => api.get('/admin/listings/pending'),
+  getRejectedTodayListings: () => api.get('/admin/listings/rejected-today'),
   approveListing: (id: string) => api.patch(`/admin/listings/${id}/approve`),
   rejectListing: (id: string, reason: string) => api.patch(`/admin/listings/${id}/reject`, { reason }),
 

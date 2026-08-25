@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   LayoutDashboard, Users, Package, FolderOpen,
-  FileText, LogOut, ShieldCheck, Sun, Moon, Home, ClipboardCheck
+  FileText, LogOut, ShieldCheck, Sun, Moon, Home, ClipboardCheck, XCircle
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { RentoraWordmark } from '../components/RentoraBrand';
@@ -48,6 +48,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     { path: '/admin/users', label: 'Users', icon: Users, badge: undefined as number | undefined },
     { path: '/admin/listings', label: 'Listings', icon: Package, badge: undefined as number | undefined },
     { path: '/admin/approvals', label: 'Approvals', icon: ClipboardCheck, badge: pendingCount },
+    { path: '/admin/rejected', label: 'Rejected Today', icon: XCircle, badge: undefined as number | undefined },
     { path: '/admin/categories', label: 'Categories', icon: FolderOpen, badge: undefined as number | undefined },
     { path: '/admin/reports', label: 'Reports', icon: FileText, badge: undefined as number | undefined },
   ];
