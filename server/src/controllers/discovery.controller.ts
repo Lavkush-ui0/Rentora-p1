@@ -35,7 +35,7 @@ export const getHomepageData = async (req: Request, res: Response, next: NextFun
     }
 
     // Base filter for listings
-    const listingFilter: any = { status: 'ACTIVE', availability: true };
+    const listingFilter: any = { status: 'ACTIVE', availability: true, approvalStatus: 'APPROVED' };
     if (location && location !== 'All') {
       listingFilter.location = location;
     }
@@ -110,6 +110,7 @@ export const getHomepageData = async (req: Request, res: Response, next: NextFun
         _id: { $in: listingIds },
         status: 'ACTIVE',
         availability: true,
+        approvalStatus: 'APPROVED',
       };
       if (location && location !== 'All') {
         trendingFilter.location = location;
@@ -124,6 +125,7 @@ export const getHomepageData = async (req: Request, res: Response, next: NextFun
       const extraFilter: any = {
         status: 'ACTIVE',
         availability: true,
+        approvalStatus: 'APPROVED',
         _id: { $nin: trendingProducts.map(p => p._id) },
       };
       if (location && location !== 'All') {
