@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { listingService } from '../services/listingService';
 import { Link } from 'react-router-dom';
-import { Plus, PauseCircle, PlayCircle, Trash2, Eye, Package } from 'lucide-react';
+import { Plus, PauseCircle, PlayCircle, Trash2, Eye, Package, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { getImageUrl } from '../utils/imageUrl';
 
 const statusColors: Record<string, string> = {
@@ -10,6 +10,38 @@ const statusColors: Record<string, string> = {
   PAUSED: 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400',
   RENTED: 'bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400',
   REMOVED: 'bg-gray-50 text-gray-500 dark:bg-slate-800 dark:text-gray-500',
+};
+
+const ApprovalBadge: React.FC<{ approvalStatus: string; rejectionReason?: string }> = ({ approvalStatus, rejectionReason }) => {
+  if (approvalStatus === 'PENDING') {
+    return (
+      <span className="flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-orange-50 dark:bg-orange-950/20 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-900/30">
+        <Clock className="h-2.5 w-2.5" /> Pending Review
+      </span>
+    );
+  }
+  if (approvalStatus === 'REJECTED') {
+    return (
+      <div className="flex flex-col gap-0.5">
+        <span className="flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900/30">
+          <XCircle className="h-2.5 w-2.5" /> Rejected
+        </span>
+        {rejectionReason && (
+          <p className="text-[10px] text-red-500 dark:text-red-400 pl-1 leading-tight max-w-[200px] truncate" title={rejectionReason}>
+            Reason: {rejectionReason}
+          </p>
+        )}
+      </div>
+    );
+  }
+  if (approvalStatus === 'APPROVED') {
+    return (
+      <span className="flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-green-50 dark:bg-green-950/20 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-900/30">
+        <CheckCircle className="h-2.5 w-2.5" /> Approved
+      </span>
+    );
+  }
+  return null;
 };
 
 export const MyListings: React.FC = () => {
@@ -127,9 +159,14 @@ export const MyListings: React.FC = () => {
                   <Link to={`/listing/${listing._id}`} className="font-bold text-gray-900 dark:text-gray-100 hover:text-primary-600 transition-colors text-sm leading-tight">
                     {listing.title}
                   </Link>
-                  <span className={`text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0 ${statusColors[listing.status]}`}>
-                    {listing.status}
-                  </span>
+                  <div className="flex flex-col items-end gap-1">
+                    <span className={`text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0 ${statusColors[listing.status]}`}>
+                      {listing.status}
+                    </span>
+                    {listing.approvalStatus && (
+                      <ApprovalBadge approvalStatus={listing.approvalStatus} rejectionReason={listing.rejectionReason} />
+                    )}
+                  </div>
                 </div>
                 <p className="text-xs text-gray-400 dark:text-gray-500">
                   ₹{listing.rentalPrice}/{listing.priceUnit.toLowerCase()} · {listing.condition.replace('_', ' ')}
@@ -141,7 +178,7 @@ export const MyListings: React.FC = () => {
 
                 {/* Action Buttons */}
                 <div className="flex flex-wrap gap-2 pt-1">
-                  {listing.status !== 'REMOVED' && (
+                  {listing.status !== 'REMOVED' && listing.approvalStatus !== 'PENDING' && (
                     <>
                       <button
                         onClick={() => handleTogglePause(listing._id)}
@@ -162,6 +199,21 @@ export const MyListings: React.FC = () => {
                         <span>Remove</span>
                       </button>
                     </>
+                  )}
+                  {listing.approvalStatus === 'PENDING' && (
+                    <p className="text-[10px] text-orange-500 dark:text-orange-400 font-medium flex items-center gap-1">
+                      <Clock className="h-3 w-3" /> Awaiting admin approval — your listing will go live once approved.
+                    </p>
+                  )}
+                  {listing.approvalStatus !== 'PENDING' && listing.status !== 'REMOVED' && (
+                    <button
+                      onClick={() => handleDelete(listing._id)}
+                      disabled={actionLoading === listing._id + 'delete'}
+                      className="flex items-center space-x-1 px-3 py-1.5 border border-red-100 dark:border-red-900/30 text-red-600 dark:text-red-400 text-xs font-bold rounded-xl hover:bg-red-50 dark:hover:bg-red-950/20 transition-all disabled:opacity-40"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      <span>Remove</span>
+                    </button>
                   )}
                 </div>
               </div>

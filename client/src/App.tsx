@@ -224,6 +224,14 @@ const App: React.FC = () => {
                   }
                 />
                 <Route
+                  path="/admin/approvals"
+                  element={
+                    <ProtectedRoute allowedRoles={['ADMIN']}>
+                      <AdminDashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
                   path="/admin/categories"
                   element={
                     <ProtectedRoute allowedRoles={['ADMIN']}>
@@ -239,6 +247,7 @@ const App: React.FC = () => {
                     </ProtectedRoute>
                   }
                 />
+
 
                 {/* 404 fallback */}
                 <Route

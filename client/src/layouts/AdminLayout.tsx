@@ -1,12 +1,13 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   LayoutDashboard, Users, Package, FolderOpen,
-  FileText, LogOut, ShieldCheck, Sun, Moon, Home
+  FileText, LogOut, ShieldCheck, Sun, Moon, Home, ClipboardCheck
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { RentoraWordmark } from '../components/RentoraBrand';
+import { adminService } from '../services/adminService';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -17,6 +18,21 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
+  const [pendingCount, setPendingCount] = useState(0);
+
+  useEffect(() => {
+    const fetchPending = async () => {
+      try {
+        const res = await adminService.getPendingListings();
+        if (res.data?.success) {
+          setPendingCount(res.data.listings.length);
+        }
+      } catch {
+        // silently fail — badge just won't show
+      }
+    };
+    fetchPending();
+  }, [location.pathname]);
 
   const handleLogout = async () => {
     try {
@@ -28,11 +44,12 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   };
 
   const menuItems = [
-    { path: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { path: '/admin/users', label: 'Users', icon: Users },
-    { path: '/admin/listings', label: 'Listings', icon: Package },
-    { path: '/admin/categories', label: 'Categories', icon: FolderOpen },
-    { path: '/admin/reports', label: 'Reports', icon: FileText },
+    { path: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard, badge: undefined as number | undefined },
+    { path: '/admin/users', label: 'Users', icon: Users, badge: undefined as number | undefined },
+    { path: '/admin/listings', label: 'Listings', icon: Package, badge: undefined as number | undefined },
+    { path: '/admin/approvals', label: 'Approvals', icon: ClipboardCheck, badge: pendingCount },
+    { path: '/admin/categories', label: 'Categories', icon: FolderOpen, badge: undefined as number | undefined },
+    { path: '/admin/reports', label: 'Reports', icon: FileText, badge: undefined as number | undefined },
   ];
 
   return (
@@ -58,14 +75,25 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                 <Link
                   key={item.path}
                   to={item.path}
-                  className={`flex items-center space-x-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all ${
+                  className={`flex items-center justify-between px-4 py-3 rounded-2xl text-sm font-bold transition-all ${
                     isActive
                       ? 'bg-primary-600 text-white shadow-md shadow-primary-500/20'
                       : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 hover:text-gray-900 dark:hover:text-gray-100'
                   }`}
                 >
-                  <Icon className="h-4.5 w-4.5" />
-                  <span>{item.label}</span>
+                  <div className="flex items-center space-x-3">
+                    <Icon className="h-4.5 w-4.5 shrink-0" />
+                    <span>{item.label}</span>
+                  </div>
+                  {item.badge !== undefined && item.badge > 0 && (
+                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                      isActive
+                        ? 'bg-white/20 text-white'
+                        : 'bg-orange-100 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400'
+                    }`}>
+                      {item.badge}
+                    </span>
+                  )}
                 </Link>
               );
             })}

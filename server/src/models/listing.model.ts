@@ -13,6 +13,8 @@ export interface IListing extends Document {
   securityDeposit: number;
   availability: boolean;
   status: 'ACTIVE' | 'PAUSED' | 'RENTED' | 'REMOVED';
+  approvalStatus: 'PENDING' | 'APPROVED' | 'REJECTED';
+  rejectionReason?: string;
   viewCount: number;
   requestCount: number;
   rating: number;
@@ -82,8 +84,18 @@ const ListingSchema = new Schema<IListing>(
     status: {
       type: String,
       enum: ['ACTIVE', 'PAUSED', 'RENTED', 'REMOVED'],
-      default: 'ACTIVE',
+      default: 'PAUSED',
       index: true,
+    },
+    approvalStatus: {
+      type: String,
+      enum: ['PENDING', 'APPROVED', 'REJECTED'],
+      default: 'PENDING',
+      index: true,
+    },
+    rejectionReason: {
+      type: String,
+      default: '',
     },
     viewCount: {
       type: Number,
@@ -111,11 +123,12 @@ const ListingSchema = new Schema<IListing>(
 );
 
 // Create compound indexes for ultra-fast catalog and discovery sorting
-ListingSchema.index({ status: 1, availability: 1, createdAt: -1 });
-ListingSchema.index({ status: 1, availability: 1, rentalPrice: 1 });
-ListingSchema.index({ status: 1, availability: 1, requestCount: -1, viewCount: -1 });
-ListingSchema.index({ status: 1, availability: 1, location: 1 });
+ListingSchema.index({ approvalStatus: 1, status: 1, availability: 1, createdAt: -1 });
+ListingSchema.index({ approvalStatus: 1, status: 1, availability: 1, rentalPrice: 1 });
+ListingSchema.index({ approvalStatus: 1, status: 1, availability: 1, requestCount: -1, viewCount: -1 });
+ListingSchema.index({ approvalStatus: 1, status: 1, availability: 1, location: 1 });
 ListingSchema.index({ owner: 1, status: 1 });
+ListingSchema.index({ owner: 1, approvalStatus: 1 });
 
 // Create compound text index for keyword search
 ListingSchema.index(

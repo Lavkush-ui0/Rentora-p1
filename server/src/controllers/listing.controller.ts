@@ -51,8 +51,9 @@ export const createListing = async (req: CustomRequest, res: Response, next: Nex
       rentalPrice,
       priceUnit,
       securityDeposit: securityDeposit || 0,
-      availability: true,
-      status: 'ACTIVE',
+      availability: false,
+      status: 'PAUSED',
+      approvalStatus: 'PENDING',
       location: location || (req.user as any).collegeName || 'NIET Plot 19',
     });
 
@@ -60,7 +61,7 @@ export const createListing = async (req: CustomRequest, res: Response, next: Nex
 
     return res.status(201).json({
       success: true,
-      message: 'Listing created successfully',
+      message: 'Listing submitted for admin approval! It will be visible once approved.',
       listing: newListing,
     });
   } catch (error) {
@@ -81,6 +82,8 @@ export const getListings = async (req: CustomRequest, res: Response, next: NextF
     // Filter by owner if provided
     if (owner) {
       filter.owner = owner;
+      // Owners can see all their listings regardless of approval status
+      // (approvalStatus filter will not be applied below for owner queries)
     }
     
     // Filter by location if provided
@@ -107,6 +110,12 @@ export const getListings = async (req: CustomRequest, res: Response, next: NextF
     
     // Default to ACTIVE listings unless querying specific status
     filter.status = status || 'ACTIVE';
+
+    // For public/explore queries (no specific owner), only show APPROVED listings
+    // Owner queries show all their own listings regardless of approval
+    if (!owner) {
+      filter.approvalStatus = 'APPROVED';
+    }
 
     // Price filters
     if (minPrice !== undefined || maxPrice !== undefined) {
@@ -323,6 +332,10 @@ export const pauseListing = async (req: CustomRequest, res: Response, next: Next
       listing.status = 'PAUSED';
       listing.availability = false;
     } else if (listing.status === 'PAUSED') {
+      // Can only un-pause if admin has approved the listing
+      if (listing.approvalStatus !== 'APPROVED') {
+        throw new CustomError('This listing is awaiting admin approval and cannot be made active yet.', 400, 'NOT_APPROVED');
+      }
       listing.status = 'ACTIVE';
       listing.availability = true;
     } else {

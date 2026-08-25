@@ -5,6 +5,9 @@ import {
   unblockUser,
   getListings,
   removeListing,
+  getPendingListings,
+  approveListing,
+  rejectListing,
   getCategories,
   createCategory,
   updateCategory,
@@ -27,6 +30,11 @@ router.patch('/users/:id/unblock', unblockUser);
 // Listings Dashboard
 router.get('/listings', getListings);
 router.delete('/listings/:id', removeListing);
+
+// Listing Approvals
+router.get('/listings/pending', getPendingListings);
+router.patch('/listings/:id/approve', approveListing);
+router.patch('/listings/:id/reject', rejectListing);
 
 // Categories Management
 router.get('/categories', getCategories);

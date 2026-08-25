@@ -105,6 +105,74 @@ export const removeListing = async (req: CustomRequest, res: Response, next: Nex
   }
 };
 
+// Get all listings pending admin approval
+export const getPendingListings = async (req: CustomRequest, res: Response, next: NextFunction) => {
+  try {
+    const listings = await Listing.find({ approvalStatus: 'PENDING' })
+      .sort({ createdAt: -1 })
+      .populate('owner', 'fullName email avatar')
+      .populate('category', 'name slug');
+
+    return res.json({
+      success: true,
+      listings,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+// Approve a listing
+export const approveListing = async (req: CustomRequest, res: Response, next: NextFunction) => {
+  try {
+    const listing = await Listing.findById(req.params.id);
+    if (!listing) {
+      throw new CustomError('Listing not found', 404, 'NOT_FOUND');
+    }
+
+    listing.approvalStatus = 'APPROVED';
+    listing.status = 'ACTIVE';
+    listing.availability = true;
+    listing.rejectionReason = '';
+    await listing.save();
+    clearHomepageCache();
+
+    return res.json({
+      success: true,
+      message: 'Listing approved and is now live on the marketplace.',
+      listing,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+// Reject a listing
+export const rejectListing = async (req: CustomRequest, res: Response, next: NextFunction) => {
+  try {
+    const { reason } = req.body;
+    const listing = await Listing.findById(req.params.id);
+    if (!listing) {
+      throw new CustomError('Listing not found', 404, 'NOT_FOUND');
+    }
+
+    listing.approvalStatus = 'REJECTED';
+    listing.status = 'PAUSED';
+    listing.availability = false;
+    listing.rejectionReason = reason || 'Does not meet marketplace guidelines.';
+    await listing.save();
+    clearHomepageCache();
+
+    return res.json({
+      success: true,
+      message: 'Listing rejected.',
+      listing,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
 // 3. Category management
 export const getCategories = async (req: CustomRequest, res: Response, next: NextFunction) => {
   try {
@@ -262,7 +330,8 @@ export const createReport = async (req: CustomRequest, res: Response, next: Next
 export const getDashboardStats = async (req: CustomRequest, res: Response, next: NextFunction) => {
   try {
     const totalUsers = await User.countDocuments({ role: { $ne: 'ADMIN' } });
-    const totalListings = await Listing.countDocuments({ status: { $ne: 'REMOVED' } });
+    const totalListings = await Listing.countDocuments({ status: { $ne: 'REMOVED' }, approvalStatus: 'APPROVED' });
+    const pendingApprovals = await Listing.countDocuments({ approvalStatus: 'PENDING' });
     const totalCompletedRentals = await RentalRequest.countDocuments({ status: 'COMPLETED' });
     const totalActiveChats = await Conversation.countDocuments({});
 
@@ -326,6 +395,7 @@ export const getDashboardStats = async (req: CustomRequest, res: Response, next:
       stats: {
         totalUsers,
         totalListings,
+        pendingApprovals,
         totalCompletedRentals,
         totalActiveChats,
         topRatedListings,
