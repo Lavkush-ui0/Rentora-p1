@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
   getUsers,
+  createUserByAdmin,
   blockUser,
   unblockUser,
   getListings,
@@ -15,6 +16,8 @@ import {
   getReports,
   updateReportStatus,
   getDashboardStats,
+  getAdminSettings,
+  updateAdminSettings,
 } from '../controllers/admin.controller';
 import { authenticateUser, requireAdmin } from '../middleware/auth.middleware';
 
@@ -25,6 +28,7 @@ router.use(authenticateUser, requireAdmin);
 
 // Users Dashboard
 router.get('/users', getUsers);
+router.post('/users/create', createUserByAdmin);
 router.patch('/users/:id/block', blockUser);
 router.patch('/users/:id/unblock', unblockUser);
 
@@ -47,7 +51,9 @@ router.patch('/categories/:id', updateCategory);
 router.get('/reports', getReports);
 router.patch('/reports/:id', updateReportStatus);
 
-// Statistics
+// Statistics & Platform Settings
 router.get('/stats', getDashboardStats);
+router.get('/settings', getAdminSettings);
+router.patch('/settings', updateAdminSettings);
 
 export default router;

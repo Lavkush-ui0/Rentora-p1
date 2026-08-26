@@ -23,6 +23,22 @@ export const adminService = {
   submitReport: (data: { targetType: string; targetId: string; reason: string; description?: string }) =>
     api.post('/reports', data),
   getDashboardStats: () => api.get('/admin/stats'),
+
+  // AI Moderation Shield & Platform Settings
+  getSettings: () => api.get('/admin/settings'),
+  updateSettings: (data: { aiModerationEnabled: boolean }) => api.patch('/admin/settings', data),
+
+  // Create User / Admin Accounts
+  createUser: (data: {
+    fullName: string;
+    email: string;
+    password: string;
+    role: 'ADMIN' | 'STUDENT';
+    course?: string;
+    branch?: string;
+    year?: number;
+    collegeName?: string;
+  }) => api.post('/admin/users/create', data),
 };
 
 export default adminService;

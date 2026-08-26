@@ -1,8 +1,10 @@
 import { Response, NextFunction } from 'express';
+import bcrypt from 'bcryptjs';
 import { supabase } from '../config/supabase';
 import { CustomRequest } from '../types';
 import CustomError from '../utils/customError';
 import { clearHomepageCache } from './discovery.controller';
+import { isAiModerationEnabled, setAiModerationEnabled } from '../services/aiModeration.service';
 
 // 1. User administration
 export const getUsers = async (req: CustomRequest, res: Response, next: NextFunction) => {
@@ -827,6 +829,116 @@ export const getDashboardStats = async (req: CustomRequest, res: Response, next:
         topRatedListings,
         topEnquiryListings,
         dailyStats,
+        aiModerationEnabled: isAiModerationEnabled(),
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+// 7. Admin Settings & AI Moderation Shield Toggle
+export const getAdminSettings = async (req: CustomRequest, res: Response, next: NextFunction) => {
+  try {
+    return res.json({
+      success: true,
+      settings: {
+        aiModerationEnabled: isAiModerationEnabled(),
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const updateAdminSettings = async (req: CustomRequest, res: Response, next: NextFunction) => {
+  try {
+    const { aiModerationEnabled } = req.body;
+    if (typeof aiModerationEnabled !== 'boolean') {
+      throw new CustomError('aiModerationEnabled boolean is required.', 400, 'INVALID_INPUT');
+    }
+
+    setAiModerationEnabled(aiModerationEnabled);
+
+    return res.json({
+      success: true,
+      message: `AI Moderation Shield ${aiModerationEnabled ? 'ENABLED' : 'PAUSED (Manual Review Active)'}`,
+      settings: {
+        aiModerationEnabled: isAiModerationEnabled(),
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+// 8. Create User / Admin Account by Administrator
+export const createUserByAdmin = async (req: CustomRequest, res: Response, next: NextFunction) => {
+  try {
+    const { fullName, email, password, role, course, branch, year, collegeName } = req.body;
+
+    if (!fullName || !email || !password) {
+      throw new CustomError('Full name, email, and password are required.', 400, 'MISSING_FIELDS');
+    }
+
+    if (password.length < 6 || password.length > 16) {
+      throw new CustomError('Password must be between 6 and 16 characters.', 400, 'INVALID_PASSWORD_LENGTH');
+    }
+
+    const assignedRole = role === 'ADMIN' ? 'ADMIN' : 'STUDENT';
+
+    // Check if email already exists
+    const { data: existingUser } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email.toLowerCase())
+      .maybeSingle();
+
+    if (existingUser) {
+      throw new CustomError('An account with this email address already exists.', 400, 'EMAIL_EXISTS');
+    }
+
+    // Hash password
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(password, salt);
+
+    const { data: newUser, error: insertError } = await supabase
+      .from('users')
+      .insert([{
+        full_name: fullName.trim(),
+        email: email.toLowerCase().trim(),
+        password_hash: passwordHash,
+        role: assignedRole,
+        course: course || 'B.Tech',
+        branch: branch || 'CSE',
+        year: year ? parseInt(year, 10) : 1,
+        college_name: collegeName || 'NIET Plot 19',
+        is_verified: true,
+        is_blocked: false,
+      }])
+      .select()
+      .single();
+
+    if (insertError || !newUser) {
+      throw new CustomError('Failed to create account in database.', 500, 'CREATE_USER_FAILED');
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: `${assignedRole === 'ADMIN' ? 'Administrator' : 'Student'} account for ${newUser.full_name} created successfully!`,
+      user: {
+        id: newUser.id,
+        _id: newUser.id,
+        fullName: newUser.full_name,
+        email: newUser.email,
+        role: newUser.role,
+        course: newUser.course,
+        branch: newUser.branch,
+        year: newUser.year,
+        collegeName: newUser.college_name,
+        isVerified: newUser.is_verified,
+        isBlocked: newUser.is_blocked,
+        createdAt: newUser.created_at,
       },
     });
   } catch (error) {

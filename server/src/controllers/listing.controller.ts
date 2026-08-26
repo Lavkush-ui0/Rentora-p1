@@ -2,7 +2,7 @@ import { Response, NextFunction } from 'express';
 import { supabase } from '../config/supabase';
 import { CustomRequest } from '../types';
 import { uploadImage, deleteImage } from '../services/image.service';
-import { moderateListingWithAI } from '../services/aiModeration.service';
+import { moderateListingWithAI, isAiModerationEnabled } from '../services/aiModeration.service';
 import CustomError from '../utils/customError';
 import { clearHomepageCache } from './discovery.controller';
 
@@ -75,20 +75,29 @@ export const createListing = async (req: CustomRequest, res: Response, next: Nex
     const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip;
     const postIpAddress = Array.isArray(clientIp) ? clientIp[0] : clientIp;
 
-    // AI Safety & Content Moderation Shield via Groq
-    const moderation = await moderateListingWithAI({
-      title,
-      description,
-      condition,
-      rentalPrice: Number(rentalPrice),
-      priceUnit,
-    });
+    // AI Safety & Content Moderation Shield via Groq (Controlled by Admin Toggle)
+    const aiEnabled = isAiModerationEnabled();
+    let isAutoApproved = false;
+    let rejectionReason = '';
 
-    const isAutoApproved = moderation.isSafe;
+    if (aiEnabled) {
+      const moderation = await moderateListingWithAI({
+        title,
+        description,
+        condition,
+        rentalPrice: Number(rentalPrice),
+        priceUnit,
+      });
+      isAutoApproved = moderation.isSafe;
+      rejectionReason = isAutoApproved ? '' : (moderation.reason || 'Flagged for admin moderation');
+    } else {
+      isAutoApproved = false;
+      rejectionReason = 'AI auto-approval is paused. Submitted for manual admin review.';
+    }
+
     const initialApprovalStatus = isAutoApproved ? 'APPROVED' : 'PENDING';
     const initialStatus = isAutoApproved ? 'ACTIVE' : 'PAUSED';
     const initialAvailability = isAutoApproved ? true : false;
-    const rejectionReason = isAutoApproved ? '' : (moderation.reason || 'Flagged for admin moderation');
 
     const { data: newListing, error: insertError } = await supabase
       .from('listings')

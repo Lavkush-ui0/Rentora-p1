@@ -3,7 +3,8 @@ import { useLocation, Link } from 'react-router-dom';
 import { adminService } from '../services/adminService';
 import {
   Users as UsersIcon, Package as ListingsIcon, CheckCircle2, Plus,
-  MessageCircle, ClipboardCheck, CheckCircle, XCircle, Clock
+  MessageCircle, ClipboardCheck, CheckCircle, XCircle, Clock,
+  Bot, Sparkles, Shield, UserPlus, Lock, Mail, BookOpen, User
 } from 'lucide-react';
 import { AdminLayout } from '../layouts/AdminLayout';
 import { getImageUrl, getAvatarUrl } from '../utils/imageUrl';
@@ -235,12 +236,34 @@ export const AdminDashboard: React.FC = () => {
   const [newCatDesc, setNewCatDesc] = useState('');
   const [addingCat, setAddingCat] = useState(false);
 
+  const [aiModerationEnabled, setAiModerationEnabled] = useState<boolean>(true);
+  const [togglingAi, setTogglingAi] = useState<boolean>(false);
+  const [createAccountModalOpen, setCreateAccountModalOpen] = useState<boolean>(false);
+  const [createUserForm, setCreateUserForm] = useState({
+    fullName: '',
+    email: '',
+    password: '',
+    role: 'STUDENT' as 'STUDENT' | 'ADMIN',
+    course: 'B.Tech',
+    branch: 'CSE',
+    year: 1,
+    collegeName: 'NIET Plot 19',
+  });
+  const [creatingUser, setCreatingUser] = useState<boolean>(false);
+  const [createUserError, setCreateUserError] = useState<string>('');
+  const [createUserSuccess, setCreateUserSuccess] = useState<string>('');
+
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
       if (currentTab === 'dashboard') {
         const statsRes = await adminService.getDashboardStats();
-        if (statsRes.data?.success) setStats(statsRes.data.stats);
+        if (statsRes.data?.success) {
+          setStats(statsRes.data.stats);
+          if (typeof statsRes.data.stats.aiModerationEnabled === 'boolean') {
+            setAiModerationEnabled(statsRes.data.stats.aiModerationEnabled);
+          }
+        }
       } else if (currentTab === 'users') {
         const usersRes = await adminService.getUsers();
         if (usersRes.data?.success) setUsers(usersRes.data.users);
@@ -270,6 +293,60 @@ export const AdminDashboard: React.FC = () => {
   useEffect(() => {
     fetchDashboardData();
   }, [currentTab]);
+
+  const handleToggleAiModeration = async () => {
+    setTogglingAi(true);
+    try {
+      const nextState = !aiModerationEnabled;
+      const res = await adminService.updateSettings({ aiModerationEnabled: nextState });
+      if (res.data?.success) {
+        setAiModerationEnabled(res.data.settings.aiModerationEnabled);
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to toggle AI Moderation.');
+    } finally {
+      setTogglingAi(false);
+    }
+  };
+
+  const handleCreateUserSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreateUserError('');
+    setCreateUserSuccess('');
+
+    if (createUserForm.password.length < 6 || createUserForm.password.length > 16) {
+      setCreateUserError('Password must be between 6 and 16 characters.');
+      return;
+    }
+
+    setCreatingUser(true);
+    try {
+      const res = await adminService.createUser(createUserForm);
+      if (res.data?.success) {
+        setCreateUserSuccess(res.data.message || 'Account created successfully!');
+        setCreateUserForm({
+          fullName: '',
+          email: '',
+          password: '',
+          role: 'STUDENT',
+          course: 'B.Tech',
+          branch: 'CSE',
+          year: 1,
+          collegeName: 'NIET Plot 19',
+        });
+        const usersRes = await adminService.getUsers();
+        if (usersRes.data?.success) setUsers(usersRes.data.users);
+        setTimeout(() => {
+          setCreateAccountModalOpen(false);
+          setCreateUserSuccess('');
+        }, 1200);
+      }
+    } catch (err: any) {
+      setCreateUserError(err.response?.data?.message || 'Failed to create account.');
+    } finally {
+      setCreatingUser(false);
+    }
+  };
 
   const handleBlockToggle = async (userId: string, isCurrentlyBlocked: boolean) => {
     try {
@@ -457,6 +534,44 @@ export const AdminDashboard: React.FC = () => {
                       </h4>
                     </div>
                   </div>
+                {/* Groq AI Moderation Shield Control Card */}
+                <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-indigo-800/40 p-6 rounded-3xl text-white shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-6">
+                  <div className="flex items-start space-x-4">
+                    <div className="h-12 w-12 rounded-2xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center shrink-0">
+                      <Bot className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                        <h3 className="font-outfit font-black text-base text-white">Groq AI Content Moderation Shield</h3>
+                        <span className={`px-2.5 py-0.5 text-[10px] font-black rounded-full uppercase tracking-wider flex items-center gap-1.5 ${
+                          aiModerationEnabled 
+                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' 
+                            : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                        }`}>
+                          <span className={`h-1.5 w-1.5 rounded-full ${aiModerationEnabled ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`}></span>
+                          {aiModerationEnabled ? 'Active (Instant Auto-Approval)' : 'Paused (Manual Review Only)'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-400 mt-1 max-w-2xl leading-relaxed">
+                        {aiModerationEnabled 
+                          ? 'Legitimate student essentials (textbooks, calculators, drafters, lab gear) are verified and published instantly. Suspicious, explicit, or cheating materials are held for human review.'
+                          : 'AI auto-approval is currently paused. Every single product upload by students will enter the Pending Approvals queue for manual human inspection.'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleToggleAiModeration}
+                    disabled={togglingAi}
+                    className={`px-5 py-3 rounded-2xl text-xs font-black uppercase tracking-wider transition-all flex items-center space-x-2 shrink-0 ${
+                      aiModerationEnabled
+                        ? 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40'
+                        : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/30'
+                    }`}
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    <span>{togglingAi ? 'Updating...' : aiModerationEnabled ? 'Pause AI Auto-Approval' : 'Enable AI Auto-Approval'}</span>
+                  </button>
                 </div>
 
                 {/* Graph */}
@@ -542,9 +657,18 @@ export const AdminDashboard: React.FC = () => {
             {/* SUBVIEW 2: USERS LIST */}
             {currentTab === 'users' && (
               <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-3xl overflow-hidden">
-                <div className="p-6 border-b border-gray-50 dark:border-slate-800/60">
-                  <h3 className="font-outfit font-black text-sm text-gray-900 dark:text-white">Registered Students</h3>
-                  <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">Manage accounts and authorization access</p>
+                <div className="p-6 border-b border-gray-50 dark:border-slate-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h3 className="font-outfit font-black text-sm text-gray-900 dark:text-white">Registered Users & Administrators</h3>
+                    <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">Manage accounts, create new admin credentials, and monitor campus access</p>
+                  </div>
+                  <button
+                    onClick={() => setCreateAccountModalOpen(true)}
+                    className="px-4 py-2.5 bg-primary-600 hover:bg-primary-500 text-white text-xs font-bold rounded-2xl flex items-center space-x-2 shadow-lg shadow-primary-600/20 transition-all active:scale-95 shrink-0 w-fit"
+                  >
+                    <UserPlus className="h-4 w-4" />
+                    <span>Create Account (Admin / Student)</span>
+                  </button>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse">
@@ -1133,6 +1257,180 @@ export const AdminDashboard: React.FC = () => {
               </div>
             )}
           </>
+        )}
+
+        {/* CREATE USER / ADMIN MODAL */}
+        {createAccountModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl space-y-6 animate-in zoom-in-95 duration-200">
+              <div className="flex items-center justify-between border-b border-gray-100 dark:border-slate-800 pb-4">
+                <div className="flex items-center space-x-3">
+                  <div className="h-10 w-10 rounded-2xl bg-primary-50 dark:bg-primary-950/30 text-primary-600 dark:text-primary-400 flex items-center justify-center">
+                    <UserPlus className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-outfit font-black text-base text-gray-900 dark:text-white">Create Account</h3>
+                    <p className="text-xs text-gray-400">Directly provision verified campus credentials</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setCreateAccountModalOpen(false)}
+                  className="h-8 w-8 rounded-full bg-gray-100 dark:bg-slate-800 text-gray-400 hover:text-gray-600 dark:hover:text-white flex items-center justify-center transition-colors"
+                >
+                  <XCircle className="h-5 w-5" />
+                </button>
+              </div>
+
+              {createUserError && (
+                <div className="p-3.5 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 rounded-2xl text-red-600 dark:text-red-400 text-xs font-semibold">
+                  {createUserError}
+                </div>
+              )}
+
+              {createUserSuccess && (
+                <div className="p-3.5 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 rounded-2xl text-emerald-600 dark:text-emerald-400 text-xs font-bold flex items-center space-x-2">
+                  <CheckCircle className="h-4 w-4" />
+                  <span>{createUserSuccess}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleCreateUserSubmit} className="space-y-4">
+                {/* Role Switcher */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Account Role</label>
+                  <div className="grid grid-cols-2 gap-3 bg-gray-100 dark:bg-slate-800 p-1.5 rounded-2xl">
+                    <button
+                      type="button"
+                      onClick={() => setCreateUserForm({ ...createUserForm, role: 'STUDENT' })}
+                      className={`py-2.5 text-xs font-bold rounded-xl transition-all ${
+                        createUserForm.role === 'STUDENT'
+                          ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm'
+                          : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
+                      }`}
+                    >
+                      Student Account
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCreateUserForm({ ...createUserForm, role: 'ADMIN' })}
+                      className={`py-2.5 text-xs font-bold rounded-xl transition-all ${
+                        createUserForm.role === 'ADMIN'
+                          ? 'bg-primary-600 text-white shadow-sm'
+                          : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
+                      }`}
+                    >
+                      Administrator
+                    </button>
+                  </div>
+                </div>
+
+                {/* Full Name */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Full Name</label>
+                  <div className="relative">
+                    <User className="absolute left-3.5 top-3.5 h-4 w-4 text-gray-400" />
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Vikas Sharma"
+                      value={createUserForm.fullName}
+                      onChange={(e) => setCreateUserForm({ ...createUserForm, fullName: e.target.value })}
+                      className="w-full bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white pl-10 pr-4 py-2.5 rounded-2xl border border-gray-200 dark:border-slate-700 text-xs font-semibold focus:outline-none focus:border-primary-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Email Address */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">NIET Email Address</label>
+                  <div className="relative">
+                    <Mail className="absolute left-3.5 top-3.5 h-4 w-4 text-gray-400" />
+                    <input
+                      type="email"
+                      required
+                      placeholder="name@niet.co.in"
+                      value={createUserForm.email}
+                      onChange={(e) => setCreateUserForm({ ...createUserForm, email: e.target.value })}
+                      className="w-full bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white pl-10 pr-4 py-2.5 rounded-2xl border border-gray-200 dark:border-slate-700 text-xs font-semibold focus:outline-none focus:border-primary-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Password (Max 16 chars) */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">
+                    Password (6 - 16 characters)
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-gray-400" />
+                    <input
+                      type="password"
+                      required
+                      maxLength={16}
+                      placeholder="••••••••"
+                      value={createUserForm.password}
+                      onChange={(e) => setCreateUserForm({ ...createUserForm, password: e.target.value })}
+                      className="w-full bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white pl-10 pr-4 py-2.5 rounded-2xl border border-gray-200 dark:border-slate-700 text-xs font-semibold focus:outline-none focus:border-primary-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Student specific fields */}
+                {createUserForm.role === 'STUDENT' && (
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Course</label>
+                      <input
+                        type="text"
+                        value={createUserForm.course}
+                        onChange={(e) => setCreateUserForm({ ...createUserForm, course: e.target.value })}
+                        className="w-full bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white px-3 py-2 rounded-xl border border-gray-200 dark:border-slate-700 text-xs font-semibold focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Branch</label>
+                      <input
+                        type="text"
+                        value={createUserForm.branch}
+                        onChange={(e) => setCreateUserForm({ ...createUserForm, branch: e.target.value })}
+                        className="w-full bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white px-3 py-2 rounded-xl border border-gray-200 dark:border-slate-700 text-xs font-semibold focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Year</label>
+                      <select
+                        value={createUserForm.year}
+                        onChange={(e) => setCreateUserForm({ ...createUserForm, year: parseInt(e.target.value, 10) })}
+                        className="w-full bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white px-3 py-2 rounded-xl border border-gray-200 dark:border-slate-700 text-xs font-semibold focus:outline-none"
+                      >
+                        <option value="1">1st Year</option>
+                        <option value="2">2nd Year</option>
+                        <option value="3">3rd Year</option>
+                        <option value="4">4th Year</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex items-center space-x-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setCreateAccountModalOpen(false)}
+                    className="flex-1 py-3 border border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 text-xs font-bold rounded-2xl transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={creatingUser}
+                    className="flex-1 py-3 bg-primary-600 hover:bg-primary-500 text-white text-xs font-black uppercase tracking-wider rounded-2xl shadow-lg shadow-primary-600/20 transition-all disabled:opacity-50"
+                  >
+                    {creatingUser ? 'Creating...' : 'Provision Account'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
         )}
       </div>
     </AdminLayout>

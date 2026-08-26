@@ -9,6 +9,18 @@ export interface ModerationResult {
   reason: string;
 }
 
+// In-memory toggle state for AI auto-moderation (Default: Enabled)
+let aiModerationEnabled = true;
+
+export const isAiModerationEnabled = (): boolean => {
+  return aiModerationEnabled;
+};
+
+export const setAiModerationEnabled = (enabled: boolean): void => {
+  aiModerationEnabled = Boolean(enabled);
+  logger.info(`[AI Moderation Shield] Admin toggled state to: ${aiModerationEnabled ? 'ENABLED' : 'DISABLED'}`);
+};
+
 /**
  * Rentora AI Content Moderation Shield powered by Groq
  * Automatically approves legitimate campus student essentials.
