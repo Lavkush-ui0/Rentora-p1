@@ -4,33 +4,52 @@ import { useAuth } from '../context/AuthContext';
 import { useWishlist } from '../context/WishlistContext';
 import { Home, Compass, Package, Heart, MessageSquare, User } from 'lucide-react';
 import chatService from '../services/chatService';
+import { useSocket } from '../context/SocketContext';
 
 export const MobileBottomNav: React.FC = () => {
   const { user } = useAuth();
   const { wishlistCount } = useWishlist();
   const [unreadMessages, setUnreadMessages] = useState(0);
+  const { socket } = useSocket();
 
   useEffect(() => {
-    if (user) {
-      const fetchCounts = async () => {
-        try {
-          const chatRes = await chatService.getConversations();
-          if (chatRes.data?.success) {
-            const unreadChats = chatRes.data.conversations.filter((c: any) => 
-              c.lastMessage && !c.lastMessage.readAt && c.lastMessage.sender !== user.id
-            ).length;
-            setUnreadMessages(unreadChats);
-          }
-        } catch (error) {
-          console.warn(error);
-        }
-      };
+    if (!user) return;
 
-      fetchCounts();
-      const interval = setInterval(fetchCounts, 15000);
-      return () => clearInterval(interval);
+    const fetchCounts = async () => {
+      try {
+        const chatRes = await chatService.getConversations();
+        if (chatRes.data?.success) {
+          const unreadChats = chatRes.data.conversations.filter((c: any) => 
+            c.lastMessage && !c.lastMessage.readAt && c.lastMessage.sender !== user.id
+          ).length;
+          setUnreadMessages(unreadChats);
+        }
+      } catch (error) {
+        console.warn(error);
+      }
+    };
+
+    fetchCounts();
+
+    // Listen to local triggers
+    window.addEventListener('unreadMessagesUpdated', fetchCounts);
+
+    // Listen to socket triggers
+    if (socket) {
+      socket.on('newNotification', fetchCounts);
+      socket.on('messagesMarkedRead', fetchCounts);
     }
-  }, [user]);
+
+    const interval = setInterval(fetchCounts, 15000);
+    return () => {
+      window.removeEventListener('unreadMessagesUpdated', fetchCounts);
+      if (socket) {
+        socket.off('newNotification', fetchCounts);
+        socket.off('messagesMarkedRead', fetchCounts);
+      }
+      clearInterval(interval);
+    };
+  }, [user, socket]);
 
   return (
     <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-t border-gray-200/80 dark:border-slate-800 shadow-2xl transition-colors duration-200">

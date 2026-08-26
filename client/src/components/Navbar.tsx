@@ -11,6 +11,7 @@ import {
 import notificationService from '../services/notificationService';
 import { RentoraWordmark } from './RentoraBrand';
 import { getAvatarUrl } from '../utils/imageUrl';
+import { useSocket } from '../context/SocketContext';
 
 const CAMPUS_LOCATIONS = [
   'All',
@@ -28,22 +29,30 @@ export const Navbar: React.FC = () => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { socket } = useSocket();
 
-  const [selectedLocation, setSelectedLocation] = useState(
-    localStorage.getItem('rentora_location') || 'All'
-  );
+  const [selectedLocation, setSelectedLocation] = useState<string>(() => {
+    return localStorage.getItem('rentora_location') || 'All';
+  });
   const [locationDropdownOpen, setLocationDropdownOpen] = useState(false);
+
+  const handleSelectLocation = (loc: string) => {
+    setSelectedLocation(loc);
+    localStorage.setItem('rentora_location', loc);
+    window.dispatchEvent(new Event('rentora_location_changed'));
+    setLocationDropdownOpen(false);
+  };
 
   // Close location selector if clicked outside
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
+    const handleOutsideClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
       if (!target.closest('.location-selector')) {
         setLocationDropdownOpen(false);
       }
     };
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
+    document.addEventListener('click', handleOutsideClick);
+    return () => document.removeEventListener('click', handleOutsideClick);
   }, []);
 
   // Keyboard shortcut listener for Ctrl + K focus
@@ -61,24 +70,39 @@ export const Navbar: React.FC = () => {
 
   // Fetch unread counts
   useEffect(() => {
-    if (user) {
-      const fetchCounts = async () => {
-        try {
-          const notifRes = await notificationService.getNotifications();
-          if (notifRes.data?.success) {
-            const unread = notifRes.data.notifications.filter((n: any) => !n.isRead).length;
-            setUnreadNotifications(unread);
-          }
-        } catch (error) {
-          console.warn('[Navbar] Error fetching counts:', error);
-        }
-      };
+    if (!user) return;
 
-      fetchCounts();
-      const interval = setInterval(fetchCounts, 15000);
-      return () => clearInterval(interval);
+    const fetchCounts = async () => {
+      try {
+        const notifRes = await notificationService.getNotifications();
+        if (notifRes.data?.success) {
+          const unread = notifRes.data.notifications.filter((n: any) => !n.isRead).length;
+          setUnreadNotifications(unread);
+        }
+      } catch (error) {
+        console.warn('[Navbar] Error fetching unread counts:', error);
+      }
+    };
+
+    fetchCounts();
+
+    // Listen to local triggers
+    window.addEventListener('unreadNotificationsUpdated', fetchCounts);
+
+    // Listen to socket triggers
+    if (socket) {
+      socket.on('newNotification', fetchCounts);
     }
-  }, [user]);
+
+    const interval = setInterval(fetchCounts, 15000);
+    return () => {
+      window.removeEventListener('unreadNotificationsUpdated', fetchCounts);
+      if (socket) {
+        socket.off('newNotification', fetchCounts);
+      }
+      clearInterval(interval);
+    };
+  }, [user, socket]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -132,12 +156,7 @@ export const Navbar: React.FC = () => {
                   {CAMPUS_LOCATIONS.map((loc) => (
                     <button
                       key={loc}
-                      onClick={() => {
-                        setSelectedLocation(loc);
-                        localStorage.setItem('rentora_location', loc);
-                        window.dispatchEvent(new Event('rentora_location_changed'));
-                        setLocationDropdownOpen(false);
-                      }}
+                      onClick={() => handleSelectLocation(loc)}
                       className={`w-full text-left px-4 py-2 text-xs transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center justify-between ${
                         selectedLocation === loc
                           ? 'text-[#22716E] font-bold bg-[#22716E]/5 dark:text-[#5FD2CA]'

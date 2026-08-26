@@ -50,6 +50,7 @@ export const Notifications: React.FC = () => {
     try {
       await notificationService.markAllAsRead();
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+      window.dispatchEvent(new Event('unreadNotificationsUpdated'));
     } catch (err) {
       console.error(err);
     }
@@ -62,6 +63,7 @@ export const Notifications: React.FC = () => {
         setNotifications((prev) =>
           prev.map((n) => (n._id === notif._id ? { ...n, isRead: true } : n))
         );
+        window.dispatchEvent(new Event('unreadNotificationsUpdated'));
       } catch (err) {
         console.error(err);
       }

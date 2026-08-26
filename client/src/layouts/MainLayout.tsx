@@ -10,6 +10,7 @@ import MobileBottomNav from '../components/MobileBottomNav';
 import TestimonialPopup from '../components/TestimonialPopup';
 import chatService from '../services/chatService';
 import { RentoraWordmark } from '../components/RentoraBrand';
+import { useSocket } from '../context/SocketContext';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -20,6 +21,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [unreadMessages, setUnreadMessages] = useState(0);
+  const { socket } = useSocket();
 
   const isProfileIncomplete = 
     user && user.role !== 'ADMIN' && (
@@ -39,25 +41,43 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
   // Fetch unread chat messages for live counter badge
   useEffect(() => {
-    if (user) {
-      const fetchUnread = async () => {
-        try {
-          const res = await chatService.getConversations();
-          if (res.data?.success) {
-            const count = res.data.conversations.filter((c: any) => 
-              c.lastMessage && !c.lastMessage.readAt && c.lastMessage.sender !== user.id
-            ).length;
-            setUnreadMessages(count);
-          }
-        } catch (err) {
-          console.warn('[MainLayout] Error fetching unread messages count:', err);
+    if (!user) return;
+
+    const fetchUnread = async () => {
+      try {
+        const res = await chatService.getConversations();
+        if (res.data?.success) {
+          const count = res.data.conversations.filter((c: any) => 
+            c.lastMessage && !c.lastMessage.readAt && c.lastMessage.sender !== user.id
+          ).length;
+          setUnreadMessages(count);
         }
-      };
-      fetchUnread();
-      const timer = setInterval(fetchUnread, 15000);
-      return () => clearInterval(timer);
+      } catch (err) {
+        console.warn('[MainLayout] Error fetching unread messages count:', err);
+      }
+    };
+
+    fetchUnread();
+
+    // Listen to local triggers
+    window.addEventListener('unreadMessagesUpdated', fetchUnread);
+
+    // Listen to socket triggers
+    if (socket) {
+      socket.on('newNotification', fetchUnread);
+      socket.on('messagesMarkedRead', fetchUnread);
     }
-  }, [user]);
+
+    const timer = setInterval(fetchUnread, 15000);
+    return () => {
+      window.removeEventListener('unreadMessagesUpdated', fetchUnread);
+      if (socket) {
+        socket.off('newNotification', fetchUnread);
+        socket.off('messagesMarkedRead', fetchUnread);
+      }
+      clearInterval(timer);
+    };
+  }, [user, socket]);
 
   const isActive = (path: string) => location.pathname === path;
 

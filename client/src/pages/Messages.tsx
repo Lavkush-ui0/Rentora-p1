@@ -81,6 +81,7 @@ export const Messages: React.FC = () => {
         if (res.data?.success) {
           setMessages(res.data.messages);
           await chatService.markAsRead(conversationId);
+          window.dispatchEvent(new Event('unreadMessagesUpdated'));
         }
       } catch (err) {
         console.error(err);
@@ -99,7 +100,9 @@ export const Messages: React.FC = () => {
       socket.on('receiveMessage', (msg: any) => {
         if (msg.conversation === conversationId || msg.conversation?._id === conversationId) {
           setMessages((prev) => [...prev, msg]);
-          chatService.markAsRead(conversationId).catch(() => {});
+          chatService.markAsRead(conversationId)
+            .then(() => window.dispatchEvent(new Event('unreadMessagesUpdated')))
+            .catch(() => {});
         }
         fetchConversations();
       });
