@@ -48,6 +48,7 @@ export const ListingDetails: React.FC = () => {
   const [reportReason, setReportReason] = useState('Inappropriate Content');
   const [reportDesc, setReportDesc] = useState('');
   const [reporting, setReporting] = useState(false);
+  const [hasOpenReports, setHasOpenReports] = useState(false);
 
   useEffect(() => {
     const fetchListing = async () => {
@@ -77,6 +78,27 @@ export const ListingDetails: React.FC = () => {
     };
     if (id) fetchListing();
   }, [id]);
+
+  // Admin report verification check
+  useEffect(() => {
+    const checkReports = async () => {
+      if (user?.role === 'ADMIN' && listing?._id) {
+        try {
+          const repRes = await adminService.getReports();
+          if (repRes.data?.success) {
+            const targetIdStr = String(listing._id);
+            const openReports = repRes.data.reports.filter((r: any) => 
+              String(r.targetId) === targetIdStr && r.status === 'OPEN'
+            );
+            setHasOpenReports(openReports.length > 0);
+          }
+        } catch (err) {
+          console.warn('[ListingDetails] Error checking reports:', err);
+        }
+      }
+    };
+    checkReports();
+  }, [user, listing]);
 
   const handleReportSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -267,7 +289,7 @@ export const ListingDetails: React.FC = () => {
   return (
     <div className="max-w-5xl mx-auto space-y-8 text-left">
       
-      {isAdmin && (
+      {isAdmin && hasOpenReports && (
         <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/40 p-4 rounded-3xl flex flex-wrap items-center justify-between gap-4 shadow-sm animate-in fade-in slide-in-from-top-4 duration-300">
           <div className="flex items-center space-x-2.5 text-red-600 dark:text-red-400">
             <AlertTriangle className="h-5 w-5 shrink-0 animate-pulse" />
