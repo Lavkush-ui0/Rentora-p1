@@ -96,6 +96,7 @@ export const createConversation = async (req: CustomRequest, res: Response, next
         _id: lastMsg.id,
         text: lastMsg.text,
         sender: lastMsg.sender_id,
+        readAt: lastMsg.read_at,
         createdAt: lastMsg.created_at
       } : null,
       updatedAt: fullConvo.updated_at,
@@ -160,6 +161,7 @@ export const getConversations = async (req: CustomRequest, res: Response, next: 
           _id: lastMsg.id,
           text: lastMsg.text,
           sender: lastMsg.sender_id,
+          readAt: lastMsg.read_at,
           createdAt: lastMsg.created_at
         } : null,
         updatedAt: c.updated_at,

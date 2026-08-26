@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
@@ -25,7 +25,7 @@ export const Messages: React.FC = () => {
   const typingTimeout = useRef<any>(null);
 
   // Fetch conversations list
-  const fetchConversations = async () => {
+  const fetchConversations = useCallback(async () => {
     try {
       const res = await chatService.getConversations();
       if (res.data?.success) setConversations(res.data.conversations);
@@ -34,7 +34,7 @@ export const Messages: React.FC = () => {
     } finally {
       setLoadingConvos(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchConversations();
@@ -82,6 +82,7 @@ export const Messages: React.FC = () => {
           setMessages(res.data.messages);
           await chatService.markAsRead(conversationId);
           window.dispatchEvent(new Event('unreadMessagesUpdated'));
+          fetchConversations();
         }
       } catch (err) {
         console.error(err);
@@ -90,7 +91,7 @@ export const Messages: React.FC = () => {
       }
     };
     fetchMessages();
-  }, [conversationId, conversations]);
+  }, [conversationId, conversations, fetchConversations]);
 
   // Socket: join conversation room & update real-time messages and conversation list
   useEffect(() => {

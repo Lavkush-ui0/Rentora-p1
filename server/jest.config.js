@@ -11,4 +11,3 @@ module.exports = {
     '^.+\\.tsx?$': ['ts-jest', { isolatedModules: true }],
   },
 };
-

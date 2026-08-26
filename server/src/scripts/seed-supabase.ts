@@ -33,6 +33,7 @@ const seedSupabase = async () => {
         bio: 'Rentora System Administrator',
         is_verified: true,
         college_name: 'NIET Plot 19'
+        
       }])
       .select()
       .single();
