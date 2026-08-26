@@ -161,8 +161,8 @@ const TrendingHeroSlider: React.FC<TrendingHeroSliderProps> = ({ listings = [] }
       </h2>
 
       {/* 3D Stage */}
-      <div className="perspective-stage relative h-[360px] flex items-center justify-center overflow-visible">
-        <div className="relative w-[240px] h-[320px]">
+      <div className="perspective-stage relative h-[380px] flex items-center justify-center overflow-visible">
+        <div className="relative w-[260px] h-[345px]">
           {slides.map((slide, idx) => {
             const offset = slides.length > 1 ? (idx - activeIdx + slides.length) % slides.length : 0;
             const normalizedOffset = slides.length > 1 && offset > slides.length / 2 ? offset - slides.length : offset;
@@ -170,21 +170,21 @@ const TrendingHeroSlider: React.FC<TrendingHeroSliderProps> = ({ listings = [] }
             return (
               <div
                 key={slide.id}
-                className={`absolute inset-0 rounded-[28px] transition-all duration-500 ease-spring cursor-pointer ${getCardStyle(normalizedOffset)}`}
+                className={`absolute inset-0 rounded-[32px] transition-all duration-500 ease-spring cursor-pointer overflow-hidden ${getCardStyle(normalizedOffset)}`}
                 style={{ background: slide.gradient }}
                 onClick={() => {
                   if (normalizedOffset !== 0) setActiveIdx(idx);
                 }}
               >
                 {/* Condition Chip */}
-                <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-10">
-                  <span className={`text-[9px] font-black uppercase tracking-wider text-white px-2.5 py-1 rounded-full ${CONDITION_COLORS[slide.condition] || 'bg-slate-600'}`}>
+                <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-20">
+                  <span className={`text-[9px] font-black uppercase tracking-wider text-white px-3 py-1 rounded-full shadow-sm ${CONDITION_COLORS[slide.condition] || 'bg-slate-600'}`}>
                     {slide.condition}
                   </span>
                   {normalizedOffset === 0 && (
                     <button
                       onClick={(e) => { e.stopPropagation(); toggleWishlist(idx); }}
-                      className="p-1.5 rounded-full bg-white/20 backdrop-blur-md hover:bg-white/30 transition-all"
+                      className="p-1.5 rounded-full bg-black/25 backdrop-blur-md hover:bg-black/40 transition-all border border-white/20"
                     >
                       <Heart
                         size={14}
@@ -195,18 +195,18 @@ const TrendingHeroSlider: React.FC<TrendingHeroSliderProps> = ({ listings = [] }
                   )}
                 </div>
 
-                {/* Center illustration / Image */}
-                <div className="absolute inset-0 flex items-center justify-center">
+                {/* Center illustration / Large Prominent Image */}
+                <div className="absolute top-12 left-3 right-3 bottom-24 flex items-center justify-center">
                   {slide.image ? (
                     <img
                       src={getImageUrl(slide.image)}
                       alt={slide.title}
-                      className="w-24 h-24 rounded-2xl object-cover shadow-2xl border border-white/20"
+                      className="w-full h-full max-h-[175px] rounded-2xl object-cover shadow-2xl border-2 border-white/30"
                     />
                   ) : (
                     <div
-                      className="w-24 h-24 rounded-2xl flex items-center justify-center text-4xl shadow-2xl"
-                      style={{ background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.3)' }}
+                      className="w-36 h-36 rounded-2xl flex items-center justify-center text-5xl shadow-2xl"
+                      style={{ background: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(8px)', border: '1.5px solid rgba(255,255,255,0.3)' }}
                     >
                       {slide.category === 'Calculators' && '🧮'}
                       {slide.category === 'Books' && '📚'}
@@ -220,32 +220,32 @@ const TrendingHeroSlider: React.FC<TrendingHeroSliderProps> = ({ listings = [] }
                 {/* Dark glass bottom tray */}
                 {normalizedOffset === 0 && (
                   <div
-                    className="absolute bottom-0 left-0 right-0 rounded-b-[28px] p-4"
-                    style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.4) 60%, transparent 100%)' }}
+                    className="absolute bottom-0 left-0 right-0 rounded-b-[32px] p-4 z-20"
+                    style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.5) 65%, transparent 100%)' }}
                   >
                     <p className="text-[9px] font-black uppercase tracking-wider mb-1" style={{ color: slide.accentColor }}>
                       {slide.category}
                     </p>
-                    <p className="text-white font-display font-bold text-sm leading-tight line-clamp-2 mb-3">
+                    <p className="text-white font-display font-bold text-sm leading-tight line-clamp-1 mb-2.5">
                       {slide.title}
                     </p>
                     <div className="flex items-center justify-between">
                       <div>
                         <span className="text-white font-black font-display text-lg">₹{slide.price}</span>
-                        <span className="text-white/60 text-[10px] font-medium ml-1">/{slide.priceUnit}</span>
+                        <span className="text-white/70 text-[10px] font-medium ml-1">/{slide.priceUnit}</span>
                       </div>
                       <div className="flex gap-2">
                         <Link
                           to={slide.isMock ? "/explore" : `/listing/${slide.id}`}
                           onClick={e => e.stopPropagation()}
-                          className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-white bg-white/20 hover:bg-white/30 backdrop-blur-md px-3 py-1.5 rounded-full transition-all"
+                          className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-white bg-white/20 hover:bg-white/30 backdrop-blur-md px-3 py-1.5 rounded-full transition-all"
                         >
                           <Eye size={10} /> Quick View
                         </Link>
                         <Link
                           to={slide.isMock ? `/explore?search=${encodeURIComponent(slide.category)}` : `/listing/${slide.id}`}
                           onClick={e => e.stopPropagation()}
-                          className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-white bg-white/25 hover:bg-white/35 backdrop-blur-md px-3 py-1.5 rounded-full transition-all border border-white/30"
+                          className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-white bg-white/30 hover:bg-white/40 backdrop-blur-md px-3 py-1.5 rounded-full transition-all border border-white/30"
                         >
                           Rent Now
                         </Link>

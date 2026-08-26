@@ -213,7 +213,7 @@ export const Home: React.FC = () => {
 
         {/* Right: 5 cols — 3D Trending Slider */}
         <div className="lg:col-span-5 flex justify-center animate-fade-up" style={{ animationDelay: '0.1s' }}>
-          <div className="w-full max-w-[340px]">
+          <div className="w-full max-w-[360px]">
             <TrendingHeroSlider listings={trendingForSlider} />
           </div>
         </div>
