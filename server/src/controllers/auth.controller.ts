@@ -25,6 +25,10 @@ export const register = async (req: CustomRequest, res: Response, next: NextFunc
   try {
     const { fullName, email, password, course, branch, year, collegeName } = req.body;
 
+    if (password && (password.length < 6 || password.length > 16)) {
+      throw new CustomError('Password must be between 6 and 16 characters.', 400, 'INVALID_PASSWORD_LENGTH');
+    }
+
     // Check email domain restriction
     const restrictedDomain = config.ALLOWED_EMAIL_DOMAIN;
     if (restrictedDomain) {

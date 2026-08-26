@@ -18,6 +18,10 @@ export const AdminLogin: React.FC = () => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    if (password.length > 16) {
+      setError('Password cannot exceed 16 characters.');
+      return;
+    }
 
     try {
       const response = await api.post('/auth/login', { email, password });
@@ -111,6 +115,7 @@ export const AdminLogin: React.FC = () => {
               <input
                 type="password"
                 placeholder="••••••••"
+                maxLength={16}
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}

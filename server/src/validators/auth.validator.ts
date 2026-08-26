@@ -7,6 +7,7 @@ export const registerSchema = z.object({
     password: z
       .string()
       .min(6, 'Password must be at least 6 characters')
+      .max(16, 'Password cannot exceed 16 characters')
       .refine(
         val => /[a-zA-Z]/.test(val) && /[0-9]/.test(val),
         'Password must contain both letters and numbers'
@@ -21,6 +22,6 @@ export const registerSchema = z.object({
 export const loginSchema = z.object({
   body: z.object({
     email: z.string().email('Invalid email address'),
-    password: z.string().min(1, 'Password is required'),
+    password: z.string().min(1, 'Password is required').max(16, 'Password cannot exceed 16 characters'),
   }),
 });

@@ -84,6 +84,11 @@ export const Register: React.FC = () => {
       return;
     }
 
+    if (form.password.length < 6 || form.password.length > 16) {
+      setError('Password must be between 6 and 16 characters.');
+      return;
+    }
+
     if (parseInt(form.year) < 1 || parseInt(form.year) > 5) {
       setError('Year must be between 1 and 5.');
       return;
@@ -391,7 +396,8 @@ export const Register: React.FC = () => {
                   <input
                     type="password"
                     name="password"
-                    placeholder="Min 6 chars with letters & numbers"
+                    placeholder="6 to 16 characters (letters & numbers)"
+                    maxLength={16}
                     required
                     value={form.password}
                     onChange={handleChange}

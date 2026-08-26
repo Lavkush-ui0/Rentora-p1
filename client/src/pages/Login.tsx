@@ -50,6 +50,10 @@ export const Login: React.FC = () => {
     e.preventDefault();
     setError('');
     if (!validateDomain(email)) return;
+    if (password.length > 16) {
+      setError('Password cannot exceed 16 characters.');
+      return;
+    }
     setLoading(true);
 
     try {
@@ -315,6 +319,7 @@ export const Login: React.FC = () => {
                 <input
                   type="password"
                   placeholder="••••••••"
+                  maxLength={16}
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
