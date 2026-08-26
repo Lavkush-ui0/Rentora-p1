@@ -63,16 +63,22 @@ export const Messages: React.FC = () => {
     }
   }, [conversationId, searchParams, user, navigate]);
 
-  // Load messages when conversation changes
+  // Set active conversation when ID or conversations list changes
   useEffect(() => {
     if (!conversationId) {
       setActiveConvo(null);
+      return;
+    }
+    const convo = conversations.find((c) => c._id === conversationId);
+    if (convo) setActiveConvo(convo);
+  }, [conversationId, conversations]);
+
+  // Load messages when conversation changes
+  useEffect(() => {
+    if (!conversationId) {
       setMessages([]);
       return;
     }
-
-    const convo = conversations.find((c) => c._id === conversationId);
-    if (convo) setActiveConvo(convo);
 
     const fetchMessages = async () => {
       setLoadingMsgs(true);
@@ -91,7 +97,7 @@ export const Messages: React.FC = () => {
       }
     };
     fetchMessages();
-  }, [conversationId, conversations, fetchConversations]);
+  }, [conversationId, fetchConversations]);
 
   // Socket: join conversation room & update real-time messages and conversation list
   useEffect(() => {
