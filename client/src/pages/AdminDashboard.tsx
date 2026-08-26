@@ -4,7 +4,7 @@ import { adminService } from '../services/adminService';
 import {
   Users as UsersIcon, Package as ListingsIcon, CheckCircle2, Plus,
   MessageCircle, ClipboardCheck, CheckCircle, XCircle, Clock,
-  Bot, Sparkles, Shield, UserPlus, Lock, Mail, BookOpen, User
+  Bot, Sparkles, UserPlus, Lock, Mail, User
 } from 'lucide-react';
 import { AdminLayout } from '../layouts/AdminLayout';
 import { getImageUrl, getAvatarUrl } from '../utils/imageUrl';
@@ -534,6 +534,8 @@ export const AdminDashboard: React.FC = () => {
                       </h4>
                     </div>
                   </div>
+                </div>
+
                 {/* Groq AI Moderation Shield Control Card */}
                 <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-indigo-800/40 p-6 rounded-3xl text-white shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-6">
                   <div className="flex items-start space-x-4">
