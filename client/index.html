@@ -1,18 +1,123 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" prefix="og: https://ogp.me/ns#">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23466bf2' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'%3E%3C/path%3E%3Cpolyline points='9 22 9 12 15 12 15 22'%3E%3C/polyline%3E%3C/svg%3E" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Rentora is the exclusive peer-to-peer student rental marketplace for NIET. Rent and lend college essentials, textbooks, electronics, and more safely." />
-    <meta name="keywords" content="Rentora, NIET, NIET rental, student marketplace, peer to peer rental, textbooks rental, student electronics rental" />
-    <meta name="author" content="Rentora" />
-    <meta name="robots" content="index, follow" />
-    <title>Rentora — Student-to-Student Rental Marketplace</title>
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:ital,opsz,wght@0,9..40,300..1000;1,9..40,300..1000&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+
+    <!-- Primary Page Metadata -->
+    <title>Rentora — Student Rental Marketplace | NIET Greater Noida</title>
+    <meta name="title" content="Rentora — Student Rental Marketplace | NIET Greater Noida" />
+    <meta name="description" content="Rentora is the exclusive peer-to-peer student rental marketplace for NIET Greater Noida. Rent and lend college essentials, engineering drafters, lab coats, scientific calculators, textbooks, and electronics safely on campus." />
+    <meta name="keywords" content="Rentora, NIET, NIET rental, NIET book rental, student marketplace Greater Noida, peer to peer student rental, engineering graphics drafter rental, scientific calculator rental fx-991EX, lab coat rental NIET, college textbook rental Noida, student electronics rental" />
+    <meta name="author" content="Rentora Team — NIET" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <link rel="canonical" href="https://rentora-test-client.vercel.app/" />
+
+    <!-- Favicon & Touch Icons -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239E1B1B' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'%3E%3C/path%3E%3Cpolyline points='9 22 9 12 15 12 15 22'%3E%3C/polyline%3E%3C/svg%3E" />
+    <link rel="apple-touch-icon" href="/rentora-logo.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#9E1B1B" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+    <!-- Local Campus Geotargeting (NIET Knowledge Park II, Greater Noida) -->
+    <meta name="geo.region" content="IN-UP" />
+    <meta name="geo.placename" content="Greater Noida, Uttar Pradesh, India" />
+    <meta name="geo.position" content="28.4595;77.5020" />
+    <meta name="ICBM" content="28.4595, 77.5020" />
+
+    <!-- Open Graph / Facebook / WhatsApp Preview -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://rentora-test-client.vercel.app/" />
+    <meta property="og:site_name" content="Rentora" />
+    <meta property="og:locale" content="en_IN" />
+    <meta property="og:title" content="Rentora — Student Rental Marketplace for NIET" />
+    <meta property="og:description" content="Rent textbooks, engineering drafters, lab coats, calculators, and electronics safely with fellow NIET students. Verified campus IDs and secure handover." />
+    <meta property="og:image" content="https://rentora-test-client.vercel.app/rentora-logo.png" />
+    <meta property="og:image:width" content="512" />
+    <meta property="og:image:height" content="512" />
+    <meta property="og:image:alt" content="Rentora Student Marketplace Logo" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:url" content="https://rentora-test-client.vercel.app/" />
+    <meta name="twitter:title" content="Rentora — NIET Student Rental Marketplace" />
+    <meta name="twitter:description" content="Rent textbooks, drafters, calculators, and electronics safely on campus. Exclusive for NIET students." />
+    <meta name="twitter:image" content="https://rentora-test-client.vercel.app/rentora-logo.png" />
+
+    <!-- Typography Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:ital,opsz,wght@0,9..40,300..1000;1,9..40,300..1000&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap" rel="stylesheet" />
+
+    <!-- Google Structured Data (JSON-LD) for Search Engine Rich Snippets -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "WebSite",
+          "@id": "https://rentora-test-client.vercel.app/#website",
+          "url": "https://rentora-test-client.vercel.app/",
+          "name": "Rentora",
+          "description": "Student-to-student campus rental marketplace for NIET Greater Noida.",
+          "inLanguage": "en-IN",
+          "potentialAction": {
+            "@type": "SearchAction",
+            "target": "https://rentora-test-client.vercel.app/home?search={search_term_string}",
+            "query-input": "required name=search_term_string"
+          }
+        },
+        {
+          "@type": "EducationalOrganization",
+          "@id": "https://rentora-test-client.vercel.app/#college",
+          "name": "Noida Institute of Engineering and Technology (NIET)",
+          "alternateName": "NIET Greater Noida",
+          "url": "https://www.niet.co.in",
+          "address": {
+            "@type": "PostalAddress",
+            "streetAddress": "19, Knowledge Park-II, Institutional Area",
+            "addressLocality": "Greater Noida",
+            "addressRegion": "Uttar Pradesh",
+            "postalCode": "201306",
+            "addressCountry": "IN"
+          }
+        },
+        {
+          "@type": "FAQPage",
+          "@id": "https://rentora-test-client.vercel.app/#faq",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "What is Rentora?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Rentora is a peer-to-peer campus rental platform built exclusively for NIET students to rent academic items like textbooks, engineering drafters, lab coats, scientific calculators, and electronics."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Who can register on Rentora?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Only verified students and faculty of Noida Institute of Engineering and Technology with an official @niet.co.in email address can create an account and participate in rentals."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "What happens if a rented item is damaged or not returned?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Under Rentora and NIET campus policies, unreturned or damaged items are subject to recovery directly from the student's institutional security money / caution deposit alongside Proctorial Board review."
+              }
+            }
+          ]
+        }
+      ]
+    }
+    </script>
   </head>
   <body class="bg-[#FAF7F2] text-slate-900 dark:bg-[#161B22] dark:text-slate-100 transition-colors duration-200 min-h-screen">
     <div id="root"></div>

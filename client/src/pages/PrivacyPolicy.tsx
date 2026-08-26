@@ -1,10 +1,16 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Shield, Lock, Eye, Database, UserCheck, ArrowLeft } from 'lucide-react';
+import { SEO } from '../components/common/SEO';
 
 export const PrivacyPolicy: React.FC = () => {
   return (
     <div className="max-w-4xl mx-auto space-y-8 pb-12 animate-in fade-in duration-300">
+      <SEO 
+        title="Privacy Policy"
+        description="Learn how Rentora protects student data, credentials, and rental activities with zero commercial third-party data sharing across NIET campus."
+        canonical="https://rentora-test-client.vercel.app/privacy"
+      />
       {/* Top Breadcrumb / Back button */}
       <div className="flex items-center space-x-2 text-xs font-bold text-slate-500 dark:text-slate-400">
         <Link to="/" className="hover:text-[#9E1B1B] dark:hover:text-red-400 flex items-center gap-1 transition-colors">

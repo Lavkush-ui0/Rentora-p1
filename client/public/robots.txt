@@ -1,4 +1,32 @@
+# ==========================================
+# Rentora — Campus Rental Marketplace Robots.txt
+# ==========================================
+
 User-agent: *
 Allow: /
+Allow: /home
+Allow: /explore
+Allow: /categories
+Allow: /terms
+Allow: /terms-and-conditions
+Allow: /privacy
+Allow: /privacy-policy
+Allow: /faq
+Allow: /login
+Allow: /register
 
+# Disallow private user accounts and admin control areas
+Disallow: /admin/
+Disallow: /admin/*
+Disallow: /settings/
+Disallow: /settings/*
+Disallow: /chat/
+Disallow: /chat/*
+Disallow: /my-listings/
+Disallow: /my-listings/*
+Disallow: /my-requests/
+Disallow: /my-requests/*
+
+# Sitemaps
+Sitemap: https://rentora-test-client.vercel.app/sitemap.xml
 Sitemap: https://rentora.org.in/sitemap.xml

@@ -1,0 +1,25 @@
+{
+  "short_name": "Rentora",
+  "name": "Rentora — NIET Student-to-Student Rental Marketplace",
+  "description": "The exclusive peer-to-peer campus rental marketplace for NIET Greater Noida students. Rent textbooks, calculators, lab coats, and electronics safely.",
+  "icons": [
+    {
+      "src": "/rentora-logo.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/rentora-logo.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/home",
+  "background_color": "#FAF7F2",
+  "theme_color": "#9E1B1B",
+  "display": "standalone",
+  "orientation": "portrait",
+  "scope": "/",
+  "lang": "en-IN",
+  "categories": ["education", "shopping", "utilities", "lifestyle"]
+}

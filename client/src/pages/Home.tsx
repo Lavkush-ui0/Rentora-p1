@@ -5,6 +5,7 @@ import { listingService } from '../services/listingService';
 import ProductCard from '../components/ProductCard';
 import TrendingHeroSlider from '../components/TrendingHeroSlider';
 import { PaymentNotice } from '../components/RentoraBrand';
+import { SEO } from '../components/common/SEO';
 import {
   TrendingUp, ChevronRight, ArrowRight, GraduationCap,
   ShieldCheck, MapPin, Zap
@@ -150,6 +151,11 @@ export const Home: React.FC = () => {
 
   return (
     <div className="space-y-20 pb-16">
+      <SEO 
+        title="Student Rental Marketplace"
+        description="Borrow smart, belong here. The trusted peer-to-peer rental marketplace for NIET Greater Noida students to rent textbooks, calculators, drafters, and electronics safely."
+        canonical="https://rentora-test-client.vercel.app/home"
+      />
 
       {/* ══ 1. Hero Section ══════════════════════════════════════ */}
       <section className="grid grid-cols-1 lg:grid-cols-12 gap-10 xl:gap-16 items-center pt-4">
