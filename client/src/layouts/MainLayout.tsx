@@ -10,7 +10,6 @@ import MobileBottomNav from '../components/MobileBottomNav';
 import TestimonialPopup from '../components/TestimonialPopup';
 import chatService from '../services/chatService';
 import { RentoraWordmark } from '../components/RentoraBrand';
-import { useSocket } from '../context/SocketContext';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -21,7 +20,6 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [unreadMessages, setUnreadMessages] = useState(0);
-  const { socket } = useSocket();
 
   const isProfileIncomplete = 
     user && user.role !== 'ADMIN' && (
@@ -41,43 +39,25 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
   // Fetch unread chat messages for live counter badge
   useEffect(() => {
-    if (!user) return;
-
-    const fetchUnread = async () => {
-      try {
-        const res = await chatService.getConversations();
-        if (res.data?.success) {
-          const count = res.data.conversations.filter((c: any) => 
-            c.lastMessage && !c.lastMessage.readAt && c.lastMessage.sender !== user.id
-          ).length;
-          setUnreadMessages(count);
+    if (user) {
+      const fetchUnread = async () => {
+        try {
+          const res = await chatService.getConversations();
+          if (res.data?.success) {
+            const count = res.data.conversations.filter((c: any) => 
+              c.lastMessage && !c.lastMessage.readAt && c.lastMessage.sender !== user.id
+            ).length;
+            setUnreadMessages(count);
+          }
+        } catch (err) {
+          console.warn('[MainLayout] Error fetching unread messages count:', err);
         }
-      } catch (err) {
-        console.warn('[MainLayout] Error fetching unread messages count:', err);
-      }
-    };
-
-    fetchUnread();
-
-    // Listen to local triggers
-    window.addEventListener('unreadMessagesUpdated', fetchUnread);
-
-    // Listen to socket triggers
-    if (socket) {
-      socket.on('newNotification', fetchUnread);
-      socket.on('messagesMarkedRead', fetchUnread);
+      };
+      fetchUnread();
+      const timer = setInterval(fetchUnread, 15000);
+      return () => clearInterval(timer);
     }
-
-    const timer = setInterval(fetchUnread, 15000);
-    return () => {
-      window.removeEventListener('unreadMessagesUpdated', fetchUnread);
-      if (socket) {
-        socket.off('newNotification', fetchUnread);
-        socket.off('messagesMarkedRead', fetchUnread);
-      }
-      clearInterval(timer);
-    };
-  }, [user, socket]);
+  }, [user]);
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -335,10 +315,10 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                   Trust & Safety
                 </h4>
                 <ul className="space-y-2.5 text-xs font-medium">
-                  <li><span className="text-slate-400">Offline Cash/UPI Payment</span></li>
+                  <li><Link to="/terms" className="hover:text-white transition-colors">Terms & Conditions</Link></li>
+                  <li><Link to="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link></li>
                   <li><span className="text-slate-400">Handover OTP Verification</span></li>
-                  <li><span className="text-slate-400">Student Reputation Ratings</span></li>
-                  <li><span className="text-slate-400">Campus Landmark Meetups</span></li>
+                  <li><span className="text-slate-400">Offline Cash/UPI Only</span></li>
                 </ul>
               </div>
 
@@ -348,11 +328,11 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             <div className="pt-6 border-t border-[#42525B]/20 flex flex-col md:flex-row justify-between items-center text-xs text-slate-500 gap-4 font-sans">
               <p>&copy; {new Date().getFullYear()} Rentora (NIET Edition). Circular campus sharing & reuse.</p>
               <div className="flex space-x-4">
-                <a href="#" className="hover:text-slate-400 transition-colors">Student Guidelines</a>
+                <Link to="/terms" className="hover:text-slate-400 transition-colors">Terms of Service</Link>
                 <span>&middot;</span>
-                <a href="#" className="hover:text-slate-400 transition-colors">Safety Code</a>
+                <Link to="/privacy" className="hover:text-slate-400 transition-colors">Privacy Policy</Link>
                 <span>&middot;</span>
-                <a href="#" className="hover:text-slate-400 transition-colors">Plot Locations</a>
+                <Link to="/explore" className="hover:text-slate-400 transition-colors">Plot Locations</Link>
               </div>
             </div>
           </div>

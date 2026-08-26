@@ -251,3 +251,10 @@ sequenceDiagram
   - Active bookings (status `ACCEPTED` or `ACTIVE`) block out dates on the listing's calendar.
   - When submitting a new rental request, the frontend and backend validate that the selected dates do not overlap with any existing booked ranges.
 
+### 8.4. Institutional College Security Deposit Deduction Policy (Terms & Conditions)
+* **Unreturned or Damaged Item Recourse**:
+  - If a student borrower defaults on returning a borrowed item or causes irreversible damage without compensating the owner, the case is referred to the **NIET College Administration & Proctorial Board**.
+  - The replacement value + outstanding rental fee is deducted directly from the student's **institutional security money / caution deposit** submitted to NIET.
+  - Academic holds (withholding admit cards, degrees, no-dues clearance) are instituted until restitution is fulfilled.
+
+

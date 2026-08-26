@@ -48,7 +48,6 @@ export const ListingDetails: React.FC = () => {
   const [reportReason, setReportReason] = useState('Inappropriate Content');
   const [reportDesc, setReportDesc] = useState('');
   const [reporting, setReporting] = useState(false);
-  const [hasOpenReports, setHasOpenReports] = useState(false);
 
   useEffect(() => {
     const fetchListing = async () => {
@@ -78,27 +77,6 @@ export const ListingDetails: React.FC = () => {
     };
     if (id) fetchListing();
   }, [id]);
-
-  // Admin report verification check
-  useEffect(() => {
-    const checkReports = async () => {
-      if (user?.role === 'ADMIN' && listing?._id) {
-        try {
-          const repRes = await adminService.getReports();
-          if (repRes.data?.success) {
-            const targetIdStr = String(listing._id);
-            const openReports = repRes.data.reports.filter((r: any) => 
-              String(r.targetId) === targetIdStr && r.status === 'OPEN'
-            );
-            setHasOpenReports(openReports.length > 0);
-          }
-        } catch (err) {
-          console.warn('[ListingDetails] Error checking reports:', err);
-        }
-      }
-    };
-    checkReports();
-  }, [user, listing]);
 
   const handleReportSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -289,7 +267,7 @@ export const ListingDetails: React.FC = () => {
   return (
     <div className="max-w-5xl mx-auto space-y-8 text-left">
       
-      {isAdmin && hasOpenReports && (
+      {isAdmin && (
         <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/40 p-4 rounded-3xl flex flex-wrap items-center justify-between gap-4 shadow-sm animate-in fade-in slide-in-from-top-4 duration-300">
           <div className="flex items-center space-x-2.5 text-red-600 dark:text-red-400">
             <AlertTriangle className="h-5 w-5 shrink-0 animate-pulse" />
@@ -738,17 +716,17 @@ export const ListingDetails: React.FC = () => {
                 </div>
               )}
 
-              {/* Safety checkout offline payment acknowledgment checkbox */}
-              <div className="flex items-start space-x-2 pt-1.5 pb-2">
+              {/* Safety checkout offline payment & terms acknowledgment checkbox */}
+              <div className="flex items-start space-x-2 pt-1.5 pb-2 bg-slate-50 dark:bg-slate-800/40 p-3 rounded-2xl border border-slate-100 dark:border-slate-800">
                 <input
                   id="checkout-ack"
                   type="checkbox"
                   checked={acceptTerms}
                   onChange={(e) => setAcceptTerms(e.target.checked)}
-                  className="mt-0.5 border-slate-350 text-[#9E1B1B] focus:ring-[#9E1B1B] rounded h-3.5 w-3.5"
+                  className="mt-0.5 border-slate-350 text-[#9E1B1B] focus:ring-[#9E1B1B] rounded h-4 w-4 shrink-0"
                 />
-                <label htmlFor="checkout-ack" className="text-[10px] text-slate-500 dark:text-slate-400 font-bold leading-tight select-none">
-                  Acknowledge that payments & handovers are completed **offline in person** on campus landmark spots.
+                <label htmlFor="checkout-ack" className="text-[10.5px] text-slate-600 dark:text-slate-300 font-medium leading-tight select-none">
+                  I agree to the <Link to="/terms" target="_blank" className="font-bold text-[#9E1B1B] dark:text-red-400 underline">Terms & Conditions</Link>, campus offline handover rules, and acknowledge that <strong>unreturned or damaged items will be deducted directly from my NIET college security money</strong>.
                 </label>
               </div>
 

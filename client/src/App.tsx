@@ -10,6 +10,8 @@ import MainLayout from './layouts/MainLayout';
 // Public pages
 import Login from './pages/Login';
 import Register from './pages/Register';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import TermsAndConditions from './pages/TermsAndConditions';
 
 // Protected student pages
 import Home from './pages/Home';
@@ -39,6 +41,38 @@ const App: React.FC = () => {
                 {/* Public auth routes */}
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
+                <Route
+                  path="/privacy"
+                  element={
+                    <MainLayout>
+                      <PrivacyPolicy />
+                    </MainLayout>
+                  }
+                />
+                <Route
+                  path="/privacy-policy"
+                  element={
+                    <MainLayout>
+                      <PrivacyPolicy />
+                    </MainLayout>
+                  }
+                />
+                <Route
+                  path="/terms"
+                  element={
+                    <MainLayout>
+                      <TermsAndConditions />
+                    </MainLayout>
+                  }
+                />
+                <Route
+                  path="/terms-and-conditions"
+                  element={
+                    <MainLayout>
+                      <TermsAndConditions />
+                    </MainLayout>
+                  }
+                />
 
                 {/* Redirect root to home */}
                 <Route path="/" element={<Navigate to="/home" replace />} />

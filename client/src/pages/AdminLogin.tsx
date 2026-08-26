@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { ArrowRight, Lock, Mail } from 'lucide-react';
+import { ArrowRight, Lock, Mail, ArrowLeft, Home } from 'lucide-react';
 import { RentoraWordmark } from '../components/RentoraBrand';
 import api from '../services/api';
 
@@ -35,10 +35,36 @@ export const AdminLogin: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-950 px-4 relative overflow-hidden">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-slate-950 px-4 py-8 relative overflow-hidden">
       {/* Background gradients */}
       <div className="absolute top-0 -left-4 w-96 h-96 bg-primary-700/20 rounded-full blur-3xl opacity-50"></div>
       <div className="absolute bottom-0 -right-4 w-96 h-96 bg-purple-700/20 rounded-full blur-3xl opacity-50"></div>
+
+      {/* Top Navigation: Back & Home Buttons */}
+      <div className="w-full max-w-md flex items-center justify-between mb-3.5 px-1 relative z-20 animate-in fade-in duration-300">
+        <button
+          type="button"
+          onClick={() => {
+            if (window.history.state && window.history.state.idx > 0) {
+              navigate(-1);
+            } else {
+              navigate('/home');
+            }
+          }}
+          className="inline-flex items-center space-x-1.5 text-xs font-bold text-slate-300 hover:text-white transition-all bg-slate-900/80 hover:bg-slate-850 px-3.5 py-2 rounded-2xl border border-slate-800 shadow-sm hover:shadow active:scale-95 group"
+        >
+          <ArrowLeft className="h-4 w-4 text-slate-400 group-hover:text-red-400 transition-colors" />
+          <span>Back</span>
+        </button>
+
+        <Link
+          to="/home"
+          className="inline-flex items-center space-x-1.5 text-xs font-bold text-slate-300 hover:text-white transition-all bg-slate-900/80 hover:bg-slate-850 px-3.5 py-2 rounded-2xl border border-slate-800 shadow-sm hover:shadow active:scale-95 group"
+        >
+          <Home className="h-4 w-4 text-slate-400 group-hover:text-red-400 transition-colors" />
+          <span>Home</span>
+        </Link>
+      </div>
 
       <div className="w-full max-w-md bg-slate-900/60 backdrop-blur-xl border border-slate-800 p-8 rounded-3xl shadow-2xl relative z-10 space-y-6">
         {/* Header */}

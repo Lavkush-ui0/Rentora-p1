@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { Mail, Lock, LogIn, AlertCircle } from 'lucide-react';
+import { Mail, Lock, LogIn, AlertCircle, ArrowLeft, Home } from 'lucide-react';
 import { RentoraWordmark } from '../components/RentoraBrand';
 
 export const Login: React.FC = () => {
@@ -206,8 +206,34 @@ export const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-tr from-primary-50 via-gray-50 to-indigo-50 dark:from-slate-950 dark:via-slate-900/40 dark:to-slate-950 px-4 transition-colors duration-200">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-tr from-primary-50 via-gray-50 to-indigo-50 dark:from-slate-950 dark:via-slate-900/40 dark:to-slate-950 px-4 py-8 transition-colors duration-200">
       
+      {/* Top Navigation: Back & Home Buttons */}
+      <div className="max-w-md w-full flex items-center justify-between mb-3.5 px-1 animate-in fade-in duration-300">
+        <button
+          type="button"
+          onClick={() => {
+            if (window.history.state && window.history.state.idx > 0) {
+              navigate(-1);
+            } else {
+              navigate('/home');
+            }
+          }}
+          className="inline-flex items-center space-x-1.5 text-xs font-bold text-slate-700 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white transition-all bg-white dark:bg-slate-900 px-3.5 py-2 rounded-2xl border border-gray-200/90 dark:border-slate-800 shadow-sm hover:shadow active:scale-95 group"
+        >
+          <ArrowLeft className="h-4 w-4 text-slate-400 group-hover:text-brand-crimson dark:group-hover:text-red-400 transition-colors" />
+          <span>Back</span>
+        </button>
+
+        <Link
+          to="/home"
+          className="inline-flex items-center space-x-1.5 text-xs font-bold text-slate-700 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white transition-all bg-white dark:bg-slate-900 px-3.5 py-2 rounded-2xl border border-gray-200/90 dark:border-slate-800 shadow-sm hover:shadow active:scale-95 group"
+        >
+          <Home className="h-4 w-4 text-slate-400 group-hover:text-brand-crimson dark:group-hover:text-red-400 transition-colors" />
+          <span>Home</span>
+        </Link>
+      </div>
+
       <div className="max-w-md w-full bg-white dark:bg-slate-900 p-8 rounded-3xl border border-gray-100 dark:border-slate-800 shadow-2xl shadow-gray-200/50 dark:shadow-none animate-in fade-in zoom-in-95 duration-300">
         
         {/* Header */}
