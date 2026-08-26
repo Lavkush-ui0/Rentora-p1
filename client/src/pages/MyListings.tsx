@@ -175,6 +175,12 @@ export const MyListings: React.FC = () => {
                   <span className="flex items-center space-x-1"><Eye className="h-3.5 w-3.5" /><span>{listing.viewCount} views</span></span>
                   <span>{listing.requestCount} requests</span>
                 </div>
+                {listing.rentedPeriod && (
+                  <div className="mt-1 text-[11px] font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/20 px-3 py-1.5 rounded-xl inline-flex items-center gap-1 border border-blue-100 dark:border-blue-900/30 w-fit">
+                    <Clock className="h-3.5 w-3.5" />
+                    <span>Rented from {new Date(listing.rentedPeriod.startDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })} to {new Date(listing.rentedPeriod.endDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}</span>
+                  </div>
+                )}
 
                 {/* Action Buttons */}
                 <div className="flex flex-wrap gap-2 pt-1">

@@ -152,33 +152,54 @@ export const getListings = async (req: CustomRequest, res: Response, next: NextF
       throw new CustomError('Failed to fetch listings', 500, 'FETCH_FAILED');
     }
 
-    const formatted = listings.map((l: any) => ({
-      _id: l.id,
-      owner: l.owner ? {
-        _id: l.owner.id,
-        fullName: l.owner.full_name,
-        email: l.owner.email,
-      } : null,
-      category: l.category ? {
-        _id: l.category.id,
-        name: l.category.name,
-      } : null,
-      title: l.title,
-      slug: l.slug,
-      description: l.description,
-      images: l.images,
-      condition: l.condition,
-      rentalPrice: Number(l.rental_price),
-      priceUnit: l.price_unit,
-      securityDeposit: Number(l.security_deposit),
-      availability: l.availability,
-      status: l.status,
-      approvalStatus: l.approval_status,
-      location: l.location,
-      postIpAddress: l.post_ip_address,
-      postCoordinates: { latitude: l.latitude, longitude: l.longitude },
-      createdAt: l.created_at,
-    }));
+    const listingIds = listings.map((l: any) => l.id);
+    let rentals: any[] = [];
+    if (listingIds.length > 0) {
+      const { data: rentalsData } = await supabase
+        .from('rental_requests')
+        .select('listing_id, start_date, end_date, status')
+        .in('listing_id', listingIds)
+        .in('status', ['ACCEPTED', 'ACTIVE']);
+      if (rentalsData) {
+        rentals = rentalsData;
+      }
+    }
+
+    const formatted = listings.map((l: any) => {
+      const activeRental = rentals.find((r: any) => r.listing_id === l.id);
+      return {
+        _id: l.id,
+        owner: l.owner ? {
+          _id: l.owner.id,
+          fullName: l.owner.full_name,
+          email: l.owner.email,
+        } : null,
+        category: l.category ? {
+          _id: l.category.id,
+          name: l.category.name,
+        } : null,
+        title: l.title,
+        slug: l.slug,
+        description: l.description,
+        images: l.images,
+        condition: l.condition,
+        rentalPrice: Number(l.rental_price),
+        priceUnit: l.price_unit,
+        securityDeposit: Number(l.security_deposit),
+        availability: l.availability,
+        status: l.status,
+        approvalStatus: l.approval_status,
+        location: l.location,
+        postIpAddress: l.post_ip_address,
+        postCoordinates: { latitude: l.latitude, longitude: l.longitude },
+        createdAt: l.created_at,
+        rentedPeriod: activeRental ? {
+          startDate: activeRental.start_date,
+          endDate: activeRental.end_date,
+          status: activeRental.status,
+        } : null,
+      };
+    });
 
     return res.json({
       success: true,

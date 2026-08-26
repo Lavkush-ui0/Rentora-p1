@@ -641,6 +641,11 @@ export const AdminDashboard: React.FC = () => {
                               {l.postIpAddress && (
                                 <p className="text-[9px] text-slate-500 dark:text-slate-400 font-mono mt-0.5">IP: {l.postIpAddress}</p>
                               )}
+                              {l.rentedPeriod && (
+                                <div className="mt-1 text-[9px] font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/20 px-2 py-1 rounded-md inline-flex items-center gap-0.5 border border-blue-100 dark:border-blue-900/30 w-fit">
+                                  <span>Rented: {new Date(l.rentedPeriod.startDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })} - {new Date(l.rentedPeriod.endDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}</span>
+                                </div>
+                              )}
                               {l.postCoordinates?.latitude && l.postCoordinates?.longitude ? (
                                 <div className="mt-1 flex items-center space-x-1">
                                   <span className="text-[9px] text-green-600 dark:text-green-400 font-semibold font-mono">📍 GPS Attached</span>
@@ -678,6 +683,8 @@ export const AdminDashboard: React.FC = () => {
                                 ? 'bg-green-50 text-green-600 dark:bg-green-950/20 dark:text-green-400'
                                 : l.status === 'REMOVED'
                                 ? 'bg-red-50 text-red-600 dark:bg-red-950/20 dark:text-red-400'
+                                : l.status === 'RENTED'
+                                ? 'bg-blue-50 text-blue-600 dark:bg-blue-950/20 dark:text-blue-400'
                                 : 'bg-amber-50 text-amber-600 dark:bg-amber-950/20 dark:text-amber-400'
                             }`}>
                               {l.status}

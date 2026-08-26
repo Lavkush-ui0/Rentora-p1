@@ -1,12 +1,10 @@
 import { z } from 'zod';
 
-const objectIdRegex = /^[0-9a-fA-F]{24}$/;
-
 export const createListingSchema = z.object({
   body: z.object({
     title: z.string().min(3, 'Title must be at least 3 characters').max(100, 'Title cannot exceed 100 characters'),
     description: z.string().min(10, 'Description must be at least 10 characters').max(2000, 'Description cannot exceed 2000 characters'),
-    category: z.string().regex(objectIdRegex, 'Invalid category ID'),
+    category: z.string().uuid('Invalid category ID'),
     condition: z.enum(['NEW', 'LIKE_NEW', 'GOOD', 'FAIR'], {
       errorMap: () => ({ message: 'Condition must be NEW, LIKE_NEW, GOOD, or FAIR' }),
     }),
@@ -26,7 +24,7 @@ export const updateListingSchema = z.object({
   body: z.object({
     title: z.string().min(3, 'Title must be at least 3 characters').max(100, 'Title cannot exceed 100 characters').optional(),
     description: z.string().min(10, 'Description must be at least 10 characters').max(2000, 'Description cannot exceed 2000 characters').optional(),
-    category: z.string().regex(objectIdRegex, 'Invalid category ID').optional(),
+    category: z.string().uuid('Invalid category ID').optional(),
     condition: z.enum(['NEW', 'LIKE_NEW', 'GOOD', 'FAIR']).optional(),
     rentalPrice: z.coerce.number().min(0, 'Price must be non-negative').optional(),
     priceUnit: z.enum(['DAY', 'WEEK', 'MONTH']).optional(),
