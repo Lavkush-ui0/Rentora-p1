@@ -162,6 +162,8 @@ INSERT INTO public.categories (name, slug, description, icon, is_active) VALUES
 ('Sports Equipment', 'sports-equipment', 'Cricker bats, footballs, rackets, and athletic gear', 'Trophy', true),
 ('Gaming', 'gaming', 'Consoles, controllers, and game titles', 'Gamepad2', true),
 ('Other', 'other', 'Miscellaneous student utilities', 'Layers', true)
+ON CONFLICT (slug) DO NOTHING;
+
 -- 12. Create Product Interchanges Table (Exchanges/Rentals Handover Log)
 CREATE TABLE IF NOT EXISTS public.product_interchanges (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
