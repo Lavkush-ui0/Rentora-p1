@@ -2,6 +2,7 @@ import { Response, NextFunction } from 'express';
 import { supabase } from '../config/supabase';
 import { CustomRequest } from '../types';
 import { uploadImage, deleteImage } from '../services/image.service';
+import { moderateListingWithAI } from '../services/aiModeration.service';
 import CustomError from '../utils/customError';
 import { clearHomepageCache } from './discovery.controller';
 
@@ -74,6 +75,21 @@ export const createListing = async (req: CustomRequest, res: Response, next: Nex
     const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip;
     const postIpAddress = Array.isArray(clientIp) ? clientIp[0] : clientIp;
 
+    // AI Safety & Content Moderation Shield via Groq
+    const moderation = await moderateListingWithAI({
+      title,
+      description,
+      condition,
+      rentalPrice: Number(rentalPrice),
+      priceUnit,
+    });
+
+    const isAutoApproved = moderation.isSafe;
+    const initialApprovalStatus = isAutoApproved ? 'APPROVED' : 'PENDING';
+    const initialStatus = isAutoApproved ? 'ACTIVE' : 'PAUSED';
+    const initialAvailability = isAutoApproved ? true : false;
+    const rejectionReason = isAutoApproved ? '' : (moderation.reason || 'Flagged for admin moderation');
+
     const { data: newListing, error: insertError } = await supabase
       .from('listings')
       .insert([{
@@ -87,9 +103,10 @@ export const createListing = async (req: CustomRequest, res: Response, next: Nex
         rental_price: Number(rentalPrice),
         price_unit: priceUnit,
         security_deposit: Number(securityDeposit || 0),
-        availability: false,
-        status: 'PAUSED',
-        approval_status: 'PENDING',
+        availability: initialAvailability,
+        status: initialStatus,
+        approval_status: initialApprovalStatus,
+        rejection_reason: rejectionReason,
         location: location || req.user.collegeName || 'NIET Plot 19',
         post_ip_address: postIpAddress,
         latitude: latitude ? Number(latitude) : null,
@@ -104,9 +121,14 @@ export const createListing = async (req: CustomRequest, res: Response, next: Nex
 
     clearHomepageCache();
 
+    const responseMessage = isAutoApproved
+      ? 'Listing verified by Rentora AI Shield and is now live on campus!'
+      : 'Listing submitted and is waiting for admin approval.';
+
     return res.status(201).json({
       success: true,
-      message: 'Listing submitted for admin approval! It will be visible once approved.',
+      autoApproved: isAutoApproved,
+      message: responseMessage,
       listing: {
         _id: newListing.id,
         owner: newListing.owner_id,

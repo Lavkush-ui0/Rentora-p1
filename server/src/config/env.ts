@@ -18,6 +18,7 @@ const envSchema = z.object({
   ALLOWED_EMAIL_DOMAIN: z.string().optional().default('niet.co.in'),
   SUPABASE_URL: z.string().optional(),
   SUPABASE_KEY: z.string().optional(),
+  GROQ_API_KEY: z.string().optional(),
 
   // Google OAuth / Gmail API (optional — used for Google login and OTP emails)
   GOOGLE_EMAIL: z.string().optional(),
