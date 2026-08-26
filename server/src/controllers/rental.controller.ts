@@ -1,9 +1,5 @@
 import { Response, NextFunction } from 'express';
-import { RentalRequest } from '../models/rentalRequest.model';
-import { Listing } from '../models/listing.model';
-import { User } from '../models/user.model';
-import { Conversation, Message } from '../models/chat.model';
-import { Review } from '../models/review.model';
+import { supabase } from '../config/supabase';
 import { CustomRequest } from '../types';
 import { createNotification } from '../services/notification.service';
 import { getIO } from '../services/socket.service';
@@ -17,8 +13,13 @@ export const createRentalRequest = async (req: CustomRequest, res: Response, nex
 
     const { listing: listingId, startDate, endDate, message } = req.body;
 
-    const listing = await Listing.findById(listingId);
-    if (!listing) {
+    const { data: listing, error: findError } = await supabase
+      .from('listings')
+      .select('*')
+      .eq('id', listingId)
+      .maybeSingle();
+
+    if (findError || !listing) {
       throw new CustomError('Listing not found', 404, 'NOT_FOUND');
     }
 
@@ -27,32 +28,35 @@ export const createRentalRequest = async (req: CustomRequest, res: Response, nex
     }
 
     // A user cannot request their own listing
-    if (listing.owner.toString() === req.user._id.toString()) {
+    if (listing.owner_id === req.user._id) {
       throw new CustomError('You cannot request your own listing', 400, 'SELF_RENTAL_PROHIBITED');
     }
+
+    const currentUserId = req.user._id;
 
     // Limit request rate per listing per renter: max 2 times a day and 5 times a week
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
-    const [dailyCount, weeklyCount] = await Promise.all([
-      RentalRequest.countDocuments({
-        renter: req.user._id,
-        listing: listingId,
-        createdAt: { $gte: oneDayAgo }
-      }),
-      RentalRequest.countDocuments({
-        renter: req.user._id,
-        listing: listingId,
-        createdAt: { $gte: oneWeekAgo }
-      })
-    ]);
+    const { count: dailyCount } = await supabase
+      .from('rental_requests')
+      .select('*', { count: 'exact', head: true })
+      .eq('renter_id', currentUserId)
+      .eq('listing_id', listingId)
+      .gte('created_at', oneDayAgo.toISOString());
 
-    if (dailyCount >= 2) {
+    const { count: weeklyCount } = await supabase
+      .from('rental_requests')
+      .select('*', { count: 'exact', head: true })
+      .eq('renter_id', currentUserId)
+      .eq('listing_id', listingId)
+      .gte('created_at', oneWeekAgo.toISOString());
+
+    if (dailyCount !== null && dailyCount >= 2) {
       throw new CustomError('You have reached the limit of 2 requests per day for this item.', 400, 'DAILY_LIMIT_EXCEEDED');
     }
 
-    if (weeklyCount >= 5) {
+    if (weeklyCount !== null && weeklyCount >= 5) {
       throw new CustomError('You have reached the limit of 5 requests per week for this item.', 400, 'WEEKLY_LIMIT_EXCEEDED');
     }
 
@@ -68,85 +72,132 @@ export const createRentalRequest = async (req: CustomRequest, res: Response, nex
       throw new CustomError('Start date cannot be in the past', 400, 'INVALID_START_DATE');
     }
 
-    // Check for conflicting ACTIVE or ACCEPTED rentals
-    const conflict = await RentalRequest.findOne({
-      listing: listingId,
-      status: { $in: ['ACCEPTED', 'ACTIVE'] },
-      $or: [
-        { startDate: { $lte: end }, endDate: { $gte: start } },
-      ],
+    // Check conflict in JS
+    const { data: activeRequests } = await supabase
+      .from('rental_requests')
+      .select('start_date, end_date')
+      .eq('listing_id', listingId)
+      .in('status', ['ACCEPTED', 'ACTIVE']);
+
+    const hasConflict = (activeRequests || []).some((r: any) => {
+      const rStart = new Date(r.start_date);
+      const rEnd = new Date(r.end_date);
+      return (rStart <= end && rEnd >= start);
     });
 
-    if (conflict) {
+    if (hasConflict) {
       throw new CustomError('This item is already booked/rented for the requested dates', 400, 'DATE_CONFLICT');
     }
 
-    const request = await RentalRequest.create({
-      listing: listingId,
-      owner: listing.owner,
-      renter: req.user._id,
-      startDate: start,
-      endDate: end,
-      message: message || '',
-      status: 'PENDING',
-    });
+    const { data: request, error: insertError } = await supabase
+      .from('rental_requests')
+      .insert([{
+        listing_id: listingId,
+        owner_id: listing.owner_id,
+        renter_id: currentUserId,
+        start_date: start.toISOString(),
+        end_date: end.toISOString(),
+        message: message || '',
+        status: 'PENDING',
+      }])
+      .select()
+      .single();
 
-    // Increment request count on the listing
-    listing.requestCount += 1;
-    await listing.save();
-
-    // Auto-create or find conversation thread between Renter & Owner for this listing
-    let conversation = await Conversation.findOne({
-      participants: { $all: [req.user._id, listing.owner] },
-      listing: listingId,
-    });
-
-    if (!conversation) {
-      conversation = await Conversation.create({
-        participants: [req.user._id, listing.owner],
-        listing: listingId,
-        rentalRequest: request._id,
-      });
-    } else {
-      conversation.rentalRequest = request._id as any;
-      await conversation.save();
+    if (insertError || !request) {
+      throw new CustomError('Failed to record rental request', 500, 'CREATE_FAILED');
     }
 
-    // Create initial chat message so owner sees the user's message in the chat
+    // Increment request count on the listing
+    await supabase
+      .from('listings')
+      .update({ request_count: (listing.request_count || 0) + 1 })
+      .eq('id', listingId);
+
+    // Find/upsert conversation channel
+    const { data: convos } = await supabase.from('conversations').select('*');
+    let conversation = (convos || []).find((c: any) =>
+      c.participants.includes(currentUserId) &&
+      c.participants.includes(listing.owner_id) &&
+      String(c.listing_id || '') === String(listingId)
+    );
+
+    if (!conversation) {
+      const { data: newConvo } = await supabase
+        .from('conversations')
+        .insert([{
+          participants: [currentUserId, listing.owner_id],
+          listing_id: listingId,
+          rental_request_id: request.id,
+        }])
+        .select()
+        .single();
+      conversation = newConvo;
+    } else {
+      await supabase
+        .from('conversations')
+        .update({ rental_request_id: request.id })
+        .eq('id', conversation.id);
+    }
+
     const requestMessageText = message?.trim()
       ? message.trim()
       : `Hi! I've sent a request to rent "${listing.title}" from ${start.toLocaleDateString()} to ${end.toLocaleDateString()}.`;
 
-    const initialMessage = await Message.create({
-      conversation: conversation._id,
-      sender: req.user._id,
-      text: requestMessageText,
-    });
+    const { data: initialMessage } = await supabase
+      .from('messages')
+      .insert([{
+        conversation_id: conversation.id,
+        sender_id: req.user._id,
+        text: requestMessageText,
+      }])
+      .select('*, sender:sender_id (id, full_name, avatar)')
+      .single();
 
-    conversation.lastMessage = initialMessage._id as any;
-    await conversation.save();
+    if (initialMessage) {
+      await supabase
+        .from('conversations')
+        .update({ last_message_id: initialMessage.id })
+        .eq('id', conversation.id);
 
-    // Broadcast live socket message event to conversation room
-    const io = getIO();
-    if (io) {
-      const populatedMsg = await initialMessage.populate('sender', 'fullName avatar');
-      io.to(conversation._id.toString()).emit('receiveMessage', populatedMsg);
+      const io = getIO();
+      if (io) {
+        io.to(conversation.id).emit('receiveMessage', {
+          _id: initialMessage.id,
+          conversation: initialMessage.conversation_id,
+          sender: initialMessage.sender ? {
+            _id: initialMessage.sender.id,
+            fullName: initialMessage.sender.full_name,
+            avatar: initialMessage.sender.avatar,
+          } : null,
+          text: initialMessage.text,
+          createdAt: initialMessage.created_at,
+        });
+      }
     }
 
-    // Create notification for listing owner (pointing to the conversation ID)
+    // Create notification
     await createNotification(
-      listing.owner,
+      listing.owner_id,
       'RENTAL_REQUEST',
       'New Rental Request',
       `${req.user.fullName} requested "${listing.title}": "${requestMessageText.substring(0, 60)}${requestMessageText.length > 60 ? '...' : ''}"`,
-      conversation._id
+      conversation.id
     );
 
     return res.status(201).json({
       success: true,
       message: 'Rental request sent & chat initiated successfully',
-      request,
-      conversationId: conversation._id,
+      request: {
+        _id: request.id,
+        listing: request.listing_id,
+        owner: request.owner_id,
+        renter: request.renter_id,
+        startDate: request.start_date,
+        endDate: request.end_date,
+        message: request.message,
+        status: request.status,
+      },
+      conversationId: conversation.id,
     });
   } catch (error) {
     return next(error);
@@ -159,25 +210,52 @@ export const getIncomingRequests = async (req: CustomRequest, res: Response, nex
       throw new CustomError('Authentication required', 401, 'UNAUTHORIZED');
     }
 
-    const requests = await RentalRequest.find({ owner: req.user._id })
-      .populate('listing', 'title images status priceUnit rentalPrice')
-      .populate('renter', 'fullName avatar ratingAverage')
-      .sort({ createdAt: -1 });
+    const { data: requests, error } = await supabase
+      .from('rental_requests')
+      .select('*, listing:listing_id (id, title, images, status, price_unit, rental_price), renter:renter_id (id, full_name, avatar, rating_average)')
+      .eq('owner_id', req.user._id)
+      .order('created_at', { ascending: false });
 
-    const requestIds = requests.map(r => r._id);
-    const reviews = await Review.find({
-      reviewer: req.user._id,
-      rentalRequest: { $in: requestIds }
-    });
-    const reviewedRequestIds = new Set(reviews.map(r => r.rentalRequest.toString()));
+    if (error || !requests) {
+      throw new CustomError('Failed to fetch incoming requests', 500, 'FETCH_FAILED');
+    }
 
-    const requestsWithReviewStatus = requests.map(r => {
-      const obj = r.toObject();
-      return {
-        ...obj,
-        hasReviewed: reviewedRequestIds.has(r._id.toString())
-      };
-    });
+    const requestIds = requests.map(r => r.id);
+    const { data: reviews } = await supabase
+      .from('reviews')
+      .select('rental_request_id')
+      .eq('reviewer_id', req.user._id)
+      .in('rental_request_id', requestIds.length > 0 ? requestIds : ['placeholder']);
+
+    const reviewedRequestIds = new Set((reviews || []).map(r => r.rental_request_id));
+
+    const requestsWithReviewStatus = requests.map(r => ({
+      _id: r.id,
+      listing: r.listing ? {
+        _id: r.listing.id,
+        title: r.listing.title,
+        images: r.listing.images,
+        status: r.listing.status,
+        priceUnit: r.listing.price_unit,
+        rentalPrice: Number(r.listing.rental_price),
+      } : null,
+      renter: r.renter ? {
+        _id: r.renter.id,
+        fullName: r.renter.full_name,
+        avatar: r.renter.avatar,
+        ratingAverage: Number(r.renter.rating_average),
+      } : null,
+      owner: r.owner_id,
+      startDate: r.start_date,
+      endDate: r.end_date,
+      message: r.message,
+      status: r.status,
+      handoverOTP: r.handover_otp,
+      heldDeposit: Number(r.held_deposit),
+      rentalPricePaid: Number(r.rental_price_paid),
+      createdAt: r.created_at,
+      hasReviewed: reviewedRequestIds.has(r.id),
+    }));
 
     return res.json({
       success: true,
@@ -194,25 +272,52 @@ export const getSentRequests = async (req: CustomRequest, res: Response, next: N
       throw new CustomError('Authentication required', 401, 'UNAUTHORIZED');
     }
 
-    const requests = await RentalRequest.find({ renter: req.user._id })
-      .populate('listing', 'title images status priceUnit rentalPrice')
-      .populate('owner', 'fullName avatar ratingAverage')
-      .sort({ createdAt: -1 });
+    const { data: requests, error } = await supabase
+      .from('rental_requests')
+      .select('*, listing:listing_id (id, title, images, status, price_unit, rental_price), owner:owner_id (id, full_name, avatar, rating_average)')
+      .eq('renter_id', req.user._id)
+      .order('created_at', { ascending: false });
 
-    const requestIds = requests.map(r => r._id);
-    const reviews = await Review.find({
-      reviewer: req.user._id,
-      rentalRequest: { $in: requestIds }
-    });
-    const reviewedRequestIds = new Set(reviews.map(r => r.rentalRequest.toString()));
+    if (error || !requests) {
+      throw new CustomError('Failed to fetch sent requests', 500, 'FETCH_FAILED');
+    }
 
-    const requestsWithReviewStatus = requests.map(r => {
-      const obj = r.toObject();
-      return {
-        ...obj,
-        hasReviewed: reviewedRequestIds.has(r._id.toString())
-      };
-    });
+    const requestIds = requests.map(r => r.id);
+    const { data: reviews } = await supabase
+      .from('reviews')
+      .select('rental_request_id')
+      .eq('reviewer_id', req.user._id)
+      .in('rental_request_id', requestIds.length > 0 ? requestIds : ['placeholder']);
+
+    const reviewedRequestIds = new Set((reviews || []).map(r => r.rental_request_id));
+
+    const requestsWithReviewStatus = requests.map(r => ({
+      _id: r.id,
+      listing: r.listing ? {
+        _id: r.listing.id,
+        title: r.listing.title,
+        images: r.listing.images,
+        status: r.listing.status,
+        priceUnit: r.listing.price_unit,
+        rentalPrice: Number(r.listing.rental_price),
+      } : null,
+      owner: r.owner ? {
+        _id: r.owner.id,
+        fullName: r.owner.full_name,
+        avatar: r.owner.avatar,
+        ratingAverage: Number(r.owner.rating_average),
+      } : null,
+      renter: r.renter_id,
+      startDate: r.start_date,
+      endDate: r.end_date,
+      message: r.message,
+      status: r.status,
+      handoverOTP: r.handover_otp,
+      heldDeposit: Number(r.held_deposit),
+      rentalPricePaid: Number(r.rental_price_paid),
+      createdAt: r.created_at,
+      hasReviewed: reviewedRequestIds.has(r.id),
+    }));
 
     return res.json({
       success: true,
@@ -229,27 +334,68 @@ export const getRentalRequestById = async (req: CustomRequest, res: Response, ne
       throw new CustomError('Authentication required', 401, 'UNAUTHORIZED');
     }
 
-    const request = await RentalRequest.findById(req.params.id)
-      .populate('listing', 'title images condition rentalPrice priceUnit securityDeposit status availability')
-      .populate('owner', 'fullName avatar ratingAverage ratingCount completedRentals bio')
-      .populate('renter', 'fullName avatar ratingAverage ratingCount completedRentals bio');
+    const { data: request, error } = await supabase
+      .from('rental_requests')
+      .select('*, listing:listing_id (id, title, images, condition, rental_price, price_unit, security_deposit, status, availability), owner:owner_id (id, full_name, avatar, rating_average, rating_count, completed_rentals, bio), renter:renter_id (id, full_name, avatar, rating_average, rating_count, completed_rentals, bio)')
+      .eq('id', req.params.id)
+      .maybeSingle();
 
-    if (!request) {
+    if (error || !request) {
       throw new CustomError('Rental request not found', 404, 'NOT_FOUND');
     }
 
-    // Verify authorized user
-    const isOwner = request.owner._id.toString() === req.user._id.toString();
-    const isRenter = request.renter._id.toString() === req.user._id.toString();
+    const isOwner = request.owner_id === req.user._id;
+    const isRenter = request.renter_id === req.user._id;
     const isAdmin = req.user.role === 'ADMIN';
 
     if (!isOwner && !isRenter && !isAdmin) {
       throw new CustomError('You are not authorized to view this request', 403, 'FORBIDDEN');
     }
 
+    const formatted = {
+      _id: request.id,
+      listing: request.listing ? {
+        _id: request.listing.id,
+        title: request.listing.title,
+        images: request.listing.images,
+        condition: request.listing.condition,
+        rentalPrice: Number(request.listing.rental_price),
+        priceUnit: request.listing.price_unit,
+        securityDeposit: Number(request.listing.security_deposit),
+        status: request.listing.status,
+        availability: request.listing.availability,
+      } : null,
+      owner: request.owner ? {
+        _id: request.owner.id,
+        fullName: request.owner.full_name,
+        avatar: request.owner.avatar,
+        ratingAverage: Number(request.owner.rating_average),
+        ratingCount: request.owner.rating_count,
+        completedRentals: request.owner.completed_rentals,
+        bio: request.owner.bio,
+      } : null,
+      renter: request.renter ? {
+        _id: request.renter.id,
+        fullName: request.renter.full_name,
+        avatar: request.renter.avatar,
+        ratingAverage: Number(request.renter.rating_average),
+        ratingCount: request.renter.rating_count,
+        completedRentals: request.renter.completed_rentals,
+        bio: request.renter.bio,
+      } : null,
+      startDate: request.start_date,
+      endDate: request.end_date,
+      message: request.message,
+      status: request.status,
+      handoverOTP: request.handover_otp,
+      heldDeposit: Number(request.held_deposit),
+      rentalPricePaid: Number(request.rental_price_paid),
+      createdAt: request.created_at,
+    };
+
     return res.json({
       success: true,
-      request,
+      request: formatted,
     });
   } catch (error) {
     return next(error);
@@ -262,12 +408,17 @@ export const acceptRentalRequest = async (req: CustomRequest, res: Response, nex
       throw new CustomError('Authentication required', 401, 'UNAUTHORIZED');
     }
 
-    const request = await RentalRequest.findById(req.params.id);
+    const { data: request } = await supabase
+      .from('rental_requests')
+      .select('*')
+      .eq('id', req.params.id)
+      .maybeSingle();
+
     if (!request) {
       throw new CustomError('Rental request not found', 404, 'NOT_FOUND');
     }
 
-    if (request.owner.toString() !== req.user._id.toString()) {
+    if (request.owner_id !== req.user._id) {
       throw new CustomError('Only the item owner can accept requests', 403, 'FORBIDDEN');
     }
 
@@ -275,75 +426,105 @@ export const acceptRentalRequest = async (req: CustomRequest, res: Response, nex
       throw new CustomError(`Cannot accept a request with status "${request.status}"`, 400, 'INVALID_TRANSITION');
     }
 
-    // Double check that listing is still available
-    const listing = await Listing.findById(request.listing);
+    const { data: listing } = await supabase
+      .from('listings')
+      .select('*')
+      .eq('id', request.listing_id)
+      .maybeSingle();
+
     if (!listing) {
       throw new CustomError('Listing no longer exists', 404, 'NOT_FOUND');
     }
 
-    // Generate a 4-digit handover OTP code
     const otpCode = Math.floor(1000 + Math.random() * 9000).toString();
-    request.handoverOTP = otpCode;
-    request.status = 'ACCEPTED';
-    await request.save();
 
-    // Mark listing unavailable so other students cannot rent it
-    listing.availability = false;
-    await listing.save();
+    // Accept this request
+    const { data: updatedRequest } = await supabase
+      .from('rental_requests')
+      .update({
+        handover_otp: otpCode,
+        status: 'ACCEPTED',
+      })
+      .eq('id', request.id)
+      .select()
+      .single();
 
-    // Reject all other pending requests for the same listing that overlap
-    const conflictingRequests = await RentalRequest.find({
-      listing: request.listing,
-      _id: { $ne: request._id },
-      status: 'PENDING',
-      $or: [
-        { startDate: { $lte: request.endDate }, endDate: { $gte: request.startDate } },
-      ],
+    // Mark listing unavailable
+    await supabase
+      .from('listings')
+      .update({ availability: false })
+      .eq('id', request.listing_id);
+
+    // Reject conflicting overlap requests
+    const { data: conflicting } = await supabase
+      .from('rental_requests')
+      .select('*')
+      .eq('listing_id', request.listing_id)
+      .neq('id', request.id)
+      .eq('status', 'PENDING');
+
+    const overlapRequests = (conflicting || []).filter((c: any) => {
+      const cStart = new Date(c.start_date);
+      const cEnd = new Date(c.end_date);
+      const reqStart = new Date(request.start_date);
+      const reqEnd = new Date(request.end_date);
+      return (cStart <= reqEnd && cEnd >= reqStart);
     });
 
-    for (const confReq of conflictingRequests) {
-      confReq.status = 'REJECTED';
-      await confReq.save();
+    for (const confReq of overlapRequests) {
+      await supabase.from('rental_requests').update({ status: 'REJECTED' }).eq('id', confReq.id);
       await createNotification(
-        confReq.renter,
+        confReq.renter_id,
         'REQUEST_REJECTED',
         'Request Rejected (Date Conflict)',
         `Your request for "${listing.title}" was automatically rejected because the owner accepted another request for overlapping dates.`,
-        confReq._id
+        confReq.id
       );
     }
 
-    // Set up chat context: Auto-create a Conversation between renter and owner for this rental context
-    let conversation = await Conversation.findOne({
-      participants: { $all: [request.owner, request.renter] },
-      listing: request.listing,
-    });
+    // Chat thread link
+    const { data: convos } = await supabase.from('conversations').select('*');
+    let conversation = (convos || []).find((c: any) =>
+      c.participants.includes(request.owner_id) &&
+      c.participants.includes(request.renter_id) &&
+      String(c.listing_id || '') === String(request.listing_id)
+    );
 
     if (!conversation) {
-      conversation = await Conversation.create({
-        participants: [request.owner, request.renter],
-        listing: request.listing,
-        rentalRequest: request._id,
-      });
+      const { data: newConvo } = await supabase
+        .from('conversations')
+        .insert([{
+          participants: [request.owner_id, request.renter_id],
+          listing_id: request.listing_id,
+          rental_request_id: request.id,
+        }])
+        .select()
+        .single();
+      conversation = newConvo;
     } else {
-      conversation.rentalRequest = request._id;
-      await conversation.save();
+      await supabase
+        .from('conversations')
+        .update({ rental_request_id: request.id })
+        .eq('id', conversation.id);
     }
 
-    // Notify renter
     await createNotification(
-      request.renter,
+      request.renter_id,
       'REQUEST_ACCEPTED',
       'Rental Request Accepted',
       `Your request to rent "${listing.title}" has been accepted! You can now chat to coordinate pickup.`,
-      conversation._id
+      conversation.id
     );
 
     return res.json({
       success: true,
       message: 'Rental request accepted successfully',
-      request,
-      conversationId: conversation._id,
+      request: {
+        _id: updatedRequest.id,
+        status: updatedRequest.status,
+        handoverOTP: updatedRequest.handover_otp,
+      },
+      conversationId: conversation.id,
     });
   } catch (error) {
     return next(error);
@@ -356,12 +537,17 @@ export const rejectRentalRequest = async (req: CustomRequest, res: Response, nex
       throw new CustomError('Authentication required', 401, 'UNAUTHORIZED');
     }
 
-    const request = await RentalRequest.findById(req.params.id);
+    const { data: request } = await supabase
+      .from('rental_requests')
+      .select('*')
+      .eq('id', req.params.id)
+      .maybeSingle();
+
     if (!request) {
       throw new CustomError('Rental request not found', 404, 'NOT_FOUND');
     }
 
-    if (request.owner.toString() !== req.user._id.toString()) {
+    if (request.owner_id !== req.user._id) {
       throw new CustomError('Only the item owner can reject requests', 403, 'FORBIDDEN');
     }
 
@@ -371,28 +557,38 @@ export const rejectRentalRequest = async (req: CustomRequest, res: Response, nex
 
     const { reason } = req.body;
 
-    request.status = 'REJECTED';
-    await request.save();
+    const { data: updated } = await supabase
+      .from('rental_requests')
+      .update({ status: 'REJECTED' })
+      .eq('id', request.id)
+      .select()
+      .single();
 
-    const listing = await Listing.findById(request.listing);
+    const { data: listing } = await supabase
+      .from('listings')
+      .select('title')
+      .eq('id', request.listing_id)
+      .maybeSingle();
 
-    // Notify renter
     const notificationMessage = reason
       ? `Your request to rent "${listing?.title || 'an item'}" was declined by the owner. Reason: ${reason}`
       : `Your request to rent "${listing?.title || 'an item'}" was declined by the owner.`;
 
     await createNotification(
-      request.renter,
+      request.renter_id,
       'REQUEST_REJECTED',
       'Rental Request Rejected',
       notificationMessage,
-      request._id
+      request.id
     );
 
     return res.json({
       success: true,
       message: 'Rental request rejected successfully',
-      request,
+      request: {
+        _id: updated.id,
+        status: updated.status,
+      },
     });
   } catch (error) {
     return next(error);
@@ -405,13 +601,18 @@ export const cancelRentalRequest = async (req: CustomRequest, res: Response, nex
       throw new CustomError('Authentication required', 401, 'UNAUTHORIZED');
     }
 
-    const request = await RentalRequest.findById(req.params.id);
+    const { data: request } = await supabase
+      .from('rental_requests')
+      .select('*')
+      .eq('id', req.params.id)
+      .maybeSingle();
+
     if (!request) {
       throw new CustomError('Rental request not found', 404, 'NOT_FOUND');
     }
 
-    const isRenter = request.renter.toString() === req.user._id.toString();
-    const isOwner = request.owner.toString() === req.user._id.toString();
+    const isRenter = request.renter_id === req.user._id;
+    const isOwner = request.owner_id === req.user._id;
 
     if (!isRenter && !isOwner) {
       throw new CustomError('You are not authorized to cancel this request', 403, 'FORBIDDEN');
@@ -422,32 +623,44 @@ export const cancelRentalRequest = async (req: CustomRequest, res: Response, nex
     }
 
     const wasAccepted = request.status === 'ACCEPTED';
-    request.status = 'CANCELLED';
-    await request.save();
 
-    const listing = await Listing.findById(request.listing);
-    
-    // If it was accepted, restore listing availability
-    if (wasAccepted && listing) {
-      listing.availability = true;
-      await listing.save();
+    const { data: updated } = await supabase
+      .from('rental_requests')
+      .update({ status: 'CANCELLED' })
+      .eq('id', request.id)
+      .select()
+      .single();
+
+    if (wasAccepted) {
+      await supabase
+        .from('listings')
+        .update({ availability: true })
+        .eq('id', request.listing_id);
     }
 
-    // Notify other party
-    const recipient = isRenter ? request.owner : request.renter;
+    const { data: listing } = await supabase
+      .from('listings')
+      .select('title')
+      .eq('id', request.listing_id)
+      .maybeSingle();
+
+    const recipient = isRenter ? request.owner_id : request.renter_id;
     const senderName = req.user.fullName;
     await createNotification(
       recipient,
       'REQUEST_REJECTED',
       'Rental Request Cancelled',
       `The rental request for "${listing?.title || 'an item'}" has been cancelled by ${senderName}.`,
-      request._id
+      request.id
     );
 
     return res.json({
       success: true,
       message: 'Rental request cancelled successfully',
-      request,
+      request: {
+        _id: updated.id,
+        status: updated.status,
+      },
     });
   } catch (error) {
     return next(error);
@@ -465,13 +678,17 @@ export const handoverRentalRequest = async (req: CustomRequest, res: Response, n
       throw new CustomError('Handover OTP code is required', 400, 'OTP_REQUIRED');
     }
 
-    const request = await RentalRequest.findById(req.params.id);
+    const { data: request } = await supabase
+      .from('rental_requests')
+      .select('*')
+      .eq('id', req.params.id)
+      .maybeSingle();
+
     if (!request) {
       throw new CustomError('Rental request not found', 404, 'NOT_FOUND');
     }
 
-    // Handover should be initiated/confirmed by the owner
-    if (request.owner.toString() !== req.user._id.toString()) {
+    if (request.owner_id !== req.user._id) {
       throw new CustomError('Only the owner can confirm handover/activation', 403, 'FORBIDDEN');
     }
 
@@ -479,50 +696,56 @@ export const handoverRentalRequest = async (req: CustomRequest, res: Response, n
       throw new CustomError(`Handover cannot be confirmed for status "${request.status}"`, 400, 'INVALID_TRANSITION');
     }
 
-    if (request.handoverOTP !== otp) {
+    if (request.handover_otp !== otp) {
       throw new CustomError('Invalid handover verification code (OTP). Please check with the renter.', 400, 'INVALID_OTP');
     }
 
-    const listing = await Listing.findById(request.listing);
+    const { data: listing } = await supabase
+      .from('listings')
+      .select('*')
+      .eq('id', request.listing_id)
+      .maybeSingle();
+
     if (!listing) {
       throw new CustomError('Listing not found', 404, 'NOT_FOUND');
     }
 
-    const renterUser = await User.findById(request.renter);
-    if (!renterUser) {
-      throw new CustomError('Renter account not found', 404, 'NOT_FOUND');
-    }
-
-    // Calculate duration in days (minimum 1 day)
-    const durationMs = Math.max(1, request.endDate.getTime() - request.startDate.getTime());
+    const durationMs = Math.max(1, new Date(request.end_date).getTime() - new Date(request.start_date).getTime());
     const days = Math.ceil(durationMs / (1000 * 60 * 60 * 24));
-    const rentalFee = listing.rentalPrice * days;
-    const securityDeposit = listing.securityDeposit;
-    const totalRequired = rentalFee + securityDeposit;
+    const rentalFee = Number(listing.rental_price) * days;
+    const securityDeposit = Number(listing.security_deposit);
 
-    request.heldDeposit = securityDeposit;
-    request.rentalPricePaid = rentalFee;
-    request.status = 'ACTIVE';
-    await request.save();
+    const { data: updated } = await supabase
+      .from('rental_requests')
+      .update({
+        held_deposit: securityDeposit,
+        rental_price_paid: rentalFee,
+        status: 'ACTIVE',
+      })
+      .eq('id', request.id)
+      .select()
+      .single();
 
-    if (listing) {
-      listing.status = 'RENTED';
-      await listing.save();
-    }
+    await supabase
+      .from('listings')
+      .update({ status: 'RENTED' })
+      .eq('id', request.listing_id);
 
-    // Notify renter
     await createNotification(
-      request.renter,
+      request.renter_id,
       'RENTAL_REMINDER',
       'Rental Active (Handover Confirmed)',
       `Handover for "${listing?.title || 'your item'}" is confirmed. Your rental is now ACTIVE!`,
-      request._id
+      request.id
     );
 
     return res.json({
       success: true,
       message: 'Rental is now ACTIVE',
-      request,
+      request: {
+        _id: updated.id,
+        status: updated.status,
+      },
     });
   } catch (error) {
     return next(error);
@@ -535,13 +758,17 @@ export const completeRentalRequest = async (req: CustomRequest, res: Response, n
       throw new CustomError('Authentication required', 401, 'UNAUTHORIZED');
     }
 
-    const request = await RentalRequest.findById(req.params.id);
+    const { data: request } = await supabase
+      .from('rental_requests')
+      .select('*')
+      .eq('id', req.params.id)
+      .maybeSingle();
+
     if (!request) {
       throw new CustomError('Rental request not found', 404, 'NOT_FOUND');
     }
 
-    // Completion is confirmed by owner when item is returned
-    if (request.owner.toString() !== req.user._id.toString()) {
+    if (request.owner_id !== req.user._id) {
       throw new CustomError('Only the owner can confirm rental completion', 403, 'FORBIDDEN');
     }
 
@@ -549,44 +776,56 @@ export const completeRentalRequest = async (req: CustomRequest, res: Response, n
       throw new CustomError(`Rental cannot be completed from status "${request.status}"`, 400, 'INVALID_TRANSITION');
     }
 
+    const { data: updated } = await supabase
+      .from('rental_requests')
+      .update({ status: 'COMPLETED' })
+      .eq('id', request.id)
+      .select()
+      .single();
 
-    request.status = 'COMPLETED';
-    await request.save();
+    // Increment completed rentals count for both users
+    const { data: ownerUser } = await supabase.from('users').select('completed_rentals').eq('id', request.owner_id).single();
+    await supabase.from('users').update({ completed_rentals: (ownerUser?.completed_rentals || 0) + 1 }).eq('id', request.owner_id);
 
-    // Increment completed rental stats on both users
-    await User.findByIdAndUpdate(request.owner, { $inc: { completedRentals: 1 } });
-    await User.findByIdAndUpdate(request.renter, { $inc: { completedRentals: 1 } });
+    const { data: renterUser } = await supabase.from('users').select('completed_rentals').eq('id', request.renter_id).single();
+    await supabase.from('users').update({ completed_rentals: (renterUser?.completed_rentals || 0) + 1 }).eq('id', request.renter_id);
 
-    // Restore listing availability and status to ACTIVE
-    const listing = await Listing.findById(request.listing);
-    if (listing) {
-      listing.status = 'ACTIVE';
-      listing.availability = true;
-      await listing.save();
-    }
+    // Restore listing availability
+    const { data: listing } = await supabase
+      .from('listings')
+      .update({
+        status: 'ACTIVE',
+        availability: true,
+      })
+      .eq('id', request.listing_id)
+      .select('title')
+      .single();
 
     // Notify renter
     await createNotification(
-      request.renter,
+      request.renter_id,
       'RENTAL_COMPLETED',
       'Rental Completed',
       `Your rental of "${listing?.title || 'the item'}" has been marked COMPLETED. Please write a review for the owner!`,
-      request._id
+      request.id
     );
 
     // Notify owner
     await createNotification(
-      request.owner,
+      request.owner_id,
       'RENTAL_COMPLETED',
       'Rental Completed',
       `You marked the rental of "${listing?.title || 'your item'}" as COMPLETED. Please rate the renter!`,
-      request._id
+      request.id
     );
 
     return res.json({
       success: true,
       message: 'Rental completed successfully',
-      request,
+      request: {
+        _id: updated.id,
+        status: updated.status,
+      },
     });
   } catch (error) {
     return next(error);

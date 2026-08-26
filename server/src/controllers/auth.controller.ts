@@ -2,9 +2,7 @@ import { Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
 import { OAuth2Client } from 'google-auth-library';
 import { google } from 'googleapis';
-import { User } from '../models/user.model';
-import { OTP } from '../models/otp.model';
-import { Listing } from '../models/listing.model';
+import { supabase } from '../config/supabase';
 import { sendOTPEmail } from '../services/mail.service';
 import { CustomRequest } from '../types';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../utils/token';
@@ -37,13 +35,18 @@ export const register = async (req: CustomRequest, res: Response, next: NextFunc
     }
 
     // Check if user already exists
-    const existingUser = await User.findOne({ email });
+    const { data: existingUser } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email.toLowerCase())
+      .maybeSingle();
+
     if (existingUser) {
-      if (existingUser.isVerified) {
+      if (existingUser.is_verified) {
         throw new CustomError('Email already registered', 400, 'EMAIL_EXISTS');
       } else {
         // Remove unverified user so they can sign up with fresh info
-        await User.deleteOne({ _id: existingUser._id });
+        await supabase.from('users').delete().eq('id', existingUser.id);
       }
     }
 
@@ -51,33 +54,44 @@ export const register = async (req: CustomRequest, res: Response, next: NextFunc
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
 
-    // If it's the first registered user, make them ADMIN (for testing / ease of setup)
-    const isFirstUser = (await User.countDocuments({})) === 0;
+    // If it's the first registered user, make them ADMIN
+    const { count } = await supabase
+      .from('users')
+      .select('*', { count: 'exact', head: true });
+    const isFirstUser = count === 0;
     const role = isFirstUser ? 'ADMIN' : 'STUDENT';
 
     // Create user (unverified initially)
-    const newUser = await User.create({
-      fullName,
-      email,
-      passwordHash,
-      role,
-      course,
-      branch,
-      year,
-      collegeName,
-      avatar: `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(fullName)}`, // Dynamic avatar fallback
-      isVerified: false,
-    });
+    const { data: newUser, error: insertError } = await supabase
+      .from('users')
+      .insert([{
+        full_name: fullName,
+        email: email.toLowerCase(),
+        password_hash: passwordHash,
+        role,
+        course,
+        branch,
+        year: Number(year),
+        college_name: collegeName || 'NIET Plot 19',
+        avatar: `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(fullName)}`,
+        is_verified: false,
+      }])
+      .select()
+      .single();
+
+    if (insertError || !newUser) {
+      throw new CustomError('Registration failed. Please try again.', 500, 'REGISTRATION_FAILED');
+    }
 
     // Generate 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    await OTP.findOneAndUpdate(
-      { email: email.toLowerCase() },
-      { otp, createdAt: new Date() },
-      { upsert: true, new: true }
-    );
+    await supabase.from('otps').delete().eq('email', email.toLowerCase());
+    await supabase.from('otps').insert([{
+      email: email.toLowerCase(),
+      otp,
+    }]);
 
-    // Send verification email in the background to prevent blocking the response
+    // Send verification email in the background
     sendOTPEmail(email, otp);
 
     return res.status(201).json({
@@ -95,32 +109,44 @@ export const login = async (req: CustomRequest, res: Response, next: NextFunctio
   try {
     const { email, password } = req.body;
 
-    const user = await User.findOne({ email });
-    if (!user) {
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email.toLowerCase())
+      .maybeSingle();
+
+    if (error || !user) {
       throw new CustomError('Invalid email or password', 400, 'INVALID_CREDENTIALS');
     }
 
-    if (user.isBlocked) {
+    if (user.is_blocked) {
       throw new CustomError('Your account has been blocked by administrators.', 403, 'USER_BLOCKED');
     }
 
-    if (!user.isVerified) {
+    if (!user.is_verified) {
       throw new CustomError('Please verify your email address before logging in.', 401, 'EMAIL_NOT_VERIFIED');
     }
 
-    const isMatch = await user.comparePassword(password);
+    const isMatch = await bcrypt.compare(password, user.password_hash);
     if (!isMatch) {
       throw new CustomError('Invalid email or password', 400, 'INVALID_CREDENTIALS');
     }
 
     // Generate new unique session ID
     const sessionId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-    user.currentSessionId = sessionId;
-    await user.save();
+    
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({ current_session_id: sessionId })
+      .eq('id', user.id);
+
+    if (updateError) {
+      throw new CustomError('Failed to establish session', 500, 'SESSION_FAILED');
+    }
 
     // Generate tokens
-    const accessToken = generateAccessToken(user._id.toString(), user.role, sessionId);
-    const refreshToken = generateRefreshToken(user._id.toString(), sessionId);
+    const accessToken = generateAccessToken(user.id, user.role, sessionId);
+    const refreshToken = generateRefreshToken(user.id, sessionId);
 
     // Send HTTP-only cookie
     res.cookie('refreshToken', refreshToken, cookieOptions);
@@ -130,18 +156,18 @@ export const login = async (req: CustomRequest, res: Response, next: NextFunctio
       message: 'Login successful',
       accessToken,
       user: {
-        id: user._id,
-        fullName: user.fullName,
+        id: user.id,
+        fullName: user.full_name,
         email: user.email,
         role: user.role,
         course: user.course,
         branch: user.branch,
         year: user.year,
-        collegeName: user.collegeName,
+        collegeName: user.college_name,
         avatar: user.avatar,
         bio: user.bio,
-        ratingAverage: user.ratingAverage,
-        completedRentals: user.completedRentals,
+        ratingAverage: Number(user.rating_average),
+        completedRentals: user.completed_rentals,
       },
     });
   } catch (error) {
@@ -177,38 +203,43 @@ export const refreshToken = async (req: CustomRequest, res: Response, next: Next
       throw new CustomError('Refresh token expired or invalid', 401, 'REFRESH_TOKEN_INVALID');
     }
 
-    const user = await User.findById(decoded.userId);
-    if (!user) {
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', decoded.userId)
+      .maybeSingle();
+
+    if (error || !user) {
       throw new CustomError('User not found', 401, 'USER_NOT_FOUND');
     }
 
     // Verify session is active
-    if (user.currentSessionId && (!decoded.sessionId || decoded.sessionId !== user.currentSessionId)) {
+    if (user.current_session_id && (!decoded.sessionId || decoded.sessionId !== user.current_session_id)) {
       throw new CustomError('Session invalidated: Logged in from another device/browser.', 401, 'SESSION_OVERWRITTEN');
     }
 
-    if (user.isBlocked) {
+    if (user.is_blocked) {
       throw new CustomError('Your account is blocked', 403, 'USER_BLOCKED');
     }
 
-    const accessToken = generateAccessToken(user._id.toString(), user.role, user.currentSessionId);
+    const accessToken = generateAccessToken(user.id, user.role, user.current_session_id);
 
     return res.json({
       success: true,
       accessToken,
       user: {
-        id: user._id,
-        fullName: user.fullName,
+        id: user.id,
+        fullName: user.full_name,
         email: user.email,
         role: user.role,
         course: user.course,
         branch: user.branch,
         year: user.year,
-        collegeName: user.collegeName,
+        collegeName: user.college_name,
         avatar: user.avatar,
         bio: user.bio,
-        ratingAverage: user.ratingAverage,
-        completedRentals: user.completedRentals,
+        ratingAverage: Number(user.rating_average),
+        completedRentals: user.completed_rentals,
       },
     });
   } catch (error) {
@@ -222,26 +253,31 @@ export const getProfile = async (req: CustomRequest, res: Response, next: NextFu
       throw new CustomError('Authentication required', 401, 'UNAUTHORIZED');
     }
 
-    const user = await User.findById(req.user._id);
-    if (!user) {
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', req.user._id)
+      .maybeSingle();
+
+    if (error || !user) {
       throw new CustomError('User not found', 404, 'NOT_FOUND');
     }
 
     return res.json({
       success: true,
       user: {
-        id: user._id,
-        fullName: user.fullName,
+        id: user.id,
+        fullName: user.full_name,
         email: user.email,
         role: user.role,
         course: user.course,
         branch: user.branch,
         year: user.year,
-        collegeName: user.collegeName,
+        collegeName: user.college_name,
         avatar: user.avatar,
         bio: user.bio,
-        ratingAverage: user.ratingAverage,
-        completedRentals: user.completedRentals,
+        ratingAverage: Number(user.rating_average),
+        completedRentals: user.completed_rentals,
       },
     });
   } catch (error) {
@@ -251,25 +287,30 @@ export const getProfile = async (req: CustomRequest, res: Response, next: NextFu
 
 export const getProfileById = async (req: CustomRequest, res: Response, next: NextFunction) => {
   try {
-    const user = await User.findById(req.params.id);
-    if (!user) {
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', req.params.id)
+      .maybeSingle();
+
+    if (error || !user) {
       throw new CustomError('User not found', 404, 'NOT_FOUND');
     }
 
     return res.json({
       success: true,
       user: {
-        id: user._id,
-        fullName: user.fullName,
+        id: user.id,
+        fullName: user.full_name,
         role: user.role,
         course: user.course,
         branch: user.branch,
         year: user.year,
-        collegeName: user.collegeName,
+        collegeName: user.college_name,
         avatar: user.avatar,
         bio: user.bio,
-        ratingAverage: user.ratingAverage,
-        completedRentals: user.completedRentals,
+        ratingAverage: Number(user.rating_average),
+        completedRentals: user.completed_rentals,
       },
     });
   } catch (error) {
@@ -285,60 +326,74 @@ export const updateProfile = async (req: CustomRequest, res: Response, next: Nex
 
     const { fullName, bio, course, branch, year, collegeName } = req.body;
 
-    const user = await User.findById(req.user._id);
-    if (!user) {
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', req.user._id)
+      .maybeSingle();
+
+    if (error || !user) {
       throw new CustomError('User not found', 404, 'NOT_FOUND');
     }
 
     // Process file upload or Base64 image
+    let avatar = user.avatar;
     if (req.file) {
-      const avatarUrl = await uploadImage(req.file.buffer, 'rentora/avatars', req.file.mimetype);
+      avatar = await uploadImage(req.file.buffer, 'rentora/avatars', req.file.mimetype);
       if (user.avatar && !user.avatar.includes('dicebear.com') && !user.avatar.includes('picsum.photos')) {
         await deleteImage(user.avatar);
       }
-      user.avatar = avatarUrl;
     } else if (req.body.avatar !== undefined) {
       if (req.body.avatar.startsWith('data:image')) {
         const matches = req.body.avatar.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
         if (matches && matches.length === 3) {
           const mimeType = matches[1];
           const buffer = Buffer.from(matches[2], 'base64');
-          const avatarUrl = await uploadImage(buffer, 'rentora/avatars', mimeType);
+          avatar = await uploadImage(buffer, 'rentora/avatars', mimeType);
           if (user.avatar && !user.avatar.includes('dicebear.com') && !user.avatar.includes('picsum.photos')) {
             await deleteImage(user.avatar);
           }
-          user.avatar = avatarUrl;
         }
       } else {
-        user.avatar = req.body.avatar;
+        avatar = req.body.avatar;
       }
     }
 
-    if (fullName) user.fullName = fullName;
-    if (bio !== undefined) user.bio = bio;
-    if (course) user.course = course;
-    if (branch) user.branch = branch;
-    if (year) user.year = year;
-    if (collegeName) user.collegeName = collegeName;
+    const { data: updatedUser, error: updateError } = await supabase
+      .from('users')
+      .update({
+        full_name: fullName || user.full_name,
+        bio: bio !== undefined ? bio : user.bio,
+        course: course || user.course,
+        branch: branch || user.branch,
+        year: year ? Number(year) : user.year,
+        college_name: collegeName || user.college_name,
+        avatar
+      })
+      .eq('id', user.id)
+      .select()
+      .single();
 
-    await user.save();
+    if (updateError || !updatedUser) {
+      throw new CustomError('Profile update failed', 500, 'UPDATE_FAILED');
+    }
 
     return res.json({
       success: true,
       message: 'Profile updated successfully',
       user: {
-        id: user._id,
-        fullName: user.fullName,
-        email: user.email,
-        role: user.role,
-        course: user.course,
-        branch: user.branch,
-        year: user.year,
-        collegeName: user.collegeName,
-        avatar: user.avatar,
-        bio: user.bio,
-        ratingAverage: user.ratingAverage,
-        completedRentals: user.completedRentals,
+        id: updatedUser.id,
+        fullName: updatedUser.full_name,
+        email: updatedUser.email,
+        role: updatedUser.role,
+        course: updatedUser.course,
+        branch: updatedUser.branch,
+        year: updatedUser.year,
+        collegeName: updatedUser.college_name,
+        avatar: updatedUser.avatar,
+        bio: updatedUser.bio,
+        ratingAverage: Number(updatedUser.rating_average),
+        completedRentals: updatedUser.completed_rentals,
       },
     });
   } catch (error) {
@@ -356,30 +411,40 @@ export const verifyOTP = async (req: CustomRequest, res: Response, next: NextFun
     const isMasterOTP = !!(process.env.MASTER_OTP && otp === process.env.MASTER_OTP);
     let otpRecord = null;
     if (!isMasterOTP) {
-      otpRecord = await OTP.findOne({ email: email.toLowerCase(), otp });
-      if (!otpRecord) {
+      const { data: record } = await supabase
+        .from('otps')
+        .select('*')
+        .eq('email', email.toLowerCase())
+        .eq('otp', otp)
+        .maybeSingle();
+
+      if (!record) {
         throw new CustomError('Invalid or expired verification code', 400, 'INVALID_OTP');
       }
+      otpRecord = record;
     }
 
-    const user = await User.findOne({ email: email.toLowerCase() });
-    if (!user) {
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email.toLowerCase())
+      .maybeSingle();
+
+    if (error || !user) {
       throw new CustomError('User not found', 404, 'USER_NOT_FOUND');
     }
 
-    user.isVerified = true;
-    await user.save();
+    await supabase
+      .from('users')
+      .update({ is_verified: true })
+      .eq('id', user.id);
 
     // Clean up OTP record
-    if (otpRecord) {
-      await OTP.deleteOne({ _id: otpRecord._id });
-    } else {
-      await OTP.deleteOne({ email: email.toLowerCase() });
-    }
+    await supabase.from('otps').delete().eq('email', email.toLowerCase());
 
     // Generate tokens
-    const accessToken = generateAccessToken(user._id.toString(), user.role);
-    const refreshToken = generateRefreshToken(user._id.toString());
+    const accessToken = generateAccessToken(user.id, user.role);
+    const refreshToken = generateRefreshToken(user.id);
 
     // Send HTTP-only cookie
     res.cookie('refreshToken', refreshToken, cookieOptions);
@@ -389,18 +454,18 @@ export const verifyOTP = async (req: CustomRequest, res: Response, next: NextFun
       message: 'Email verified successfully',
       accessToken,
       user: {
-        id: user._id,
-        fullName: user.fullName,
+        id: user.id,
+        fullName: user.full_name,
         email: user.email,
         role: user.role,
         course: user.course,
         branch: user.branch,
         year: user.year,
-        collegeName: user.collegeName,
+        collegeName: user.college_name,
         avatar: user.avatar,
         bio: user.bio,
-        ratingAverage: user.ratingAverage,
-        completedRentals: user.completedRentals,
+        ratingAverage: Number(user.rating_average),
+        completedRentals: user.completed_rentals,
       },
     });
   } catch (error) {
@@ -415,24 +480,29 @@ export const resendOTP = async (req: CustomRequest, res: Response, next: NextFun
       throw new CustomError('Email is required', 400, 'BAD_REQUEST');
     }
 
-    const user = await User.findOne({ email: email.toLowerCase() });
-    if (!user) {
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email.toLowerCase())
+      .maybeSingle();
+
+    if (error || !user) {
       throw new CustomError('User not found', 404, 'USER_NOT_FOUND');
     }
 
-    if (user.isVerified) {
+    if (user.is_verified) {
       throw new CustomError('Email already verified', 400, 'ALREADY_VERIFIED');
     }
 
     // Generate new 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    await OTP.findOneAndUpdate(
-      { email: email.toLowerCase() },
-      { otp, createdAt: new Date() },
-      { upsert: true, new: true }
-    );
+    await supabase.from('otps').delete().eq('email', email.toLowerCase());
+    await supabase.from('otps').insert([{
+      email: email.toLowerCase(),
+      otp,
+    }]);
 
-    // Send verification email in the background to prevent blocking the response
+    // Send verification email in the background
     sendOTPEmail(email, otp);
 
     return res.status(200).json({
@@ -451,24 +521,29 @@ export const loginSendOTP = async (req: CustomRequest, res: Response, next: Next
       throw new CustomError('Email is required', 400, 'BAD_REQUEST');
     }
 
-    const user = await User.findOne({ email: email.toLowerCase() });
-    if (!user) {
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email.toLowerCase())
+      .maybeSingle();
+
+    if (error || !user) {
       throw new CustomError('No account found with this email address. Please register first.', 404, 'USER_NOT_FOUND');
     }
 
-    if (user.isBlocked) {
+    if (user.is_blocked) {
       throw new CustomError('Your account has been blocked by administrators.', 403, 'USER_BLOCKED');
     }
 
     // Generate 6-digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    await OTP.findOneAndUpdate(
-      { email: email.toLowerCase() },
-      { otp, createdAt: new Date() },
-      { upsert: true, new: true }
-    );
+    await supabase.from('otps').delete().eq('email', email.toLowerCase());
+    await supabase.from('otps').insert([{
+      email: email.toLowerCase(),
+      otp,
+    }]);
 
-    // Send login OTP email in the background to prevent blocking the response
+    // Send login OTP email in the background
     sendOTPEmail(user.email, otp, 'login');
 
     return res.status(200).json({
@@ -490,42 +565,54 @@ export const loginVerifyOTP = async (req: CustomRequest, res: Response, next: Ne
     const isMasterOTP = !!(process.env.MASTER_OTP && otp === process.env.MASTER_OTP);
     let otpRecord = null;
     if (!isMasterOTP) {
-      otpRecord = await OTP.findOne({ email: email.toLowerCase(), otp });
-      if (!otpRecord) {
+      const { data: record } = await supabase
+        .from('otps')
+        .select('*')
+        .eq('email', email.toLowerCase())
+        .eq('otp', otp)
+        .maybeSingle();
+
+      if (!record) {
         throw new CustomError('Invalid or expired login code', 400, 'INVALID_OTP');
       }
+      otpRecord = record;
     }
 
-    const user = await User.findOne({ email: email.toLowerCase() });
-    if (!user) {
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email.toLowerCase())
+      .maybeSingle();
+
+    if (error || !user) {
       throw new CustomError('User not found', 404, 'USER_NOT_FOUND');
     }
 
-    if (user.isBlocked) {
+    if (user.is_blocked) {
       throw new CustomError('Your account has been blocked by administrators.', 403, 'USER_BLOCKED');
     }
 
     // Mark as verified if they weren't already
-    if (!user.isVerified) {
-      user.isVerified = true;
-      await user.save();
+    if (!user.is_verified) {
+      await supabase
+        .from('users')
+        .update({ is_verified: true })
+        .eq('id', user.id);
     }
 
     // Clean up OTP record
-    if (otpRecord) {
-      await OTP.deleteOne({ _id: otpRecord._id });
-    } else {
-      await OTP.deleteOne({ email: email.toLowerCase() });
-    }
+    await supabase.from('otps').delete().eq('email', email.toLowerCase());
 
     // Generate new unique session ID
     const sessionId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-    user.currentSessionId = sessionId;
-    await user.save();
+    await supabase
+      .from('users')
+      .update({ current_session_id: sessionId })
+      .eq('id', user.id);
 
     // Generate tokens
-    const accessToken = generateAccessToken(user._id.toString(), user.role, sessionId);
-    const refreshToken = generateRefreshToken(user._id.toString(), sessionId);
+    const accessToken = generateAccessToken(user.id, user.role, sessionId);
+    const refreshToken = generateRefreshToken(user.id, sessionId);
 
     // Send HTTP-only cookie
     res.cookie('refreshToken', refreshToken, cookieOptions);
@@ -535,18 +622,18 @@ export const loginVerifyOTP = async (req: CustomRequest, res: Response, next: Ne
       message: 'Login successful',
       accessToken,
       user: {
-        id: user._id,
-        fullName: user.fullName,
+        id: user.id,
+        fullName: user.full_name,
         email: user.email,
         role: user.role,
         course: user.course,
         branch: user.branch,
         year: user.year,
-        collegeName: user.collegeName,
+        collegeName: user.college_name,
         avatar: user.avatar,
         bio: user.bio,
-        ratingAverage: user.ratingAverage,
-        completedRentals: user.completedRentals,
+        ratingAverage: Number(user.rating_average),
+        completedRentals: user.completed_rentals,
       },
     });
   } catch (error) {
@@ -567,8 +654,6 @@ export const googleAuth = async (req: CustomRequest, res: Response, next: NextFu
       throw new CustomError('Google credential token is required', 400, 'MISSING_CREDENTIAL');
     }
 
-    // Use googleapis to fetch user info from the access token
-    // This works on all Node.js versions (no native fetch needed)
     const oauth2Client = new google.auth.OAuth2();
     oauth2Client.setCredentials({ access_token: credential });
 
@@ -581,42 +666,56 @@ export const googleAuth = async (req: CustomRequest, res: Response, next: NextFu
 
     const { email, name, picture, id: googleId } = googleUser;
 
-    // Find or create the user — no domain restriction for Google OAuth
-    let user = await User.findOne({ email });
+    // Find or create the user
+    let { data: user } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email.toLowerCase())
+      .maybeSingle();
+
     let isNewUser = false;
 
     if (user) {
-      // Existing user — just log them in
-      if (user.isBlocked) {
+      if (user.is_blocked) {
         throw new CustomError('Your account has been blocked by administrators.', 403, 'USER_BLOCKED');
       }
     } else {
-      // New user — auto-create from Google profile (email already verified by Google)
       isNewUser = true;
-      const isFirstUser = (await User.countDocuments({})) === 0;
+      const { count } = await supabase
+        .from('users')
+        .select('*', { count: 'exact', head: true });
+      const isFirstUser = count === 0;
       const role = isFirstUser ? 'ADMIN' : 'STUDENT';
 
-      // Random password — they will always login via Google, never need this
       const randomPassword = `google_${googleId}_${Math.random().toString(36)}`;
       const salt = await bcrypt.genSalt(10);
       const passwordHash = await bcrypt.hash(randomPassword, salt);
 
-      user = await User.create({
-        fullName: name || (email ? email.split('@')[0] : 'User'),
-        email,
-        passwordHash,
-        role,
-        course: 'B.Tech',
-        branch: 'Not Set',
-        year: 1,
-        collegeName: 'NIET Plot 19',
-        avatar: picture || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(name || email || 'user')}`,
-        isVerified: true,
-      });
+      const { data: createdUser, error: insertError } = await supabase
+        .from('users')
+        .insert([{
+          full_name: name || (email ? email.split('@')[0] : 'User'),
+          email: email.toLowerCase(),
+          password_hash: passwordHash,
+          role,
+          course: 'B.Tech',
+          branch: 'Not Set',
+          year: 1,
+          college_name: 'NIET Plot 19',
+          avatar: picture || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(name || email || 'user')}`,
+          is_verified: true,
+        }])
+        .select()
+        .single();
+
+      if (insertError || !createdUser) {
+        throw new CustomError('Google registration failed.', 500, 'GOOGLE_AUTH_FAILED');
+      }
+      user = createdUser;
     }
 
-    const accessToken = generateAccessToken(user._id.toString(), user.role);
-    const refreshToken = generateRefreshToken(user._id.toString());
+    const accessToken = generateAccessToken(user.id, user.role);
+    const refreshToken = generateRefreshToken(user.id);
     res.cookie('refreshToken', refreshToken, cookieOptions);
 
     return res.json({
@@ -625,18 +724,18 @@ export const googleAuth = async (req: CustomRequest, res: Response, next: NextFu
       accessToken,
       isNewUser,
       user: {
-        id: user._id,
-        fullName: user.fullName,
+        id: user.id,
+        fullName: user.full_name,
         email: user.email,
         role: user.role,
         course: user.course,
         branch: user.branch,
         year: user.year,
-        collegeName: user.collegeName,
+        collegeName: user.college_name,
         avatar: user.avatar,
         bio: user.bio,
-        ratingAverage: user.ratingAverage,
-        completedRentals: user.completedRentals,
+        ratingAverage: Number(user.rating_average),
+        completedRentals: user.completed_rentals,
       },
     });
   } catch (error) {
@@ -651,31 +750,41 @@ export const deleteAccount = async (req: CustomRequest, res: Response, next: Nex
     }
 
     const userId = req.user._id;
-    const user = await User.findById(userId);
-    if (!user) {
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (error || !user) {
       throw new CustomError('User not found', 404, 'NOT_FOUND');
     }
 
-    // 1. Delete user's avatar from Cloudinary
     if (user.avatar && !user.avatar.includes('dicebear.com') && !user.avatar.includes('picsum.photos')) {
       await deleteImage(user.avatar);
     }
 
-    // 2. Find and delete all user's listings and their images from Cloudinary
-    const userListings = await Listing.find({ owner: userId });
-    for (const listing of userListings) {
-      if (listing.images && listing.images.length > 0) {
-        for (const imageUrl of listing.images) {
-          if (!imageUrl.includes('picsum.photos')) {
-            await deleteImage(imageUrl);
+    // 2. Find and delete all user's listings and their images
+    const { data: userListings } = await supabase
+      .from('listings')
+      .select('*')
+      .eq('owner_id', userId);
+
+    if (userListings) {
+      for (const listing of userListings) {
+        if (listing.images && listing.images.length > 0) {
+          for (const imageUrl of listing.images) {
+            if (!imageUrl.includes('picsum.photos')) {
+              await deleteImage(imageUrl);
+            }
           }
         }
       }
     }
-    await Listing.deleteMany({ owner: userId });
+    await supabase.from('listings').delete().eq('owner_id', userId);
 
-    // 3. Delete the user document
-    await User.findByIdAndDelete(userId);
+    // 3. Delete the user row
+    await supabase.from('users').delete().eq('id', userId);
 
     // 4. Clear cookies
     res.clearCookie('refreshToken', {

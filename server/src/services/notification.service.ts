@@ -1,4 +1,4 @@
-import { Notification } from '../models/notification.model';
+import { supabase } from '../config/supabase';
 import { getIO, getSocketIdByUser } from './socket.service';
 import logger from '../utils/logger';
 
@@ -13,13 +13,23 @@ export const createNotification = async (
   relatedId?: string | Object
 ) => {
   try {
-    const notification = await Notification.create({
-      user: userId,
-      type,
-      title,
-      message,
-      relatedId,
-    });
+    const { data: notification, error } = await supabase
+      .from('notifications')
+      .insert([{
+        user_id: userId.toString(),
+        type,
+        title,
+        message,
+        target_id: relatedId ? relatedId.toString() : null,
+        is_read: false,
+      }])
+      .select()
+      .single();
+
+    if (error || !notification) {
+      logger.error('[Notification Service] Error creating notification:', error);
+      return null;
+    }
 
     // Attempt to push real-time socket notification
     const io = getIO();
@@ -27,13 +37,13 @@ export const createNotification = async (
       const socketId = getSocketIdByUser(userId.toString());
       if (socketId) {
         io.to(socketId).emit('newNotification', {
-          id: notification._id,
+          id: notification.id,
           type: notification.type,
           title: notification.title,
           message: notification.message,
-          relatedId: notification.relatedId,
-          isRead: notification.isRead,
-          createdAt: notification.createdAt,
+          relatedId: notification.target_id,
+          isRead: notification.is_read,
+          createdAt: notification.created_at,
         });
         logger.info(`[Notification Service] Dispatched live socket notification to user: ${userId}`);
       }

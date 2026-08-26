@@ -19,7 +19,7 @@ const categoriesData = [
 
 const seed = async () => {
   try {
-    await mongoose.connect(config.MONGODB_URI, {
+    await mongoose.connect(config.MONGODB_URI || '', {
       serverSelectionTimeoutMS: 30000,
     });
     console.log('[Seed Script] Connected. Cleaning collections...');

@@ -1,6 +1,5 @@
 import { Server as HttpServer } from 'http';
 import { Server as SocketIOServer, Socket } from 'socket.io';
-import { Conversation } from '../models/chat.model';
 import logger from '../utils/logger';
 
 let io: SocketIOServer | null = null;

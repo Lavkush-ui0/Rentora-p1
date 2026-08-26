@@ -1,19 +1,35 @@
 import { Router } from 'express';
-import { Category } from '../models/category.model';
+import { supabase } from '../config/supabase';
 
 const router = Router();
 
 /**
  * GET /categories
  * Public endpoint — returns all active categories.
- * Used by Explore and ListItem pages for any logged-in or anonymous user.
  */
 router.get('/', async (req, res, next) => {
   try {
-    const categories = await Category.find({}).sort({ name: 1 });
+    const { data: categories, error } = await supabase
+      .from('categories')
+      .select('*')
+      .order('name');
+
+    if (error || !categories) {
+      return res.status(500).json({ success: false, message: 'Failed to fetch categories' });
+    }
+
+    const formatted = categories.map((c: any) => ({
+      _id: c.id,
+      name: c.name,
+      slug: c.slug,
+      description: c.description,
+      icon: c.icon,
+      isActive: c.is_active,
+    }));
+
     return res.json({
       success: true,
-      categories,
+      categories: formatted,
     });
   } catch (error) {
     return next(error);

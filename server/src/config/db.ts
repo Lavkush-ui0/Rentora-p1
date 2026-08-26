@@ -5,7 +5,7 @@ import { Listing } from '../models/listing.model';
 
 export const connectDB = async (): Promise<void> => {
   try {
-    const conn = await mongoose.connect(config.MONGODB_URI, {
+    const conn = await mongoose.connect(config.MONGODB_URI || '', {
       serverSelectionTimeoutMS: 30000,
     });
     logger.info(`MongoDB Connected: ${conn.connection.host}`);

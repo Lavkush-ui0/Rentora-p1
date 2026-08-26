@@ -1,9 +1,6 @@
 import { Response, NextFunction } from 'express';
-import { Listing } from '../models/listing.model';
-import { Category } from '../models/category.model';
-import { User } from '../models/user.model';
+import { supabase } from '../config/supabase';
 import { CustomRequest } from '../types';
-import { RentalRequest } from '../models/rentalRequest.model';
 import { uploadImage, deleteImage } from '../services/image.service';
 import CustomError from '../utils/customError';
 import { clearHomepageCache } from './discovery.controller';
@@ -19,25 +16,34 @@ export const createListing = async (req: CustomRequest, res: Response, next: Nex
     // Enforce daily listing limits: max 2 products per day and check if rejected today
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
     
-    const dailyCount = await Listing.countDocuments({
-      owner: req.user._id,
-      createdAt: { $gte: oneDayAgo }
-    });
-    if (dailyCount >= 2) {
+    const { count: dailyCount, error: countErr } = await supabase
+      .from('listings')
+      .select('*', { count: 'exact', head: true })
+      .eq('owner_id', req.user._id)
+      .gte('created_at', oneDayAgo.toISOString());
+
+    if (dailyCount !== null && dailyCount >= 2) {
       throw new CustomError('You can only list up to 2 products per day.', 400, 'DAILY_LIMIT_EXCEEDED');
     }
 
-    const rejectedToday = await Listing.countDocuments({
-      owner: req.user._id,
-      approvalStatus: 'REJECTED',
-      updatedAt: { $gte: oneDayAgo }
-    });
-    if (rejectedToday > 0) {
+    const { count: rejectedToday } = await supabase
+      .from('listings')
+      .select('*', { count: 'exact', head: true })
+      .eq('owner_id', req.user._id)
+      .eq('approval_status', 'REJECTED')
+      .gte('updated_at', oneDayAgo.toISOString());
+
+    if (rejectedToday !== null && rejectedToday > 0) {
       throw new CustomError('Your listing was rejected today. Please try again tomorrow.', 400, 'REJECTED_COOLDOWN');
     }
 
     // Verify category exists
-    const categoryExists = await Category.findById(category);
+    const { data: categoryExists } = await supabase
+      .from('categories')
+      .select('*')
+      .eq('id', category)
+      .maybeSingle();
+
     if (!categoryExists) {
       throw new CustomError('Invalid category ID', 400, 'INVALID_CATEGORY');
     }
@@ -68,31 +74,55 @@ export const createListing = async (req: CustomRequest, res: Response, next: Nex
     const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip;
     const postIpAddress = Array.isArray(clientIp) ? clientIp[0] : clientIp;
 
-    const newListing = await Listing.create({
-      owner: req.user._id,
-      title,
-      slug: uniqueSlug,
-      description,
-      category,
-      images: imageUrls,
-      condition,
-      rentalPrice,
-      priceUnit,
-      securityDeposit: securityDeposit || 0,
-      availability: false,
-      status: 'PAUSED',
-      approvalStatus: 'PENDING',
-      location: location || (req.user as any).collegeName || 'NIET Plot 19',
-      postIpAddress,
-      postCoordinates: latitude && longitude ? { latitude: Number(latitude), longitude: Number(longitude) } : undefined,
-    });
+    const { data: newListing, error: insertError } = await supabase
+      .from('listings')
+      .insert([{
+        owner_id: req.user._id,
+        title,
+        slug: uniqueSlug,
+        description,
+        category_id: category,
+        images: imageUrls,
+        condition,
+        rental_price: Number(rentalPrice),
+        price_unit: priceUnit,
+        security_deposit: Number(securityDeposit || 0),
+        availability: false,
+        status: 'PAUSED',
+        approval_status: 'PENDING',
+        location: location || req.user.collegeName || 'NIET Plot 19',
+        post_ip_address: postIpAddress,
+        latitude: latitude ? Number(latitude) : null,
+        longitude: longitude ? Number(longitude) : null,
+      }])
+      .select()
+      .single();
+
+    if (insertError || !newListing) {
+      throw new CustomError('Failed to create listing in database.', 500, 'CREATE_FAILED');
+    }
 
     clearHomepageCache();
 
     return res.status(201).json({
       success: true,
       message: 'Listing submitted for admin approval! It will be visible once approved.',
-      listing: newListing,
+      listing: {
+        _id: newListing.id,
+        owner: newListing.owner_id,
+        title: newListing.title,
+        slug: newListing.slug,
+        description: newListing.description,
+        images: newListing.images,
+        condition: newListing.condition,
+        rentalPrice: Number(newListing.rental_price),
+        priceUnit: newListing.price_unit,
+        securityDeposit: Number(newListing.security_deposit),
+        availability: newListing.availability,
+        status: newListing.status,
+        approvalStatus: newListing.approval_status,
+        location: newListing.location,
+      },
     });
   } catch (error) {
     return next(error);
@@ -105,101 +135,140 @@ export const getListings = async (req: CustomRequest, res: Response, next: NextF
 
     const pageNum = parseInt(page) || 1;
     const limitNum = parseInt(limit) || 10;
-    const skip = (pageNum - 1) * limitNum;
+    const fromRange = (pageNum - 1) * limitNum;
+    const toRange = fromRange + limitNum - 1;
 
-    const filter: any = {};
+    let query = supabase
+      .from('listings')
+      .select('*, owner:owner_id (id, full_name, avatar, rating_average), category:category_id (id, name, slug)', { count: 'exact' });
 
-    // Filter by owner if provided
+    // Filter by owner
     if (owner) {
-      filter.owner = owner;
-      // Owners can see all their listings regardless of approval status
-      // (approvalStatus filter will not be applied below for owner queries)
-    }
-    
-    // Filter by location if provided
-    if (location && location !== 'All') {
-      filter.location = location;
+      query = query.eq('owner_id', owner);
     }
 
-    // Category filter by ID, slug, or name
+    // Filter by location
+    if (location && location !== 'All') {
+      query = query.eq('location', location);
+    }
+
+    // Filter by category (uuid or slug/name lookup)
     if (category && typeof category === 'string' && category.trim()) {
       const cleanCat = category.trim();
-      if (cleanCat.match(/^[0-9a-fA-F]{24}$/)) {
-        filter.category = cleanCat;
+      const isUUID = cleanCat.match(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/);
+      if (isUUID) {
+        query = query.eq('category_id', cleanCat);
       } else {
-        const foundCat = await Category.findOne({
-          $or: [{ slug: cleanCat }, { name: new RegExp(`^${cleanCat}$`, 'i') }],
-        }).select('_id').lean();
-        if (foundCat) {
-          filter.category = foundCat._id;
+        const { data: catRecord } = await supabase
+          .from('categories')
+          .select('id')
+          .or(`slug.eq.${cleanCat},name.ilike.${cleanCat}`)
+          .maybeSingle();
+
+        if (catRecord) {
+          query = query.eq('category_id', catRecord.id);
         }
       }
     }
-    if (condition) filter.condition = condition;
-    if (priceUnit) filter.priceUnit = priceUnit;
-    
-    // Default to ACTIVE listings unless querying specific status
-    filter.status = status || 'ACTIVE';
 
-    // For public/explore queries (no specific owner), only show APPROVED listings
-    // Owner queries show all their own listings regardless of approval
+    if (condition) query = query.eq('condition', condition);
+    if (priceUnit) query = query.eq('price_unit', priceUnit);
+
+    // Default status ACTIVE
+    query = query.eq('status', status || 'ACTIVE');
+
+    // If not owner query, only show APPROVED
     if (!owner) {
-      filter.approvalStatus = 'APPROVED';
+      query = query.eq('approval_status', 'APPROVED');
     }
 
     // Price filters
-    if (minPrice !== undefined || maxPrice !== undefined) {
-      filter.rentalPrice = {};
-      if (minPrice !== undefined) filter.rentalPrice.$gte = parseFloat(minPrice);
-      if (maxPrice !== undefined) filter.rentalPrice.$lte = parseFloat(maxPrice);
-    }
+    if (minPrice !== undefined) query = query.gte('rental_price', parseFloat(minPrice));
+    if (maxPrice !== undefined) query = query.lte('rental_price', parseFloat(maxPrice));
 
     // Full text search
     if (search) {
-      filter.$text = { $search: search };
+      query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%`);
     }
 
     // Sorting
-    let sortQuery: any = { createdAt: -1 }; // default newest
+    let sortCol = 'created_at';
+    let ascending = false;
     if (sort) {
       switch (sort) {
         case 'price_asc':
-          sortQuery = { rentalPrice: 1 };
+          sortCol = 'rental_price';
+          ascending = true;
           break;
         case 'price_desc':
-          sortQuery = { rentalPrice: -1 };
+          sortCol = 'rental_price';
+          ascending = false;
           break;
         case 'newest':
-          sortQuery = { createdAt: -1 };
+          sortCol = 'created_at';
+          ascending = false;
           break;
         case 'popular':
-          sortQuery = { viewCount: -1 };
+          sortCol = 'view_count';
+          ascending = false;
           break;
         case 'trending':
-          sortQuery = { requestCount: -1, createdAt: -1 };
+          sortCol = 'request_count';
+          ascending = false;
           break;
       }
     }
+    query = query.order(sortCol, { ascending }).range(fromRange, toRange);
 
-    const [listings, total] = await Promise.all([
-      Listing.find(filter)
-        .sort(sortQuery)
-        .skip(skip)
-        .limit(limitNum)
-        .populate('owner', 'fullName avatar ratingAverage')
-        .populate('category', 'name slug')
-        .lean(),
-      Listing.countDocuments(filter),
-    ]);
+    const { data: dbListings, count: total, error: queryErr } = await query;
+    if (queryErr || !dbListings) {
+      throw new CustomError('Failed to fetch listings catalog.', 500, 'FETCH_FAILED');
+    }
+
+    const totalCount = total || 0;
+
+    const formattedListings = dbListings.map((l: any) => ({
+      _id: l.id,
+      owner: l.owner ? {
+        _id: l.owner.id,
+        fullName: l.owner.full_name,
+        avatar: l.owner.avatar,
+        ratingAverage: Number(l.owner.rating_average)
+      } : null,
+      category: l.category ? {
+        _id: l.category.id,
+        name: l.category.name,
+        slug: l.category.slug
+      } : null,
+      title: l.title,
+      slug: l.slug,
+      description: l.description,
+      images: l.images,
+      condition: l.condition,
+      rentalPrice: Number(l.rental_price),
+      priceUnit: l.price_unit,
+      securityDeposit: Number(l.security_deposit),
+      availability: l.availability,
+      status: l.status,
+      approvalStatus: l.approval_status,
+      location: l.location,
+      requestCount: l.request_count,
+      submissionCount: l.submission_count,
+      viewCount: l.view_count,
+      postIpAddress: l.post_ip_address,
+      postCoordinates: { latitude: l.latitude, longitude: l.longitude },
+      createdAt: l.created_at,
+      updatedAt: l.updated_at
+    }));
 
     return res.json({
       success: true,
-      listings,
+      listings: formattedListings,
       pagination: {
-        total,
+        total: totalCount,
         page: pageNum,
         limit: limitNum,
-        totalPages: Math.ceil(total / limitNum),
+        totalPages: Math.ceil(totalCount / limitNum),
       },
     });
   } catch (error) {
@@ -209,27 +278,71 @@ export const getListings = async (req: CustomRequest, res: Response, next: NextF
 
 export const getListingById = async (req: CustomRequest, res: Response, next: NextFunction) => {
   try {
-    const listing = await Listing.findById(req.params.id)
-      .populate('owner', 'fullName avatar ratingAverage ratingCount completedRentals bio createdAt')
-      .populate('category', 'name slug');
+    const { data: l, error } = await supabase
+      .from('listings')
+      .select('*, owner:owner_id (id, full_name, email, avatar, rating_average, rating_count, completed_rentals, bio, created_at), category:category_id (id, name, slug)')
+      .eq('id', req.params.id)
+      .maybeSingle();
 
-    if (!listing) {
+    if (error || !l) {
       throw new CustomError('Listing not found', 404, 'NOT_FOUND');
     }
 
+    const formattedListing = {
+      _id: l.id,
+      owner: l.owner ? {
+        _id: l.owner.id,
+        fullName: l.owner.full_name,
+        email: l.owner.email,
+        avatar: l.owner.avatar,
+        bio: l.owner.bio,
+        ratingAverage: Number(l.owner.rating_average),
+        ratingCount: l.owner.rating_count,
+        completedRentals: l.owner.completed_rentals,
+        createdAt: l.owner.created_at
+      } : null,
+      category: l.category ? {
+        _id: l.category.id,
+        name: l.category.name,
+        slug: l.category.slug
+      } : null,
+      title: l.title,
+      slug: l.slug,
+      description: l.description,
+      images: l.images,
+      condition: l.condition,
+      rentalPrice: Number(l.rental_price),
+      priceUnit: l.price_unit,
+      securityDeposit: Number(l.security_deposit),
+      availability: l.availability,
+      status: l.status,
+      approvalStatus: l.approval_status,
+      location: l.location,
+      requestCount: l.request_count,
+      submissionCount: l.submission_count,
+      viewCount: l.view_count,
+      postIpAddress: l.post_ip_address,
+      postCoordinates: { latitude: l.latitude, longitude: l.longitude },
+      createdAt: l.created_at,
+      updatedAt: l.updated_at
+    };
+
     // Find active bookings to block out dates in calendar
-    const activeRentals = await RentalRequest.find({
-      listing: listing._id,
-      status: { $in: ['ACCEPTED', 'ACTIVE'] },
-    }).select('startDate endDate');
+    const { data: bookings } = await supabase
+      .from('rental_requests')
+      .select('start_date, end_date')
+      .eq('listing_id', formattedListing._id)
+      .in('status', ['APPROVED', 'ACTIVE']);
+
+    const blockedDates = bookings ? bookings.map((r: any) => ({
+      start: r.start_date,
+      end: r.end_date
+    })) : [];
 
     return res.json({
       success: true,
-      listing,
-      blockedDates: activeRentals.map(r => ({
-        start: r.startDate,
-        end: r.endDate,
-      })),
+      listing: formattedListing,
+      blockedDates
     });
   } catch (error) {
     return next(error);
@@ -242,27 +355,32 @@ export const updateListing = async (req: CustomRequest, res: Response, next: Nex
       throw new CustomError('Authentication required', 401, 'UNAUTHORIZED');
     }
 
-    const listing = await Listing.findById(req.params.id);
-    if (!listing) {
+    const { data: listing, error: findError } = await supabase
+      .from('listings')
+      .select('*')
+      .eq('id', req.params.id)
+      .maybeSingle();
+
+    if (findError || !listing) {
       throw new CustomError('Listing not found', 404, 'NOT_FOUND');
     }
 
-    // Verify ownership or admin role
-    const isOwner = listing.owner.toString() === req.user._id.toString();
+    const isOwner = listing.owner_id === req.user._id;
     const isAdmin = req.user.role === 'ADMIN';
     if (!isOwner && !isAdmin) {
       throw new CustomError('You are not authorized to update this listing', 403, 'FORBIDDEN');
     }
 
-    // If regular user, check if any of their listings got rejected today
     if (!isAdmin) {
       const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-      const rejectedToday = await Listing.countDocuments({
-        owner: req.user._id,
-        approvalStatus: 'REJECTED',
-        updatedAt: { $gte: oneDayAgo }
-      });
-      if (rejectedToday > 0) {
+      const { count: rejectedToday } = await supabase
+        .from('listings')
+        .select('*', { count: 'exact', head: true })
+        .eq('owner_id', req.user._id)
+        .eq('approval_status', 'REJECTED')
+        .gte('updated_at', oneDayAgo.toISOString());
+
+      if (rejectedToday !== null && rejectedToday > 0) {
         throw new CustomError('Your listing was rejected today. Please wait until tomorrow to update or list items.', 400, 'REJECTED_COOLDOWN');
       }
     }
@@ -274,67 +392,91 @@ export const updateListing = async (req: CustomRequest, res: Response, next: Nex
     }
 
     const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip;
-    listing.postIpAddress = Array.isArray(clientIp) ? clientIp[0] : clientIp;
-    listing.postCoordinates = { latitude: Number(latitude), longitude: Number(longitude) };
+    const postIpAddress = Array.isArray(clientIp) ? clientIp[0] : clientIp;
 
     if (category) {
-      const categoryExists = await Category.findById(category);
+      const { data: categoryExists } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('id', category)
+        .maybeSingle();
       if (!categoryExists) {
         throw new CustomError('Invalid category ID', 400, 'INVALID_CATEGORY');
       }
-      listing.category = category;
     }
 
+    let uniqueSlug = listing.slug;
     if (title) {
-      listing.title = title;
-      // Regenerate slug
       const cleanTitle = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-      listing.slug = `${cleanTitle}-${Math.random().toString(36).substring(2, 7)}`;
+      uniqueSlug = `${cleanTitle}-${Math.random().toString(36).substring(2, 7)}`;
     }
 
-    if (description) listing.description = description;
-    if (condition) listing.condition = condition;
-    if (rentalPrice !== undefined) listing.rentalPrice = rentalPrice;
-    if (priceUnit) listing.priceUnit = priceUnit;
-    if (securityDeposit !== undefined) listing.securityDeposit = securityDeposit;
-    if (availability !== undefined) listing.availability = availability;
-    if (status) listing.status = status;
-    if (location) listing.location = location;
-
-    // If new images are uploaded
+    let imageUrls = listing.images || [];
     if (req.files && Array.isArray(req.files) && req.files.length > 0) {
-      // Option to upload new ones and append/replace
       const uploadPromises = (req.files as Express.Multer.File[]).map(file =>
         uploadImage(file.buffer, 'rentora/listings', file.mimetype)
       );
       const results = await Promise.all(uploadPromises);
-      
-      // For editing simplicity in phase 1, we replace old images entirely
-      // First delete old images in background
-      listing.images.forEach(img => {
+      imageUrls.forEach((img: string) => {
         if (!img.includes('picsum.photos')) {
           deleteImage(img);
         }
       });
-      listing.images = results;
+      imageUrls = results;
     }
 
-    // If regular user (non-admin) updates the listing, it must go back to PENDING approval
-    if (!isAdmin) {
-      listing.approvalStatus = 'PENDING';
-      listing.status = 'PAUSED';
-      listing.availability = false;
-      listing.rejectionReason = ''; // Clear any prior rejection reason
-      listing.submissionCount = (listing.submissionCount || 1) + 1; // Increment submission attempts count
+    const { data: updatedListing, error: updateError } = await supabase
+      .from('listings')
+      .update({
+        title: title || listing.title,
+        slug: uniqueSlug,
+        description: description || listing.description,
+        category_id: category || listing.category_id,
+        images: imageUrls,
+        condition: condition || listing.condition,
+        rental_price: rentalPrice !== undefined ? Number(rentalPrice) : Number(listing.rental_price),
+        price_unit: priceUnit || listing.price_unit,
+        security_deposit: securityDeposit !== undefined ? Number(securityDeposit) : Number(listing.security_deposit),
+        availability: !isAdmin ? false : (availability !== undefined ? Boolean(availability) : listing.availability),
+        status: !isAdmin ? 'PAUSED' : (status || listing.status),
+        approval_status: !isAdmin ? 'PENDING' : (listing.approval_status),
+        rejection_reason: !isAdmin ? '' : (listing.rejection_reason),
+        submission_count: !isAdmin ? (listing.submission_count || 1) + 1 : listing.submission_count,
+        location: location || listing.location,
+        post_ip_address: postIpAddress,
+        latitude: Number(latitude),
+        longitude: Number(longitude),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', req.params.id)
+      .select()
+      .single();
+
+    if (updateError || !updatedListing) {
+      throw new CustomError('Failed to update listing in database.', 500, 'UPDATE_FAILED');
     }
 
-    await listing.save();
     clearHomepageCache();
 
     return res.json({
       success: true,
       message: isAdmin ? 'Listing updated successfully.' : 'Listing updated and submitted for admin review.',
-      listing,
+      listing: {
+        _id: updatedListing.id,
+        owner: updatedListing.owner_id,
+        title: updatedListing.title,
+        slug: updatedListing.slug,
+        description: updatedListing.description,
+        images: updatedListing.images,
+        condition: updatedListing.condition,
+        rentalPrice: Number(updatedListing.rental_price),
+        priceUnit: updatedListing.price_unit,
+        securityDeposit: Number(updatedListing.security_deposit),
+        availability: updatedListing.availability,
+        status: updatedListing.status,
+        approvalStatus: updatedListing.approval_status,
+        location: updatedListing.location,
+      },
     });
   } catch (error) {
     return next(error);
@@ -347,21 +489,28 @@ export const deleteListing = async (req: CustomRequest, res: Response, next: Nex
       throw new CustomError('Authentication required', 401, 'UNAUTHORIZED');
     }
 
-    const listing = await Listing.findById(req.params.id);
-    if (!listing) {
+    const { data: listing, error: findError } = await supabase
+      .from('listings')
+      .select('*')
+      .eq('id', req.params.id)
+      .maybeSingle();
+
+    if (findError || !listing) {
       throw new CustomError('Listing not found', 404, 'NOT_FOUND');
     }
 
-    const isOwner = listing.owner.toString() === req.user._id.toString();
+    const isOwner = listing.owner_id === req.user._id;
     const isAdmin = req.user.role === 'ADMIN';
     if (!isOwner && !isAdmin) {
       throw new CustomError('You are not authorized to delete this listing', 403, 'FORBIDDEN');
     }
 
-    // Soft delete by marking REMOVED and unavailable
-    listing.status = 'REMOVED';
-    listing.availability = false;
-    await listing.save();
+    // Soft delete
+    await supabase
+      .from('listings')
+      .update({ status: 'REMOVED', availability: false })
+      .eq('id', req.params.id);
+
     clearHomepageCache();
 
     return res.json({
@@ -379,36 +528,68 @@ export const pauseListing = async (req: CustomRequest, res: Response, next: Next
       throw new CustomError('Authentication required', 401, 'UNAUTHORIZED');
     }
 
-    const listing = await Listing.findById(req.params.id);
-    if (!listing) {
+    const { data: listing, error: findError } = await supabase
+      .from('listings')
+      .select('*')
+      .eq('id', req.params.id)
+      .maybeSingle();
+
+    if (findError || !listing) {
       throw new CustomError('Listing not found', 404, 'NOT_FOUND');
     }
 
-    if (listing.owner.toString() !== req.user._id.toString()) {
+    if (listing.owner_id !== req.user._id) {
       throw new CustomError('Only the owner can toggle listing status', 403, 'FORBIDDEN');
     }
 
+    let newStatus = 'PAUSED';
+    let newAvail = false;
+
     if (listing.status === 'ACTIVE') {
-      listing.status = 'PAUSED';
-      listing.availability = false;
+      newStatus = 'PAUSED';
+      newAvail = false;
     } else if (listing.status === 'PAUSED') {
-      // Can only un-pause if admin has approved the listing
-      if (listing.approvalStatus !== 'APPROVED') {
+      if (listing.approval_status !== 'APPROVED') {
         throw new CustomError('This listing is awaiting admin approval and cannot be made active yet.', 400, 'NOT_APPROVED');
       }
-      listing.status = 'ACTIVE';
-      listing.availability = true;
+      newStatus = 'ACTIVE';
+      newAvail = true;
     } else {
       throw new CustomError(`Cannot toggle status when listing is ${listing.status}`, 400, 'INVALID_STATUS');
     }
 
-    await listing.save();
+    const { data: updatedListing, error: updateError } = await supabase
+      .from('listings')
+      .update({ status: newStatus, availability: newAvail })
+      .eq('id', req.params.id)
+      .select()
+      .single();
+
+    if (updateError || !updatedListing) {
+      throw new CustomError('Failed to toggle status.', 500, 'TOGGLE_FAILED');
+    }
+
     clearHomepageCache();
 
     return res.json({
       success: true,
-      message: `Listing status updated to ${listing.status}`,
-      listing,
+      message: `Listing status updated to ${updatedListing.status}`,
+      listing: {
+        _id: updatedListing.id,
+        owner: updatedListing.owner_id,
+        title: updatedListing.title,
+        slug: updatedListing.slug,
+        description: updatedListing.description,
+        images: updatedListing.images,
+        condition: updatedListing.condition,
+        rentalPrice: Number(updatedListing.rental_price),
+        priceUnit: updatedListing.price_unit,
+        securityDeposit: Number(updatedListing.security_deposit),
+        availability: updatedListing.availability,
+        status: updatedListing.status,
+        approvalStatus: updatedListing.approval_status,
+        location: updatedListing.location,
+      },
     });
   } catch (error) {
     return next(error);
@@ -417,19 +598,25 @@ export const pauseListing = async (req: CustomRequest, res: Response, next: Next
 
 export const viewListing = async (req: CustomRequest, res: Response, next: NextFunction) => {
   try {
-    const listing = await Listing.findByIdAndUpdate(
-      req.params.id,
-      { $inc: { viewCount: 1 } },
-      { new: true }
-    );
+    const { data: listing } = await supabase
+      .from('listings')
+      .select('view_count')
+      .eq('id', req.params.id)
+      .maybeSingle();
 
     if (!listing) {
       throw new CustomError('Listing not found', 404, 'NOT_FOUND');
     }
 
+    const newViews = (listing.view_count || 0) + 1;
+    await supabase
+      .from('listings')
+      .update({ view_count: newViews })
+      .eq('id', req.params.id);
+
     return res.json({
       success: true,
-      viewCount: listing.viewCount,
+      viewCount: newViews,
     });
   } catch (error) {
     return next(error);

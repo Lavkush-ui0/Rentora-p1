@@ -5,12 +5,12 @@ import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
-import { connectDB } from './config/db';
 import { config } from './config/config';
 import { initSocket } from './services/socket.service';
 import { errorHandler } from './middleware/errorHandler';
 import apiRouter from './routes';
 import logger from './utils/logger';
+import { supabase } from './config/supabase';
 
 const app = express();
 const server = http.createServer(app);
@@ -24,9 +24,9 @@ app.set('trust proxy', 1);
 // Initialize Socket.IO
 initSocket(server);
 
-// Connect Database
+// Initialize Supabase Link
 if (process.env.NODE_ENV !== 'test') {
-  connectDB();
+  logger.info('[Rentora Server] Initialized Supabase client connection.');
 }
 
 // Security Middlewares
