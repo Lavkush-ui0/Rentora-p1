@@ -162,4 +162,14 @@ INSERT INTO public.categories (name, slug, description, icon, is_active) VALUES
 ('Sports Equipment', 'sports-equipment', 'Cricker bats, footballs, rackets, and athletic gear', 'Trophy', true),
 ('Gaming', 'gaming', 'Consoles, controllers, and game titles', 'Gamepad2', true),
 ('Other', 'other', 'Miscellaneous student utilities', 'Layers', true)
-ON CONFLICT (slug) DO NOTHING;
+-- 12. Create Product Interchanges Table (Exchanges/Rentals Handover Log)
+CREATE TABLE IF NOT EXISTS public.product_interchanges (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    owner_email TEXT NOT NULL,
+    renter_email TEXT NOT NULL,
+    agreed_price DECIMAL(10, 2) NOT NULL,
+    interchanged_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    listing_id UUID REFERENCES public.listings(id) ON DELETE SET NULL,
+    rental_request_id UUID REFERENCES public.rental_requests(id) ON DELETE SET NULL
+);
+

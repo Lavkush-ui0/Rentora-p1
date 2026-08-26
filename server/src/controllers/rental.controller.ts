@@ -4,6 +4,7 @@ import { CustomRequest } from '../types';
 import { createNotification } from '../services/notification.service';
 import { getIO } from '../services/socket.service';
 import CustomError from '../utils/customError';
+import logger from '../utils/logger';
 
 export const createRentalRequest = async (req: CustomRequest, res: Response, next: NextFunction) => {
   try {
@@ -725,6 +726,33 @@ export const handoverRentalRequest = async (req: CustomRequest, res: Response, n
       .eq('id', request.id)
       .select()
       .single();
+
+    // Log the product interchange transaction
+    const { data: ownerUser } = await supabase
+      .from('users')
+      .select('email')
+      .eq('id', request.owner_id)
+      .single();
+
+    const { data: renterUser } = await supabase
+      .from('users')
+      .select('email')
+      .eq('id', request.renter_id)
+      .single();
+
+    if (ownerUser && renterUser) {
+      await supabase
+        .from('product_interchanges')
+        .insert([{
+          owner_email: ownerUser.email,
+          renter_email: renterUser.email,
+          agreed_price: rentalFee,
+          interchanged_at: new Date().toISOString(),
+          listing_id: request.listing_id,
+          rental_request_id: request.id
+        }]);
+      logger.info(`[Rental Controller] Recorded product interchange between ${ownerUser.email} and ${renterUser.email}`);
+    }
 
     await supabase
       .from('listings')
