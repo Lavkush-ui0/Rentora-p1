@@ -479,8 +479,8 @@ export const Settings: React.FC = () => {
       {/* Danger Zone */}
       <div className="bg-red-50/30 dark:bg-red-950/10 rounded-3xl border border-red-100 dark:border-red-900/30 p-6 space-y-4 animate-in fade-in duration-300">
         <div className="flex items-center space-x-2">
-          <Trash2 className="h-5 w-5 text-red-650 dark:text-red-400" />
-          <h2 className="text-base font-black font-outfit text-red-650 dark:text-red-400">Danger Zone</h2>
+          <Trash2 className="h-5 w-5 text-red-600 dark:text-red-400" />
+          <h2 className="text-base font-black font-outfit text-red-600 dark:text-red-400">Danger Zone</h2>
         </div>
         <p className="text-xs text-gray-550 dark:text-gray-400 leading-relaxed">
           Once you delete your account, there is no going back. All your active listings, rentals history, chat history, and personal details will be permanently removed.
@@ -508,7 +508,7 @@ export const Settings: React.FC = () => {
             >
               <X className="h-6 w-6" />
             </button>
-            <h3 className="text-lg font-black font-outfit text-red-650 dark:text-red-400">Delete Account Permanently?</h3>
+            <h3 className="text-lg font-black font-outfit text-red-600 dark:text-red-400">Delete Account Permanently?</h3>
             <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
               This will permanently delete your account, listings, and details. To confirm, please type <strong className="text-gray-900 dark:text-gray-100">DELETE</strong> below.
             </p>

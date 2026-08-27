@@ -27,6 +27,20 @@ const notifColors: Record<string, string> = {
   ACCOUNT_STATUS: 'text-red-500 bg-red-50 dark:bg-red-950/30',
 };
 
+const getDefaultTabForNotification = (notif: any): 'incoming' | 'sent' => {
+  if (notif.type === 'REQUEST_ACCEPTED') return 'sent';
+  if (notif.type === 'RENTAL_REQUEST') return 'incoming';
+  if (notif.type === 'RENTAL_REMINDER') return 'sent';
+  if (notif.type === 'RENTAL_COMPLETED') {
+    const msg = (notif.message || '').toLowerCase();
+    if (msg.includes('listing') || msg.includes('returned')) {
+      return 'incoming';
+    }
+    return 'sent';
+  }
+  return 'incoming';
+};
+
 export const Notifications: React.FC = () => {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -77,10 +91,10 @@ export const Notifications: React.FC = () => {
       if (['RENTAL_REQUEST', 'NEW_MESSAGE', 'REQUEST_ACCEPTED'].includes(notif.type)) {
         navigate(`/messages/${notif.relatedId}`);
       } else {
-        navigate('/rentals');
+        navigate('/my-rentals', { state: { defaultTab: getDefaultTabForNotification(notif) } });
       }
     } else {
-      navigate('/rentals');
+      navigate('/my-rentals', { state: { defaultTab: getDefaultTabForNotification(notif) } });
     }
   };
 
@@ -178,7 +192,7 @@ export const Notifications: React.FC = () => {
                           }
                           navigate('/my-rentals', { state: { defaultTab: notif.type === 'REQUEST_ACCEPTED' ? 'sent' : 'incoming' } });
                         }}
-                        className="flex items-center space-x-1 px-3 py-1.5 bg-indigo-55 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 text-xs font-bold rounded-xl hover:bg-indigo-100 transition-all"
+                        className="flex items-center space-x-1 px-3 py-1.5 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 text-xs font-bold rounded-xl hover:bg-indigo-100 transition-all"
                       >
                         <span>Review Request</span>
                         <ArrowRight className="h-3.5 w-3.5" />

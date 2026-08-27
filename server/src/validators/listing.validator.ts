@@ -37,6 +37,7 @@ export const updateListingSchema = z.object({
     location: z.string().optional(),
     latitude: z.coerce.number().optional(),
     longitude: z.coerce.number().optional(),
+    existingImages: z.string().optional(),
   }),
 });
 

@@ -464,17 +464,29 @@ export const updateListing = async (req: CustomRequest, res: Response, next: Nex
     }
 
     let imageUrls = listing.images || [];
+    if (req.body.existingImages) {
+      try {
+        const keep = JSON.parse(req.body.existingImages);
+        if (Array.isArray(keep)) {
+          const removed = imageUrls.filter((url: string) => !keep.includes(url));
+          removed.forEach((img: string) => {
+            if (!img.includes('picsum.photos')) {
+              deleteImage(img);
+            }
+          });
+          imageUrls = keep;
+        }
+      } catch (err) {
+        console.error('Failed to parse existingImages:', err);
+      }
+    }
+
     if (req.files && Array.isArray(req.files) && req.files.length > 0) {
       const uploadPromises = (req.files as Express.Multer.File[]).map(file =>
         uploadImage(file.buffer, 'rentora/listings', file.mimetype)
       );
       const results = await Promise.all(uploadPromises);
-      imageUrls.forEach((img: string) => {
-        if (!img.includes('picsum.photos')) {
-          deleteImage(img);
-        }
-      });
-      imageUrls = results;
+      imageUrls = [...imageUrls, ...results];
     }
 
     const { data: updatedListing, error: updateError } = await supabase

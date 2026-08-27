@@ -469,7 +469,7 @@ export const ListingDetails: React.FC = () => {
                 <Flag className="h-5 w-5 fill-current" />
                 <h4 className="font-display font-black text-sm">Admin Controls</h4>
               </div>
-              <p className="text-xs text-red-650 dark:text-red-400/80 leading-relaxed font-medium">
+              <p className="text-xs text-red-600 dark:text-red-400/80 leading-relaxed font-medium">
                 As an administrator, you can immediately remove this item from the campus marketplace if it violates guidelines or is inappropriate.
               </p>
               <button
@@ -754,7 +754,7 @@ export const ListingDetails: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 w-full max-w-md shadow-2xl border border-[#42525B]/20 animate-in zoom-in-95 duration-200 text-left">
             <div className="flex items-center justify-between mb-5 border-b border-slate-100 dark:border-slate-800 pb-3">
-              <h3 className="text-base font-black font-display uppercase tracking-tight text-red-650 flex items-center space-x-2">
+              <h3 className="text-base font-black font-display uppercase tracking-tight text-red-600 flex items-center space-x-2">
                 <Flag className="h-4.5 w-4.5 fill-current" />
                 <span>Flag Listing</span>
               </h3>
@@ -797,7 +797,7 @@ export const ListingDetails: React.FC = () => {
               <button
                 type="submit"
                 disabled={reporting}
-                className="w-full bg-red-650 hover:bg-red-700 text-white font-extrabold py-3.5 rounded-2xl flex items-center justify-center space-x-2 disabled:opacity-50 shadow-lg shadow-red-500/10 transition-all text-xs uppercase tracking-wider"
+                className="w-full bg-red-600 hover:bg-red-700 text-white font-extrabold py-3.5 rounded-2xl flex items-center justify-center space-x-2 disabled:opacity-50 shadow-lg shadow-red-500/10 transition-all text-xs uppercase tracking-wider"
               >
                 {reporting ? (
                   <div className="h-4.5 w-4.5 animate-spin rounded-full border-2 border-white border-t-transparent"></div>

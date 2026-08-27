@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { listingService } from '../services/listingService';
 import { categoryService } from '../services/categoryService';
 import { useAuth } from '../context/AuthContext';
 import { compressImagesIfNeeded } from '../utils/imageCompressor';
-import { Upload, X, Image, AlertCircle, Sparkles } from 'lucide-react';
+import { Upload, X, Image, AlertCircle, Sparkles, Camera, RefreshCw } from 'lucide-react';
 import { ArtworkTile } from '../components/RentoraBrand';
 
 const CONDITIONS = ['NEW', 'LIKE_NEW', 'GOOD', 'FAIR'];
@@ -46,6 +46,112 @@ export const ListItem: React.FC = () => {
   const [existingImageUrls, setExistingImageUrls] = useState<string[]>([]);
   const [shareLocation, setShareLocation] = useState(false);
   const [coordinates, setCoordinates] = useState<{ latitude: number; longitude: number } | null>(null);
+
+  const [imageSourceModalOpen, setImageSourceModalOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const [cameraActive, setCameraActive] = useState(false);
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  const startCamera = async () => {
+    setCameraActive(true);
+    setError('');
+    try {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode }
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (err) {
+      console.error('Camera access failed:', err);
+      alert('Could not access camera. Please ensure permissions are granted.');
+      setCameraActive(false);
+    }
+  };
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    setCameraActive(false);
+  };
+
+  const switchCamera = () => {
+    setFacingMode(prev => (prev === 'user' ? 'environment' : 'user'));
+  };
+
+  useEffect(() => {
+    if (cameraActive) {
+      startCamera();
+    }
+  }, [facingMode]);
+
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, []);
+
+  const capturePhoto = () => {
+    if (videoRef.current) {
+      const video = videoRef.current;
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+        
+        // Convert to file
+        const arr = dataUrl.split(',');
+        const mime = arr[0].match(/:(.*?);/)![1];
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+          u8arr[n] = bstr.charCodeAt(n);
+        }
+        const file = new File([u8arr], `camera-capture-${Date.now()}.jpg`, { type: mime });
+        
+        // Compress & append to state
+        compressImagesIfNeeded([file]).then(compressed => {
+          const compressedFile = compressed[0] || file;
+          const newImages = [...images, compressedFile].slice(0, 5);
+          setImages(newImages);
+          const newPreviews = newImages.map(f => URL.createObjectURL(f));
+          setImagePreviews(newPreviews);
+        }).catch(err => {
+          console.error('[ListItem] Camera image compression failed:', err);
+          const newImages = [...images, file].slice(0, 5);
+          setImages(newImages);
+          const newPreviews = newImages.map(f => URL.createObjectURL(f));
+          setImagePreviews(newPreviews);
+        });
+      }
+      stopCamera();
+    }
+  };
+
+  const handleUploadClick = () => {
+    setImageSourceModalOpen(false);
+    fileInputRef.current?.click();
+  };
+
+  const handleCameraClick = () => {
+    setImageSourceModalOpen(false);
+    startCamera();
+  };
 
   const handleLocationToggle = () => {
     if (!shareLocation) {
@@ -202,6 +308,10 @@ export const ListItem: React.FC = () => {
     setImagePreviews(newPreviews);
   };
 
+  const removeExistingImage = (index: number) => {
+    setExistingImageUrls(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -238,6 +348,10 @@ export const ListItem: React.FC = () => {
         formData.append('longitude', String(coordinates.longitude));
       }
       images.forEach(img => formData.append('images', img));
+
+      if (id) {
+        formData.append('existingImages', JSON.stringify(existingImageUrls));
+      }
 
       let res;
       if (id) {
@@ -306,7 +420,7 @@ export const ListItem: React.FC = () => {
                 className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all ${
                   shareLocation
                     ? 'bg-green-600 hover:bg-green-700 text-white'
-                    : 'bg-red-650 hover:bg-red-700 text-white animate-pulse'
+                    : 'bg-red-600 hover:bg-red-700 text-white animate-pulse'
                 }`}
               >
                 {shareLocation ? '📍 Attached' : 'Attach GPS'}
@@ -445,11 +559,18 @@ export const ListItem: React.FC = () => {
               {/* Display existing images if any */}
               {existingImageUrls.length > 0 && (
                 <div className="space-y-2 mb-3">
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Current Photos (will be replaced if you upload new ones below):</p>
+                  <p className="text-[9px] font-black text-slate-450 dark:text-slate-400 uppercase tracking-wider">Existing Listing Photos (click X to delete):</p>
                   <div className="flex flex-wrap gap-2.5">
                     {existingImageUrls.map((url, i) => (
-                      <div key={i} className="relative h-20 w-20 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 flex-shrink-0">
+                      <div key={i} className="relative h-20 w-20 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 flex-shrink-0 animate-in zoom-in-95 duration-200">
                         <img src={url} alt="" className="h-full w-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => removeExistingImage(i)}
+                          className="absolute top-1 right-1 bg-red-600 text-white h-4.5 w-4.5 rounded-full flex items-center justify-center shadow-md hover:bg-red-700 transition-colors"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -463,21 +584,32 @@ export const ListItem: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => removeImage(i)}
-                      className="absolute top-1 right-1 bg-red-500 text-white h-4.5 w-4.5 rounded-full flex items-center justify-center shadow-md hover:bg-red-650 transition-colors"
+                      className="absolute top-1 right-1 bg-red-500 text-white h-4.5 w-4.5 rounded-full flex items-center justify-center shadow-md hover:bg-red-600 transition-colors"
                     >
                       <X className="h-3 w-3" />
                     </button>
                   </div>
                 ))}
                 {images.length + existingImageUrls.length < 5 && (
-                  <label className="h-20 w-20 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 flex flex-col items-center justify-center cursor-pointer hover:border-[#9E1B1B] hover:bg-[#9E1B1B]/5 transition-all flex-shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setImageSourceModalOpen(true)}
+                    className="h-20 w-20 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 flex flex-col items-center justify-center cursor-pointer hover:border-[#9E1B1B] hover:bg-[#9E1B1B]/5 transition-all flex-shrink-0 bg-transparent"
+                  >
                     <Image className="h-5 w-5 text-slate-400 mb-0.5" />
                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">
                       {existingImageUrls.length > 0 ? 'Replace' : 'Add'}
                     </span>
-                    <input type="file" multiple accept="image/*" className="hidden" onChange={handleImageSelect} />
-                  </label>
+                  </button>
                 )}
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  multiple
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleImageSelect}
+                />
               </div>
             </div>
 
@@ -544,6 +676,93 @@ export const ListItem: React.FC = () => {
         </div>
 
       </div>
+
+      {cameraActive && (
+        <div className="fixed inset-0 z-[150] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-slate-900 text-white rounded-3xl border border-slate-800 p-6 max-w-md w-full space-y-4 shadow-2xl relative overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-sm font-black uppercase tracking-wider text-slate-200">Capture Listing Photo</h3>
+              <button
+                onClick={stopCamera}
+                type="button"
+                className="text-slate-400 hover:text-white transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="relative rounded-2xl overflow-hidden bg-black aspect-[4/3] flex items-center justify-center border border-slate-800">
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                className="w-full h-full object-cover"
+              />
+            </div>
+            
+            <div className="flex space-x-3 pt-2">
+              <button
+                type="button"
+                onClick={switchCamera}
+                className="px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl transition-colors flex items-center justify-center space-x-1.5"
+              >
+                <RefreshCw className="h-4 w-4" />
+                <span>Switch Camera</span>
+              </button>
+              
+              <button
+                type="button"
+                onClick={capturePhoto}
+                className="flex-1 bg-[#9E1B1B] hover:bg-[#801414] text-white font-extrabold py-3 rounded-xl text-xs transition-colors shadow-lg uppercase tracking-wider flex items-center justify-center space-x-1.5"
+              >
+                <Camera className="h-4 w-4" />
+                <span>Capture Photo</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Image Source Selection Modal */}
+      {imageSourceModalOpen && (
+        <div className="fixed inset-0 z-[140] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-gray-100 dark:border-slate-800 p-6 max-w-sm w-full space-y-4 shadow-2xl relative animate-in zoom-in-95 duration-200 text-center">
+            <button
+              onClick={() => setImageSourceModalOpen(false)}
+              type="button"
+              className="absolute top-4 right-4 text-gray-450 hover:text-gray-650 dark:hover:text-gray-300 transition-colors"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            
+            <h3 className="text-sm font-black font-outfit uppercase tracking-wider text-gray-900 dark:text-gray-100">
+              Add Photo
+            </h3>
+            <p className="text-xs text-gray-400 dark:text-slate-400">
+              Choose how you want to add photos to your listing
+            </p>
+            
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <button
+                type="button"
+                onClick={handleCameraClick}
+                className="flex flex-col items-center justify-center p-4 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-[#9E1B1B] hover:bg-[#9E1B1B]/5 hover:text-[#9E1B1B] dark:hover:border-[#9E1B1B] dark:hover:bg-[#9E1B1B]/5 transition-all text-slate-600 dark:text-slate-300 space-y-2 bg-transparent"
+              >
+                <Camera className="h-6 w-6" />
+                <span className="text-xs font-black uppercase tracking-wider">Camera</span>
+              </button>
+              
+              <button
+                type="button"
+                onClick={handleUploadClick}
+                className="flex flex-col items-center justify-center p-4 rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-[#9E1B1B] hover:bg-[#9E1B1B]/5 hover:text-[#9E1B1B] dark:hover:border-[#9E1B1B] dark:hover:bg-[#9E1B1B]/5 transition-all text-slate-600 dark:text-slate-300 space-y-2 bg-transparent"
+              >
+                <Image className="h-6 w-6" />
+                <span className="text-xs font-black uppercase tracking-wider">Gallery</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

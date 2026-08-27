@@ -204,7 +204,7 @@ export const Profile: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setDeleteModalOpen(true)}
-                className="flex items-center space-x-1.5 px-3.5 py-2 rounded-2xl border border-red-200 dark:border-red-900/30 text-xs font-bold text-red-655 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all shadow-sm"
+                className="flex items-center space-x-1.5 px-3.5 py-2 rounded-2xl border border-red-200 dark:border-red-900/30 text-xs font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all shadow-sm"
               >
                 <Trash2 className="h-3.5 w-3.5" />
                 <span>Delete Account</span>
@@ -376,7 +376,7 @@ export const Profile: React.FC = () => {
             >
               <X className="h-6 w-6" />
             </button>
-            <h3 className="text-lg font-black font-outfit text-red-650 dark:text-red-400">Delete Account Permanently?</h3>
+            <h3 className="text-lg font-black font-outfit text-red-600 dark:text-red-400">Delete Account Permanently?</h3>
             <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
               This will permanently delete your account, listings, and details. To confirm, please type <strong className="text-gray-900 dark:text-gray-100">DELETE</strong> below.
             </p>
