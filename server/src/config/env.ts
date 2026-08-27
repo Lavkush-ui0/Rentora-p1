@@ -20,6 +20,13 @@ const envSchema = z.object({
   SUPABASE_KEY: z.string().optional(),
   GROQ_API_KEY: z.string().optional(),
 
+  // SMTP Email Configuration
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.string().optional(),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  SMTP_SECURE: z.string().optional(),
+
   // Google OAuth / Gmail API (optional — used for Google login and OTP emails)
   GOOGLE_EMAIL: z.string().optional(),
   GOOGLE_CLIENT_ID: z.string().optional(),

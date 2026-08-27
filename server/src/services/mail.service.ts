@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import logger from '../utils/logger';
+import { config } from '../config/config';
 
 let transporter: nodemailer.Transporter | null = null;
 
@@ -8,10 +9,10 @@ const getTransporter = (): nodemailer.Transporter | null => {
     return transporter;
   }
 
-  const host = process.env.SMTP_HOST;
-  const port = process.env.SMTP_PORT;
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
+  const host = config.SMTP_HOST;
+  const port = config.SMTP_PORT;
+  const user = config.SMTP_USER;
+  const pass = config.SMTP_PASS;
 
   if (!host || !user || !pass) {
     return null;
@@ -22,7 +23,7 @@ const getTransporter = (): nodemailer.Transporter | null => {
       pool: true, // Use connection pooling
       host,
       port: parseInt(port || '587', 10),
-      secure: process.env.SMTP_SECURE === 'true',
+      secure: config.SMTP_SECURE === 'true',
       auth: {
         user,
         pass,
@@ -119,7 +120,7 @@ export const sendOTPEmail = async (email: string, otp: string, type: 'register' 
   }
 
   const mailOptions = {
-    from: `"Rentora Verification" <${process.env.SMTP_USER}>`,
+    from: `"Rentora Verification" <${config.SMTP_USER}>`,
     to: email,
     subject,
     text,
