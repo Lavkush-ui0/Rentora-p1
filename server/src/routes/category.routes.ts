@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { Category } from '../models/category.model';
+import { supabase } from '../config/supabase';
 
 const router = Router();
 
@@ -22,7 +22,29 @@ router.get('/', async (req, res, next) => {
       });
     }
 
-    const categories = await Category.find({}).sort({ name: 1 }).lean();
+    const { data: dbCategories, error } = await supabase
+      .from('categories')
+      .select('*')
+      .order('name', { ascending: true });
+
+    if (error || !dbCategories) {
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to fetch categories',
+      });
+    }
+
+    // Format properties to align with Mongoose schema expected by client
+    const categories = dbCategories.map((c: any) => ({
+      _id: c.id,
+      name: c.name,
+      slug: c.slug,
+      description: c.description,
+      icon: c.icon,
+      isActive: c.is_active,
+      createdAt: c.created_at,
+    }));
+
     cachedCategories = categories;
     lastCacheTime = Date.now();
 
@@ -41,3 +63,4 @@ export const clearCategoryCache = () => {
 };
 
 export default router;
+

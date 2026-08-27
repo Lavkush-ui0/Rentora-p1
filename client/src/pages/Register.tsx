@@ -417,14 +417,10 @@ export const Register: React.FC = () => {
                       required
                       value={form.course}
                       onChange={handleChange}
-                      className="w-full bg-gray-50 text-gray-900 dark:bg-slate-800 dark:text-gray-100 pl-10 pr-4 py-3 rounded-2xl border border-gray-200 dark:border-slate-700 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-sm font-medium cursor-pointer"
+                      className="w-full bg-gray-50 text-gray-900 dark:bg-slate-800 dark:text-gray-100 pl-10 pr-4 py-3 rounded-2xl border border-gray-200 dark:border-slate-700 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-sm font-medium appearance-none cursor-pointer"
                     >
-                      <option value="" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Select</option>
-                      {COURSES.map(c => (
-                        <option key={c} value={c} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
-                          {c}
-                        </option>
-                      ))}
+                      <option value="">Select</option>
+                      {COURSES.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                     <BookOpen className="absolute left-3.5 top-3.5 h-4.5 w-4.5 text-gray-400 pointer-events-none" />
                   </div>
@@ -440,13 +436,11 @@ export const Register: React.FC = () => {
                       setSpecialization('');
                     }}
                     disabled={!form.course}
-                    className="w-full bg-gray-50 text-gray-900 dark:bg-slate-800 dark:text-gray-100 px-4 py-3 rounded-2xl border border-gray-200 dark:border-slate-700 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-sm font-medium cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="w-full bg-gray-50 text-gray-900 dark:bg-slate-800 dark:text-gray-100 px-4 py-3 rounded-2xl border border-gray-200 dark:border-slate-700 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-sm font-medium appearance-none cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    <option value="" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Select</option>
+                    <option value="">Select</option>
                     {(BRANCHES_MAP[form.course] || []).map(b => (
-                      <option key={b.value} value={b.value} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
-                        {b.label}
-                      </option>
+                      <option key={b.value} value={b.value}>{b.label}</option>
                     ))}
                   </select>
                 </div>
@@ -462,13 +456,11 @@ export const Register: React.FC = () => {
                     required
                     value={specialization}
                     onChange={(e) => setSpecialization(e.target.value)}
-                    className="w-full bg-gray-50 text-gray-900 dark:bg-slate-800 dark:text-gray-100 px-4 py-3 rounded-2xl border border-gray-200 dark:border-slate-700 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-sm font-medium cursor-pointer"
+                    className="w-full bg-gray-50 text-gray-900 dark:bg-slate-800 dark:text-gray-100 px-4 py-3 rounded-2xl border border-gray-200 dark:border-slate-700 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-sm font-medium appearance-none cursor-pointer"
                   >
-                    <option value="" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Select Specialization</option>
+                    <option value="">Select Specialization</option>
                     {BRANCH_SPECIALIZATIONS_MAP[selectedBranch].map(s => (
-                      <option key={s.value} value={s.value} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
-                        {s.label}
-                      </option>
+                      <option key={s.value} value={s.value}>{s.label}</option>
                     ))}
                   </select>
                 </div>
@@ -498,14 +490,10 @@ export const Register: React.FC = () => {
                   required
                   value={form.collegeName}
                   onChange={handleChange}
-                  className="w-full bg-gray-50 text-gray-900 dark:bg-slate-800 dark:text-gray-100 px-4 py-3 rounded-2xl border border-gray-200 dark:border-slate-700 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-sm font-medium"
+                  className="w-full bg-gray-50 text-gray-900 dark:bg-slate-800 dark:text-gray-100 px-4 py-3 rounded-2xl border border-gray-200 dark:border-slate-700 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-sm font-medium appearance-none"
                 >
-                  <option value="" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Select College / Campus</option>
-                  {CAMPUS_LOCATIONS.map(c => (
-                    <option key={c} value={c} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
-                      {c}
-                    </option>
-                  ))}
+                  <option value="">Select College / Campus</option>
+                  {CAMPUS_LOCATIONS.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
 

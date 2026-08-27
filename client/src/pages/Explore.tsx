@@ -190,7 +190,7 @@ export const Explore: React.FC = () => {
         >
           <Layers size={12} /> All Items
         </button>
-        {categories.filter(c => c.isActive !== false).map((cat) => (
+        {categories.filter(c => c.isActive).map((cat) => (
           <button
             key={cat._id}
             onClick={() => { setSelectedCategory(cat._id); setPage(1); }}
@@ -282,12 +282,8 @@ export const Explore: React.FC = () => {
                 onChange={e => onChange(e.target.value)}
                 className="w-full bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-[#22716E]"
               >
-                <option value="" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Any</option>
-                {options.map(o => (
-                  <option key={o.value} value={o.value} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
-                    {o.label}
-                  </option>
-                ))}
+                <option value="">Any</option>
+                {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </div>
           ))}
