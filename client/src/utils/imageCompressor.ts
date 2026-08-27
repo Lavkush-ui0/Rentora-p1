@@ -1,27 +1,22 @@
 /**
  * Rentora Image Compressor Utility
- * Automatically checks image size; if > 2MB, dynamically resizes dimensions and compresses quality
- * to guarantee the resulting File is strictly below 2MB before uploading.
+ * Automatically resizes image dimensions and compresses quality to optimize load speeds
+ * and ensure files are small (target < 400KB, max 1200px) before upload.
  */
 
-const MAX_ALLOWED_SIZE = 2 * 1024 * 1024; // 2MB in bytes
-const MAX_DIMENSION = 1920; // 1080p / 2K max width/height
+const TARGET_MAX_SIZE = 400 * 1024; // 400KB in bytes
+const MAX_DIMENSION = 1200; // 1200px max width/height
 
 /**
- * Compresses an individual File if it exceeds maxSize.
+ * Compresses an individual File.
  * @param file Original image File from input
- * @param maxSize Maximum allowed size in bytes (default: 2MB)
+ * @param maxSize Maximum allowed size in bytes (default: 400KB)
  * @returns Promise resolving to the compressed or original File
  */
 export async function compressImageIfNeeded(
   file: File,
-  maxSize: number = MAX_ALLOWED_SIZE
+  maxSize: number = TARGET_MAX_SIZE
 ): Promise<File> {
-  // If file is already below 2MB, no compression needed
-  if (file.size <= maxSize) {
-    return file;
-  }
-
   return new Promise((resolve) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
@@ -31,8 +26,15 @@ export async function compressImageIfNeeded(
       img.src = event.target?.result as string;
 
       img.onload = () => {
-        // Calculate aspect-ratio-preserving dimensions
         let { width, height } = img;
+
+        // If already small in dimension and size, and is correct mime, return original
+        const isMimeOk = ['image/jpeg', 'image/jpg', 'image/webp'].includes(file.type);
+        if (width <= MAX_DIMENSION && height <= MAX_DIMENSION && file.size <= maxSize && isMimeOk) {
+          return resolve(file);
+        }
+
+        // Calculate aspect-ratio-preserving dimensions
         if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
           if (width > height) {
             height = Math.round((height * MAX_DIMENSION) / width);
@@ -55,8 +57,8 @@ export async function compressImageIfNeeded(
         // Draw image smoothly
         ctx.drawImage(img, 0, 0, width, height);
 
-        // Iteratively adjust quality until under maxSize
-        let quality = 0.85;
+        // Quality start at 0.8
+        let quality = 0.8;
         const mimeType = file.type === 'image/png' ? 'image/jpeg' : file.type || 'image/jpeg';
 
         const tryCompress = (currentQuality: number) => {
@@ -66,9 +68,9 @@ export async function compressImageIfNeeded(
                 return resolve(file);
               }
 
-              // If still > 2MB and quality can be reduced, reduce quality and retry
-              if (blob.size > maxSize && currentQuality > 0.4) {
-                tryCompress(currentQuality - 0.15);
+              // If still > maxSize and quality can be reduced, reduce quality and retry
+              if (blob.size > maxSize && currentQuality > 0.3) {
+                tryCompress(currentQuality - 0.1);
               } else {
                 const extension = mimeType === 'image/jpeg' ? '.jpg' : '.webp';
                 const baseName = file.name.replace(/\.[^/.]+$/, '');
@@ -77,7 +79,7 @@ export async function compressImageIfNeeded(
                   lastModified: Date.now(),
                 });
                 console.log(
-                  `[ImageCompressor] Compressed "${file.name}" from ${(file.size / 1024 / 1024).toFixed(2)}MB to ${(compressedFile.size / 1024 / 1024).toFixed(2)}MB`
+                  `[ImageCompressor] Compressed "${file.name}" from ${(file.size / 1024).toFixed(1)}KB to ${(compressedFile.size / 1024).toFixed(1)}KB`
                 );
                 resolve(compressedFile);
               }
@@ -106,7 +108,7 @@ export async function compressImageIfNeeded(
  */
 export async function compressImagesIfNeeded(
   files: File[],
-  maxSize: number = MAX_ALLOWED_SIZE
+  maxSize: number = TARGET_MAX_SIZE
 ): Promise<File[]> {
   return Promise.all(files.map((file) => compressImageIfNeeded(file, maxSize)));
 }
