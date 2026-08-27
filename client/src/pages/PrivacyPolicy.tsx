@@ -186,8 +186,8 @@ export const PrivacyPolicy: React.FC = () => {
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400">
             For questions regarding privacy, reporting fraudulent accounts, or data requests, contact the Rentora student team or administration at{' '}
-            <a href="mailto:rentora2611@gmail.com" className="text-primary-600 dark:text-primary-400 font-bold underline">
-              rentora2611@gmail.com
+            <a href="mailto:support@rentora.org.in" className="text-primary-600 dark:text-primary-400 font-bold underline">
+              support@rentora.org.in
             </a>.
           </p>
         </section>
