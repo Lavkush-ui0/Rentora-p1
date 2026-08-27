@@ -166,7 +166,7 @@ export const ListItem: React.FC = () => {
     const fetchCategories = async () => {
       try {
         const res = await categoryService.getCategories();
-        if (res.data?.success) setCategories(res.data.categories.filter((c: any) => c.isActive));
+        if (res.data?.success) setCategories(res.data.categories.filter((c: any) => c.isActive !== false));
       } catch (err) { console.error(err); }
     };
     fetchCategories();
@@ -353,10 +353,14 @@ export const ListItem: React.FC = () => {
                   required
                   value={form.category}
                   onChange={handleChange}
-                  className="w-full bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-[#9E1B1B] text-xs font-bold appearance-none"
+                  className="w-full bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-[#9E1B1B] text-xs font-bold"
                 >
-                  <option value="">Select Category</option>
-                  {categories.map(cat => <option key={cat._id} value={cat._id}>{cat.name}</option>)}
+                  <option value="" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">Select Category</option>
+                  {categories.map(cat => (
+                    <option key={cat._id} value={cat._id} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
+                      {cat.name}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div>
@@ -366,9 +370,13 @@ export const ListItem: React.FC = () => {
                   required
                   value={form.location}
                   onChange={handleChange}
-                  className="w-full bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-[#9E1B1B] text-xs font-bold appearance-none"
+                  className="w-full bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-[#9E1B1B] text-xs font-bold"
                 >
-                  {CAMPUS_LOCATIONS.map(c => <option key={c} value={c}>{c}</option>)}
+                  {CAMPUS_LOCATIONS.map(c => (
+                    <option key={c} value={c} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
+                      {c}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -415,9 +423,13 @@ export const ListItem: React.FC = () => {
                   name="priceUnit"
                   value={form.priceUnit}
                   onChange={handleChange}
-                  className="w-full bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-[#9E1B1B] text-xs font-bold appearance-none"
+                  className="w-full bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 focus:outline-none focus:border-[#9E1B1B] text-xs font-bold"
                 >
-                  {PRICE_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                  {PRICE_UNITS.map(u => (
+                    <option key={u} value={u} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
+                      {u}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
