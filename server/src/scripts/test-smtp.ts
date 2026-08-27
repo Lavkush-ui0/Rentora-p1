@@ -13,7 +13,7 @@ async function testSMTP() {
   console.log(`SMTP User: ${process.env.SMTP_USER}`);
   console.log(`SMTP Pass: ${process.env.SMTP_PASS ? 'Present (length: ' + process.env.SMTP_PASS.length + ')' : 'Missing'}`);
 
-  const testEmail = process.env.SMTP_USER || 'rentora2611@gmail.com';
+  const testEmail = process.env.SMTP_USER || 'support@rentora.org.in';
   console.log(`Sending test OTP email to: ${testEmail}`);
 
   try {
