@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useWishlist } from '../context/WishlistContext';
-import { Home, Compass, Package, Heart, MessageSquare, User } from 'lucide-react';
+import { Home, Package, Heart, MessageSquare, User } from 'lucide-react';
 import chatService from '../services/chatService';
 import { useSocket } from '../context/SocketContext';
 
@@ -70,20 +70,7 @@ export const MobileBottomNav: React.FC = () => {
           <span className="text-[10px] font-semibold mt-0.5 tracking-tight">Home</span>
         </NavLink>
 
-        {/* Explore */}
-        <NavLink
-          to="/explore"
-          className={({ isActive }) =>
-            `flex flex-col items-center justify-center flex-1 py-1 transition-all ${
-              isActive
-                ? 'text-primary-600 dark:text-primary-400 font-bold scale-105'
-                : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-            }`
-          }
-        >
-          <Compass className="h-5 w-5" />
-          <span className="text-[10px] font-semibold mt-0.5 tracking-tight">Explore</span>
-        </NavLink>
+
 
         {/* Orders / Rentals */}
         <NavLink
@@ -156,22 +143,7 @@ export const MobileBottomNav: React.FC = () => {
           </NavLink>
         )}
 
-        {/* Profile */}
-        {user && (
-          <NavLink
-            to="/profile"
-            className={({ isActive }) =>
-              `flex flex-col items-center justify-center flex-1 py-1 transition-all ${
-                isActive
-                  ? 'text-primary-600 dark:text-primary-400 font-bold scale-105'
-                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-              }`
-            }
-          >
-            <User className="h-5 w-5" />
-            <span className="text-[10px] font-semibold mt-0.5 tracking-tight">Profile</span>
-          </NavLink>
-        )}
+
 
       </div>
     </div>
