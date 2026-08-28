@@ -47,7 +47,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ listing }) => {
 
   const isFavorited = isInWishlist(_id);
 
-  const fallbackImg = '/assets/rentora-logo.png';
+  const fallbackImg = '/rentora-logo.png';
   const displayImage = images && images.length > 0 && images[0]?.trim()
     ? getImageUrl(images[0], fallbackImg)
     : fallbackImg;
@@ -71,7 +71,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({ listing }) => {
             src={displayImage}
             alt={title}
             onError={(e) => {
-              (e.target as HTMLImageElement).src = fallbackImg;
+              const target = e.target as HTMLImageElement;
+              target.onerror = null;
+              target.src = fallbackImg;
             }}
             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
             loading="lazy"

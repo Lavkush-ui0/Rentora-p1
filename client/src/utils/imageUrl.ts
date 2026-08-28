@@ -1,7 +1,7 @@
 /**
  * Formats image URLs safely to display both remote (Cloudinary) and local backend images.
  */
-export const getImageUrl = (url?: string, fallback = '/assets/rentora-logo.png'): string => {
+export const getImageUrl = (url?: string, fallback = '/rentora-logo.png'): string => {
   if (!url) return fallback;
 
   // Absolute HTTP/HTTPS or Base64 data URLs

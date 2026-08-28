@@ -250,7 +250,7 @@ export const ListingDetails: React.FC = () => {
     );
   }
 
-  const fallbackImg = '/assets/rentora-logo.png';
+  const fallbackImg = '/rentora-logo.png';
   const rawImg = listing.images?.[currentImg] || listing.images?.[0];
   const displayImage = rawImg?.trim() ? getImageUrl(rawImg, fallbackImg) : fallbackImg;
 
@@ -300,7 +300,9 @@ export const ListingDetails: React.FC = () => {
               src={displayImage}
               alt={listing.title}
               onError={(e) => {
-                (e.target as HTMLImageElement).src = fallbackImg;
+                const target = e.target as HTMLImageElement;
+                target.onerror = null;
+                target.src = fallbackImg;
               }}
               className="h-full w-full object-cover transition-all duration-500"
             />
