@@ -14,6 +14,16 @@ export const clearHomepageCache = () => {
   homepageCache.clear();
 };
 
+const FALLBACK_IMG = 'https://images.unsplash.com/photo-1587829741301-dc798b83add3?q=80&w=600&auto=format&fit=crop';
+
+const sanitizeImage = (img: string | undefined): string => {
+  if (!img) return FALLBACK_IMG;
+  if (img.startsWith('data:image') || img.length > 500) {
+    return FALLBACK_IMG;
+  }
+  return img;
+};
+
 const mapListings = (list: any[]) => (list || []).map((l: any) => ({
   _id: l.id,
   owner: l.owner ? {
@@ -25,7 +35,7 @@ const mapListings = (list: any[]) => (list || []).map((l: any) => ({
   title: l.title,
   slug: l.slug,
   description: l.description,
-  images: l.images,
+  images: l.images && l.images.length > 0 ? [sanitizeImage(l.images[0])] : [FALLBACK_IMG],
   condition: l.condition,
   rentalPrice: Number(l.rental_price),
   priceUnit: l.price_unit,
@@ -94,7 +104,7 @@ export const getHomepageData = async (req: Request, res: Response, next: NextFun
       .order('rating_average', { ascending: false })
       .order('request_count', { ascending: false })
       .order('view_count', { ascending: false })
-      .limit(20);
+      .limit(4);
 
     if (location && location !== 'All') {
       queryRated = queryRated.eq('location', location);

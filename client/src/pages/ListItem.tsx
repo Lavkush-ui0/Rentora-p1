@@ -40,6 +40,7 @@ export const ListItem: React.FC = () => {
   const [images, setImages] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [compressing, setCompressing] = useState(false);
   const [error, setError] = useState('');
 
   const { id } = useParams<{ id: string }>();
@@ -291,14 +292,24 @@ export const ListItem: React.FC = () => {
       return;
     }
 
-    // Automatically compress any image exceeding 2MB down to < 2MB
-    const compressedFiles = await compressImagesIfNeeded(validFiles);
+    setCompressing(true);
+    try {
+      // Automatically compress any image exceeding 250KB down to strictly < 250KB
+      const compressedFiles = await compressImagesIfNeeded(validFiles, {
+        maxSizeKB: 250,
+        maxDimension: 1280,
+      });
 
-    const newImages = [...images, ...compressedFiles].slice(0, 5);
-    setImages(newImages);
+      const newImages = [...images, ...compressedFiles].slice(0, 5);
+      setImages(newImages);
 
-    const newPreviews = newImages.map(f => URL.createObjectURL(f));
-    setImagePreviews(newPreviews);
+      const newPreviews = newImages.map(f => URL.createObjectURL(f));
+      setImagePreviews(newPreviews);
+    } catch (compErr) {
+      console.warn('[ListItem] Compression warning:', compErr);
+    } finally {
+      setCompressing(false);
+    }
   };
 
   const removeImage = (index: number) => {
@@ -552,9 +563,16 @@ export const ListItem: React.FC = () => {
 
             {/* Compulsory photo uploads */}
             <div>
-              <label className="block text-[10px] font-black text-slate-450 dark:text-slate-400 uppercase tracking-wider mb-3">
-                Listing Photos <span className="text-red-500">*</span>
-              </label>
+              <div className="flex items-center justify-between mb-3">
+                <label className="block text-[10px] font-black text-slate-450 dark:text-slate-400 uppercase tracking-wider">
+                  Listing Photos <span className="text-red-500">*</span>
+                </label>
+                {compressing && (
+                  <span className="text-[10px] font-bold text-[#22716E] dark:text-[#5FD2CA] animate-pulse flex items-center gap-1">
+                    <Sparkles size={11} /> Optimizing photos (&lt; 250 KB)...
+                  </span>
+                )}
+              </div>
               
               {/* Display existing images if any */}
               {existingImageUrls.length > 0 && (

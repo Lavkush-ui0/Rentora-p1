@@ -6,6 +6,21 @@ import { moderateListingWithAI, isAiModerationEnabled } from '../services/aiMode
 import CustomError from '../utils/customError';
 import { clearHomepageCache } from './discovery.controller';
 
+const FALLBACK_IMG = 'https://images.unsplash.com/photo-1587829741301-dc798b83add3?q=80&w=600&auto=format&fit=crop';
+
+export const sanitizeImage = (img: string | undefined): string => {
+  if (!img) return FALLBACK_IMG;
+  if (img.startsWith('data:image') || img.length > 500) {
+    return FALLBACK_IMG;
+  }
+  return img;
+};
+
+export const sanitizeImages = (imgs: string[] | undefined): string[] => {
+  if (!imgs || !Array.isArray(imgs) || imgs.length === 0) return [FALLBACK_IMG];
+  return imgs.map(sanitizeImage);
+};
+
 export const createListing = async (req: CustomRequest, res: Response, next: NextFunction) => {
   try {
     if (!req.user) {
@@ -289,7 +304,7 @@ export const getListings = async (req: CustomRequest, res: Response, next: NextF
         title: l.title,
         slug: l.slug,
         description: l.description,
-        images: l.images,
+        images: l.images && l.images.length > 0 ? [sanitizeImage(l.images[0])] : [FALLBACK_IMG],
         condition: l.condition,
         rentalPrice: Number(l.rental_price),
         priceUnit: l.price_unit,
@@ -361,7 +376,7 @@ export const getListingById = async (req: CustomRequest, res: Response, next: Ne
       title: l.title,
       slug: l.slug,
       description: l.description,
-      images: l.images,
+      images: sanitizeImages(l.images),
       condition: l.condition,
       rentalPrice: Number(l.rental_price),
       priceUnit: l.price_unit,

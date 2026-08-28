@@ -183,7 +183,7 @@ export const getListings = async (req: CustomRequest, res: Response, next: NextF
         title: l.title,
         slug: l.slug,
         description: l.description,
-        images: l.images,
+        images: l.images && l.images.length > 0 ? [l.images[0]] : [],
         condition: l.condition,
         rentalPrice: Number(l.rental_price),
         priceUnit: l.price_unit,

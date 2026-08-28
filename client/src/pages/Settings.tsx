@@ -86,8 +86,8 @@ export const Settings: React.FC = () => {
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const rawFile = e.target.files?.[0];
     if (rawFile) {
-      // Compress if > 2MB
-      const file = await compressImageIfNeeded(rawFile);
+      // Compress avatar to strictly < 250KB
+      const file = await compressImageIfNeeded(rawFile, { maxSizeKB: 250, maxDimension: 512 });
       setSelectedFile(file);
       setWebcamImage(null);
       

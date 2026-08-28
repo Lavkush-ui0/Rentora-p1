@@ -36,8 +36,8 @@ export const Profile: React.FC = () => {
     setUploadingAvatar(true);
     setAvatarSuccess('');
     try {
-      // Automatically compress avatar if > 2MB
-      const file = await compressImageIfNeeded(rawFile);
+      // Automatically compress avatar to < 250KB & 512px bound
+      const file = await compressImageIfNeeded(rawFile, { maxSizeKB: 250, maxDimension: 512 });
 
       const formData = new FormData();
       formData.append('avatar', file);
