@@ -14,14 +14,11 @@ export const clearHomepageCache = () => {
   homepageCache.clear();
 };
 
-const FALLBACK_IMG = 'https://images.unsplash.com/photo-1587829741301-dc798b83add3?q=80&w=600&auto=format&fit=crop';
-
-const sanitizeImage = (img: string | undefined): string => {
-  if (!img) return FALLBACK_IMG;
-  if (img.startsWith('data:image') || img.length > 500) {
-    return FALLBACK_IMG;
+export const sanitizeAvatar = (avatar: string | undefined, name: string = 'User'): string => {
+  if (!avatar || avatar.startsWith('data:image') || avatar.length > 500) {
+    return `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(name || 'User')}`;
   }
-  return img;
+  return avatar;
 };
 
 const mapListings = (list: any[]) => (list || []).map((l: any) => ({
@@ -29,13 +26,13 @@ const mapListings = (list: any[]) => (list || []).map((l: any) => ({
   owner: l.owner ? {
     _id: l.owner.id,
     fullName: l.owner.full_name,
-    avatar: l.owner.avatar,
+    avatar: sanitizeAvatar(l.owner.avatar, l.owner.full_name),
     ratingAverage: Number(l.owner.rating_average)
   } : null,
   title: l.title,
   slug: l.slug,
   description: l.description,
-  images: l.images && l.images.length > 0 ? [sanitizeImage(l.images[0])] : [FALLBACK_IMG],
+  images: l.images && Array.isArray(l.images) ? l.images : [],
   condition: l.condition,
   rentalPrice: Number(l.rental_price),
   priceUnit: l.price_unit,
@@ -210,7 +207,7 @@ export const getHomepageData = async (req: Request, res: Response, next: NextFun
       topStudents = (studentsData || []).map((s: any) => ({
         _id: s.id,
         fullName: s.full_name,
-        avatar: s.avatar,
+        avatar: sanitizeAvatar(s.avatar, s.full_name),
         ratingAverage: Number(s.rating_average),
         completedRentals: s.completed_rentals,
         bio: s.bio,
@@ -245,7 +242,7 @@ export const getHomepageData = async (req: Request, res: Response, next: NextFun
       const formattedFallbacks = (fallbackStudents || []).map((s: any) => ({
         _id: s.id,
         fullName: s.full_name,
-        avatar: s.avatar,
+        avatar: sanitizeAvatar(s.avatar, s.full_name),
         ratingAverage: Number(s.rating_average),
         completedRentals: s.completed_rentals,
         bio: s.bio,
@@ -277,7 +274,7 @@ export const getHomepageData = async (req: Request, res: Response, next: NextFun
         const formattedGlobals = (globalFallbacks || []).map((s: any) => ({
           _id: s.id,
           fullName: s.full_name,
-          avatar: s.avatar,
+          avatar: sanitizeAvatar(s.avatar, s.full_name),
           ratingAverage: Number(s.rating_average),
           completedRentals: s.completed_rentals,
           bio: s.bio,

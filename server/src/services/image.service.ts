@@ -1,5 +1,18 @@
+import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
 import logger from '../utils/logger';
 import CustomError from '../utils/customError';
+import { config } from '../config/config';
+
+// Configure Cloudinary if credentials provided
+if (config.CLOUDINARY_CLOUD_NAME && config.CLOUDINARY_API_KEY && config.CLOUDINARY_API_SECRET) {
+  cloudinary.config({
+    cloud_name: config.CLOUDINARY_CLOUD_NAME,
+    api_key: config.CLOUDINARY_API_KEY,
+    api_secret: config.CLOUDINARY_API_SECRET,
+    secure: true,
+  });
+  logger.info('[Image Service] Cloudinary SDK initialized.');
+}
 
 /**
  * Validates genuine image binary signatures (Magic Bytes)
@@ -19,30 +32,76 @@ export const isValidImageBuffer = (buffer: Buffer): boolean => {
 };
 
 /**
- * Encodes an image buffer to an optimized Base64 Data URI with strict binary signature inspection.
+ * Uploads an image buffer to Cloudinary CDN (or falls back to compact data URI).
  * @param fileBuffer The file buffer from Multer
- * @param _folder Unused folder tag for backward compatibility
+ * @param folder Cloudinary folder tag
  * @param mimeType The file MIME type (default 'image/jpeg')
  */
 export const uploadImage = async (
   fileBuffer: Buffer,
-  _folder: string = 'rentora/listings',
+  folder: string = 'rentora/listings',
   mimeType: string = 'image/jpeg'
 ): Promise<string> => {
   if (!isValidImageBuffer(fileBuffer)) {
-    throw new CustomError('Security Alert: Corrupted or disguised file format. Only genuine JPG, PNG, and WebP images are allowed.', 400, 'INVALID_IMAGE_BINARY');
+    throw new CustomError(
+      'Security Alert: Corrupted or disguised file format. Only genuine JPG, PNG, and WebP images are allowed.',
+      400,
+      'INVALID_IMAGE_BINARY'
+    );
   }
 
+  // If Cloudinary credentials are configured, upload to Cloudinary CDN
+  if (config.CLOUDINARY_CLOUD_NAME && config.CLOUDINARY_API_KEY && config.CLOUDINARY_API_SECRET) {
+    try {
+      const result = await new Promise<UploadApiResponse>((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          {
+            folder,
+            resource_type: 'image',
+            format: 'webp',
+            quality: 'auto:good',
+            fetch_format: 'auto',
+          },
+          (error, res) => {
+            if (error || !res) return reject(error);
+            resolve(res);
+          }
+        );
+        stream.end(fileBuffer);
+      });
+
+      logger.info(`[Image Service] Uploaded to Cloudinary: ${result.secure_url} (${result.bytes} bytes)`);
+      return result.secure_url;
+    } catch (err) {
+      logger.warn('[Image Service] Cloudinary upload failed, falling back to data URI:', err);
+    }
+  }
+
+  // Fallback: encode as Base64 Data URI
   const base64Data = fileBuffer.toString('base64');
-  logger.info(`[Image Service] Verified & stored image as secure Data URI (${mimeType}, ${(fileBuffer.length / 1024).toFixed(1)} KB).`);
+  logger.info(`[Image Service] Stored image as Data URI (${mimeType}, ${(fileBuffer.length / 1024).toFixed(1)} KB).`);
   return `data:${mimeType};base64,${base64Data}`;
 };
 
 /**
- * Deletes or disposes of an image (no-op for database-stored Data URIs).
- * @param imageUrl The image URL or Data URI
+ * Deletes or disposes of an image.
+ * @param imageUrl The image URL
  */
 export const deleteImage = async (imageUrl: string): Promise<void> => {
   if (!imageUrl) return;
-  logger.info('[Image Service] Image reference cleared.');
+
+  if (imageUrl.includes('cloudinary.com') && config.CLOUDINARY_CLOUD_NAME && config.CLOUDINARY_API_KEY) {
+    try {
+      const parts = imageUrl.split('/');
+      const filename = parts.pop()?.split('.')[0];
+      const folder = parts.slice(parts.indexOf('upload') + 1).filter((p) => !p.startsWith('v')).join('/');
+      const publicId = folder ? `${folder}/${filename}` : filename;
+      if (publicId) {
+        await cloudinary.uploader.destroy(publicId);
+        logger.info(`[Image Service] Cleared Cloudinary image: ${publicId}`);
+      }
+    } catch (err) {
+      logger.warn('[Image Service] Failed to destroy Cloudinary image:', err);
+    }
+  }
 };

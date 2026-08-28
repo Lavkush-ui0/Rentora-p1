@@ -6,19 +6,11 @@ import { moderateListingWithAI, isAiModerationEnabled } from '../services/aiMode
 import CustomError from '../utils/customError';
 import { clearHomepageCache } from './discovery.controller';
 
-const FALLBACK_IMG = 'https://images.unsplash.com/photo-1587829741301-dc798b83add3?q=80&w=600&auto=format&fit=crop';
-
-export const sanitizeImage = (img: string | undefined): string => {
-  if (!img) return FALLBACK_IMG;
-  if (img.startsWith('data:image') || img.length > 500) {
-    return FALLBACK_IMG;
+export const sanitizeAvatar = (avatar: string | undefined, name: string = 'User'): string => {
+  if (!avatar || avatar.startsWith('data:image') || avatar.length > 500) {
+    return `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(name || 'User')}`;
   }
-  return img;
-};
-
-export const sanitizeImages = (imgs: string[] | undefined): string[] => {
-  if (!imgs || !Array.isArray(imgs) || imgs.length === 0) return [FALLBACK_IMG];
-  return imgs.map(sanitizeImage);
+  return avatar;
 };
 
 export const createListing = async (req: CustomRequest, res: Response, next: NextFunction) => {
@@ -293,7 +285,7 @@ export const getListings = async (req: CustomRequest, res: Response, next: NextF
         owner: l.owner ? {
           _id: l.owner.id,
           fullName: l.owner.full_name,
-          avatar: l.owner.avatar,
+          avatar: sanitizeAvatar(l.owner.avatar, l.owner.full_name),
           ratingAverage: Number(l.owner.rating_average)
         } : null,
         category: l.category ? {
@@ -304,7 +296,7 @@ export const getListings = async (req: CustomRequest, res: Response, next: NextF
         title: l.title,
         slug: l.slug,
         description: l.description,
-        images: l.images && l.images.length > 0 ? [sanitizeImage(l.images[0])] : [FALLBACK_IMG],
+        images: l.images && Array.isArray(l.images) ? l.images : [],
         condition: l.condition,
         rentalPrice: Number(l.rental_price),
         priceUnit: l.price_unit,
@@ -361,7 +353,7 @@ export const getListingById = async (req: CustomRequest, res: Response, next: Ne
         _id: l.owner.id,
         fullName: l.owner.full_name,
         email: l.owner.email,
-        avatar: l.owner.avatar,
+        avatar: sanitizeAvatar(l.owner.avatar, l.owner.full_name),
         bio: l.owner.bio,
         ratingAverage: Number(l.owner.rating_average),
         ratingCount: l.owner.rating_count,
@@ -376,7 +368,7 @@ export const getListingById = async (req: CustomRequest, res: Response, next: Ne
       title: l.title,
       slug: l.slug,
       description: l.description,
-      images: sanitizeImages(l.images),
+      images: l.images && Array.isArray(l.images) ? l.images : [],
       condition: l.condition,
       rentalPrice: Number(l.rental_price),
       priceUnit: l.price_unit,
