@@ -41,32 +41,16 @@ const CONDITION_LABELS: Record<string, string> = {
 export const ProductCard: React.FC<ProductCardProps> = ({ listing }) => {
   const {
     _id, title, images,
-    category: rawCategory = 'Gear',
     condition, rentalPrice, priceUnit, securityDeposit, owner, location
   } = listing;
   const { isInWishlist, toggleWishlist } = useWishlist();
 
-  // Normalise category — API may return populated object
-  const category = typeof rawCategory === 'object' && rawCategory !== null
-    ? (rawCategory as any).name || 'Gear'
-    : String(rawCategory || 'Gear');
-
   const isFavorited = isInWishlist(_id);
 
-  // Category based high-resolution fallback photos
-  const CATEGORY_FALLBACKS: Record<string, string> = {
-    'Books & Study Material': 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=600&auto=format&fit=crop',
-    'Electronics & Technical': 'https://images.unsplash.com/photo-1574607383476-f517f220d398?q=80&w=600&auto=format&fit=crop',
-    'Clothing & Accessories': 'https://images.unsplash.com/photo-1581093588401-fbb62a02f120?q=80&w=600&auto=format&fit=crop',
-    'Sports Equipment': 'https://images.unsplash.com/photo-1531415074968-036ba1b575da?q=80&w=600&auto=format&fit=crop',
-    'Gaming': 'https://images.unsplash.com/photo-1600080972464-8e5f35f63d08?q=80&w=600&auto=format&fit=crop',
-    'Other': 'https://images.unsplash.com/photo-1526738549149-8e07eca6c147?q=80&w=600&auto=format&fit=crop',
-  };
-
-  const defaultCategoryImg = CATEGORY_FALLBACKS[category] || 'https://images.unsplash.com/photo-1526738549149-8e07eca6c147?q=80&w=600&auto=format&fit=crop';
+  const fallbackImg = '/assets/rentora-logo.png';
   const displayImage = images && images.length > 0 && images[0]?.trim()
-    ? getImageUrl(images[0], defaultCategoryImg)
-    : defaultCategoryImg;
+    ? getImageUrl(images[0], fallbackImg)
+    : fallbackImg;
 
   const handleWishlistClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -81,14 +65,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({ listing }) => {
     <article className="group flex flex-col bg-white dark:bg-slate-900 rounded-3xl overflow-hidden border border-slate-100 dark:border-slate-800 card-lift transition-all duration-300 relative">
 
       {/* Thumbnail / Real Product Photo */}
-      <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
+      <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
         <Link to={`/listing/${_id}`} className="block w-full h-full" tabIndex={-1}>
           <img
             src={displayImage}
             alt={title}
             onError={(e) => {
-              // Fallback to category photo if remote image fails
-              (e.target as HTMLImageElement).src = defaultCategoryImg;
+              (e.target as HTMLImageElement).src = fallbackImg;
             }}
             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
             loading="lazy"
