@@ -45,15 +45,28 @@ const getTransporter = (): nodemailer.Transporter | null => {
   return transporter;
 };
 
-export const sendOTPEmail = async (email: string, otp: string, type: 'register' | 'login' = 'register') => {
+export const sendOTPEmail = async (email: string, otp: string, type: 'register' | 'login' | 'reset-password' = 'register') => {
   const isLogin = type === 'login';
-  const subject = isLogin ? '🔑 Rentora Login Code' : '🔒 Rentora Verification Code';
-  const title = isLogin ? 'Login to Rentora' : 'Verify Your Account';
-  const description = isLogin
+  const isReset = type === 'reset-password';
+  const subject = isReset
+    ? '🔐 Rentora Password Reset Code'
+    : isLogin
+    ? '🔑 Rentora Login Code'
+    : '🔒 Rentora Verification Code';
+  const title = isReset
+    ? 'Reset Your Password'
+    : isLogin
+    ? 'Login to Rentora'
+    : 'Verify Your Account';
+  const description = isReset
+    ? 'Use the 6-digit verification code below to reset your Rentora account password. This code will expire in 15 minutes.'
+    : isLogin
     ? 'Use the code below to log in to your Rentora account. This code is valid for 10 minutes.'
     : 'Use the code below to complete your registration. This code will expire in 10 minutes.';
 
-  const text = isLogin
+  const text = isReset
+    ? `Your Rentora password reset code is: ${otp}. This code is valid for 15 minutes.`
+    : isLogin
     ? `Your Rentora login verification code is: ${otp}. This code is valid for 10 minutes.`
     : `Your Rentora account verification code is: ${otp}. This code is valid for 10 minutes.`;
 

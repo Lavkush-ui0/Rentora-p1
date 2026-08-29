@@ -9,7 +9,7 @@ export const rentalService = {
   rejectRentalRequest: (id: string, reason?: string) => api.patch(`/rental-requests/${id}/reject`, { reason }),
   cancelRentalRequest: (id: string) => api.patch(`/rental-requests/${id}/cancel`),
   handoverRentalRequest: (id: string, otp?: string) => api.patch(`/rental-requests/${id}/handover`, { otp }),
-  completeRentalRequest: (id: string) => api.patch(`/rental-requests/${id}/complete`),
+  completeRentalRequest: (id: string, otp?: string) => api.patch(`/rental-requests/${id}/complete`, { otp }),
 };
 
 export default rentalService;

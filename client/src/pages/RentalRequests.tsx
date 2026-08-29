@@ -39,6 +39,7 @@ export const RentalRequests: React.FC = () => {
   const [reviewComment, setReviewComment] = useState('');
   const [reviewLoading, setReviewLoading] = useState(false);
   const [handoverOtpMap, setHandoverOtpMap] = useState<Record<string, string>>({});
+  const [returnOtpMap, setReturnOtpMap] = useState<Record<string, string>>({});
 
   const handleStartChat = async (recipientId: string, listingId?: string) => {
     try {
@@ -97,6 +98,24 @@ export const RentalRequests: React.FC = () => {
       });
     } catch (err: any) {
       alert(err.response?.data?.message || 'Handover failed. Check OTP.');
+    } finally {
+      setActionLoading('');
+    }
+  };
+
+  const handleReturnSubmit = async (requestId: string, otp: string) => {
+    setActionLoading(requestId + 'complete');
+    try {
+      await rentalService.completeRentalRequest(requestId, otp);
+      await refreshUser();
+      await fetchRequests();
+      setReturnOtpMap(prev => {
+        const copy = { ...prev };
+        delete copy[requestId];
+        return copy;
+      });
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Return verification failed. Check Return OTP.');
     } finally {
       setActionLoading('');
     }
@@ -213,7 +232,25 @@ export const RentalRequests: React.FC = () => {
                         </span>
                       </div>
                       <p className="text-[9px] text-gray-400 dark:text-gray-500">
-                        Provide this OTP to the item owner on campus during physical handover. Security deposit & fees will be deducted upon validation.
+                        Provide this OTP to the item owner on campus during physical handover. Security deposit &amp; fees will be deducted upon validation.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Renter Return OTP Display */}
+                  {!isIncoming && req.status === 'ACTIVE' && req.returnOTP && (
+                    <div className="p-3.5 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/40 rounded-2xl space-y-1.5 max-w-sm">
+                      <span className="text-[10px] font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-wider block">
+                        Return Verification Code (OTP)
+                      </span>
+                      <div className="flex items-center space-x-2">
+                        <KeyRound className="h-4 w-4 text-emerald-500" />
+                        <span className="text-base font-extrabold text-emerald-800 dark:text-emerald-300 font-mono tracking-widest bg-white dark:bg-slate-900 px-3 py-1 border border-emerald-200/50 dark:border-emerald-950 rounded-xl shadow-sm">
+                          {req.returnOTP}
+                        </span>
+                      </div>
+                      <p className="text-[9px] text-gray-400 dark:text-gray-500">
+                        Provide this 4-digit Return Code to the item owner when returning the item physically on campus. The owner will confirm the return to close the rental and release deposits.
                       </p>
                     </div>
                   )}
@@ -265,14 +302,24 @@ export const RentalRequests: React.FC = () => {
                       </div>
                     )}
                     {isIncoming && req.status === 'ACTIVE' && (
-                      <button
-                        onClick={() => handleAction(req._id, 'complete')}
-                        disabled={actionLoading === req._id + 'complete'}
-                        className="flex items-center space-x-1.5 px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold rounded-xl transition-all disabled:opacity-50"
-                      >
-                        <CheckCircle2 className="h-3.5 w-3.5" />
-                        <span>Mark Completed</span>
-                      </button>
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="text"
+                          placeholder="Enter Return OTP"
+                          maxLength={4}
+                          value={returnOtpMap[req._id] || ''}
+                          onChange={(e) => setReturnOtpMap({ ...returnOtpMap, [req._id]: e.target.value.replace(/[^0-9]/g, '') })}
+                          className="px-3 py-1.5 bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-slate-700 rounded-xl text-xs font-bold text-center w-36 tracking-widest focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                        />
+                        <button
+                          onClick={() => handleReturnSubmit(req._id, returnOtpMap[req._id] || '')}
+                          disabled={actionLoading === req._id + 'complete' || (returnOtpMap[req._id] || '').length !== 4}
+                          className="flex items-center space-x-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-all disabled:opacity-50 shadow-sm"
+                        >
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          <span>Verify &amp; Confirm Return</span>
+                        </button>
+                      </div>
                     )}
                     {(req.status === 'PENDING' || req.status === 'ACCEPTED') && (
                       <button
