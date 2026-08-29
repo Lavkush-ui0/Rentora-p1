@@ -6,47 +6,54 @@ import CustomError from '../utils/customError';
 import { clearHomepageCache } from './discovery.controller';
 import { isAiModerationEnabled, setAiModerationEnabled } from '../services/aiModeration.service';
 
+const sanitizeAvatar = (avatar?: string | null, name: string = 'User'): string => {
+  if (!avatar || avatar.startsWith('data:') || avatar.length > 500) {
+    return `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(name || 'User')}`;
+  }
+  return avatar;
+};
+
 // 1. User administration
 export const getUsers = async (req: CustomRequest, res: Response, next: NextFunction) => {
   try {
-    const { data: users, error } = await supabase
-      .from('users')
-      .select('*')
-      .order('created_at', { ascending: false });
+    // Run users fetch and listings lookup concurrently in a single batch
+    const [usersRes, listingsRes] = await Promise.all([
+      supabase.from('users').select('*').order('created_at', { ascending: false }),
+      supabase.from('listings').select('owner_id, created_at').neq('status', 'REMOVED').order('created_at', { ascending: false }),
+    ]);
 
-    if (error || !users) {
+    if (usersRes.error || !usersRes.data) {
       throw new CustomError('Failed to retrieve users', 500, 'FETCH_FAILED');
     }
 
-    const usersWithLastPost = await Promise.all(users.map(async (u) => {
-      const { data: lastListing } = await supabase
-        .from('listings')
-        .select('created_at')
-        .eq('owner_id', u.id)
-        .neq('status', 'REMOVED')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      
-      return {
-        id: u.id,
-        _id: u.id,
-        fullName: u.full_name,
-        email: u.email,
-        role: u.role,
-        course: u.course,
-        branch: u.branch,
-        year: u.year,
-        collegeName: u.college_name,
-        avatar: u.avatar,
-        bio: u.bio,
-        ratingAverage: Number(u.rating_average),
-        completedRentals: u.completed_rentals,
-        isBlocked: u.is_blocked,
-        isVerified: u.is_verified,
-        createdAt: u.created_at,
-        lastPostAt: lastListing ? lastListing.created_at : null
-      };
+    // Build O(1) lookup map for last listing created_at
+    const lastPostMap = new Map<string, string>();
+    if (listingsRes.data) {
+      for (const l of listingsRes.data) {
+        if (l.owner_id && !lastPostMap.has(l.owner_id)) {
+          lastPostMap.set(l.owner_id, l.created_at);
+        }
+      }
+    }
+
+    const usersWithLastPost = usersRes.data.map((u) => ({
+      id: u.id,
+      _id: u.id,
+      fullName: u.full_name,
+      email: u.email,
+      role: u.role,
+      course: u.course,
+      branch: u.branch,
+      year: u.year,
+      collegeName: u.college_name,
+      avatar: sanitizeAvatar(u.avatar, u.full_name),
+      bio: u.bio,
+      ratingAverage: Number(u.rating_average),
+      completedRentals: u.completed_rentals,
+      isBlocked: u.is_blocked,
+      isVerified: u.is_verified,
+      createdAt: u.created_at,
+      lastPostAt: lastPostMap.get(u.id) || null,
     }));
 
     return res.json({
@@ -258,7 +265,7 @@ export const getPendingListings = async (req: CustomRequest, res: Response, next
         _id: l.owner.id,
         fullName: l.owner.full_name,
         email: l.owner.email,
-        avatar: l.owner.avatar,
+        avatar: sanitizeAvatar(l.owner.avatar, l.owner.full_name),
       } : null,
       category: l.category ? {
         _id: l.category.id,
@@ -403,7 +410,7 @@ export const getRejectedTodayListings = async (req: CustomRequest, res: Response
         _id: l.owner.id,
         fullName: l.owner.full_name,
         email: l.owner.email,
-        avatar: l.owner.avatar,
+        avatar: sanitizeAvatar(l.owner.avatar, l.owner.full_name),
       } : null,
       category: l.category ? {
         _id: l.category.id,
@@ -570,7 +577,34 @@ export const getReports = async (req: CustomRequest, res: Response, next: NextFu
       throw new CustomError('Failed to fetch reports', 500, 'FETCH_FAILED');
     }
 
-    const populatedReports = await Promise.all(reports.map(async (report) => {
+    // Gather target IDs for bulk querying
+    const listingTargetIds = reports.filter(r => r.target_type === 'LISTING').map(r => r.target_id);
+    const userTargetIds = reports.filter(r => r.target_type === 'USER').map(r => r.target_id);
+
+    const [listingsRes, usersRes] = await Promise.all([
+      listingTargetIds.length > 0
+        ? supabase.from('listings').select('id, title, owner:owner_id (id, full_name, email)').in('id', listingTargetIds)
+        : Promise.resolve({ data: [] }),
+      userTargetIds.length > 0
+        ? supabase.from('users').select('id, full_name, email, avatar, rating_average').in('id', userTargetIds)
+        : Promise.resolve({ data: [] }),
+    ]);
+
+    const listingsMap = new Map<string, any>();
+    if (listingsRes.data) {
+      for (const l of listingsRes.data) {
+        listingsMap.set(l.id, l);
+      }
+    }
+
+    const usersMap = new Map<string, any>();
+    if (usersRes.data) {
+      for (const u of usersRes.data) {
+        usersMap.set(u.id, u);
+      }
+    }
+
+    const populatedReports = reports.map((report) => {
       const reportObj: any = {
         _id: report.id,
         reportedBy: report.reportedBy ? {
@@ -588,12 +622,7 @@ export const getReports = async (req: CustomRequest, res: Response, next: NextFu
       };
 
       if (report.target_type === 'LISTING') {
-        const { data: listing } = await supabase
-          .from('listings')
-          .select('id, title, owner:owner_id (id, full_name, email)')
-          .eq('id', report.target_id)
-          .maybeSingle();
-
+        const listing = listingsMap.get(report.target_id);
         if (listing) {
           reportObj.targetDetails = {
             _id: listing.id,
@@ -606,24 +635,19 @@ export const getReports = async (req: CustomRequest, res: Response, next: NextFu
           };
         }
       } else if (report.target_type === 'USER') {
-        const { data: user } = await supabase
-          .from('users')
-          .select('id, full_name, email, avatar, rating_average')
-          .eq('id', report.target_id)
-          .maybeSingle();
-
+        const user = usersMap.get(report.target_id);
         if (user) {
           reportObj.targetDetails = {
             _id: user.id,
             fullName: user.full_name,
             email: user.email,
-            avatar: user.avatar,
+            avatar: sanitizeAvatar(user.avatar, user.full_name),
             ratingAverage: Number(user.rating_average),
           };
         }
       }
       return reportObj;
-    }));
+    });
 
     return res.json({
       success: true,
@@ -722,83 +746,62 @@ export const createReport = async (req: CustomRequest, res: Response, next: Next
 // 5. Admin Dashboard Statistics & Graphs
 export const getDashboardStats = async (req: CustomRequest, res: Response, next: NextFunction) => {
   try {
-    const { count: totalUsers } = await supabase
-      .from('users')
-      .select('*', { count: 'exact', head: true })
-      .neq('role', 'ADMIN');
+    const statsStartDate = new Date();
+    statsStartDate.setDate(statsStartDate.getDate() - 7);
+    statsStartDate.setHours(0, 0, 0, 0);
 
-    const { count: totalListings } = await supabase
-      .from('listings')
-      .select('*', { count: 'exact', head: true })
-      .neq('status', 'REMOVED')
-      .eq('approval_status', 'APPROVED');
+    // Run all 9 queries concurrently in a single parallel batch
+    const [
+      usersCountRes,
+      listingsCountRes,
+      pendingCountRes,
+      rentalsCountRes,
+      chatsCountRes,
+      dbTopRatedRes,
+      dbTopEnquiryRes,
+      recentListingsRes,
+      recentRequestsRes,
+    ] = await Promise.all([
+      supabase.from('users').select('*', { count: 'exact', head: true }).neq('role', 'ADMIN'),
+      supabase.from('listings').select('*', { count: 'exact', head: true }).neq('status', 'REMOVED').eq('approval_status', 'APPROVED'),
+      supabase.from('listings').select('*', { count: 'exact', head: true }).eq('approval_status', 'PENDING'),
+      supabase.from('rental_requests').select('*', { count: 'exact', head: true }).eq('status', 'COMPLETED'),
+      supabase.from('conversations').select('*', { count: 'exact', head: true }),
+      supabase.from('listings').select('id, title, rating_average, view_count, owner:owner_id(full_name, email)').eq('status', 'ACTIVE').order('rating_average', { ascending: false }).order('view_count', { ascending: false }).limit(5),
+      supabase.from('listings').select('id, title, request_count, owner:owner_id(full_name, email)').eq('status', 'ACTIVE').order('request_count', { ascending: false }).limit(5),
+      supabase.from('listings').select('created_at').gte('created_at', statsStartDate.toISOString()),
+      supabase.from('rental_requests').select('created_at').gte('created_at', statsStartDate.toISOString()),
+    ]);
 
-    const { count: pendingApprovals } = await supabase
-      .from('listings')
-      .select('*', { count: 'exact', head: true })
-      .eq('approval_status', 'PENDING');
+    const totalUsers = usersCountRes.count || 0;
+    const totalListings = listingsCountRes.count || 0;
+    const pendingApprovals = pendingCountRes.count || 0;
+    const totalCompletedRentals = rentalsCountRes.count || 0;
+    const totalActiveChats = chatsCountRes.count || 0;
 
-    const { count: totalCompletedRentals } = await supabase
-      .from('rental_requests')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'COMPLETED');
-
-    const { count: totalActiveChats } = await supabase
-      .from('conversations')
-      .select('*', { count: 'exact', head: true });
-
-    // Top rated products
-    const { data: dbTopRated } = await supabase
-      .from('listings')
-      .select('*, owner:owner_id(full_name, email)')
-      .eq('status', 'ACTIVE')
-      .order('rating_average', { ascending: false })
-      .order('view_count', { ascending: false })
-      .limit(5);
-
-    const topRatedListings = (dbTopRated || []).map((l: any) => ({
+    const topRatedListings = (dbTopRatedRes.data || []).map((l: any) => ({
       _id: l.id,
       title: l.title,
       rating: Number(l.rating_average),
       viewCount: l.view_count,
       owner: l.owner ? {
         fullName: l.owner.full_name,
-        email: l.owner.email
-      } : null
+        email: l.owner.email,
+      } : null,
     }));
 
-    // Top enquiry products (most requested)
-    const { data: dbTopEnquiry } = await supabase
-      .from('listings')
-      .select('*, owner:owner_id(full_name, email)')
-      .eq('status', 'ACTIVE')
-      .order('request_count', { ascending: false })
-      .limit(5);
-
-    const topEnquiryListings = (dbTopEnquiry || []).map((l: any) => ({
+    const topEnquiryListings = (dbTopEnquiryRes.data || []).map((l: any) => ({
       _id: l.id,
       title: l.title,
       requestCount: l.request_count,
       owner: l.owner ? {
         fullName: l.owner.full_name,
-        email: l.owner.email
-      } : null
+        email: l.owner.email,
+      } : null,
     }));
 
-    // Aggregated stats over last 7 days for the Line Chart
-    const statsStartDate = new Date();
-    statsStartDate.setDate(statsStartDate.getDate() - 7);
-    statsStartDate.setHours(0, 0, 0, 0);
-
-    const { data: recentListings } = await supabase
-      .from('listings')
-      .select('created_at')
-      .gte('created_at', statsStartDate.toISOString());
-
-    const { data: recentRequests } = await supabase
-      .from('rental_requests')
-      .select('created_at')
-      .gte('created_at', statsStartDate.toISOString());
+    const recentListings = recentListingsRes.data || [];
+    const recentRequests = recentRequestsRes.data || [];
 
     // Build perfect sequential 7-day stats list
     const dailyStats = [];
@@ -807,8 +810,8 @@ export const getDashboardStats = async (req: CustomRequest, res: Response, next:
       d.setDate(d.getDate() - i);
       const dateStr = d.toISOString().split('T')[0];
 
-      const listingsCount = (recentListings || []).filter(l => l.created_at.split('T')[0] === dateStr).length;
-      const requestsCount = (recentRequests || []).filter(r => r.created_at.split('T')[0] === dateStr).length;
+      const listingsCount = recentListings.filter((l: any) => l.created_at.split('T')[0] === dateStr).length;
+      const requestsCount = recentRequests.filter((r: any) => r.created_at.split('T')[0] === dateStr).length;
 
       dailyStats.push({
         date: dateStr,
