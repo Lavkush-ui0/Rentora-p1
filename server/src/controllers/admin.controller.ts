@@ -6,6 +6,12 @@ import CustomError from '../utils/customError';
 import { clearHomepageCache } from './discovery.controller';
 import { isAiModerationEnabled, setAiModerationEnabled } from '../services/aiModeration.service';
 
+// ── Global platform settings (in-memory, reset on server restart) ──────────────
+let _dailyListingLimit = 2;
+export const getDailyListingLimit = () => _dailyListingLimit;
+export const setDailyListingLimit = (n: number) => { _dailyListingLimit = Math.max(1, Math.min(50, n)); };
+// ───────────────────────────────────────────────────────────────────────────────
+
 const sanitizeAvatar = (avatar?: string | null, name: string = 'User'): string => {
   if (!avatar || avatar.startsWith('data:') || avatar.length > 500) {
     return `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(name || 'User')}`;
@@ -135,6 +141,55 @@ export const unblockUser = async (req: CustomRequest, res: Response, next: NextF
     return res.json({
       success: true,
       message: `${updated.full_name} has been unblocked successfully.`,
+      user: {
+        id: updated.id,
+        _id: updated.id,
+        fullName: updated.full_name,
+        email: updated.email,
+        role: updated.role,
+        isBlocked: updated.is_blocked,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+// Single-endpoint toggle for block/unblock — replaces calling two separate endpoints
+export const toggleBlockUser = async (req: CustomRequest, res: Response, next: NextFunction) => {
+  try {
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', req.params.id)
+      .maybeSingle();
+
+    if (error || !user) {
+      throw new CustomError('User not found', 404, 'NOT_FOUND');
+    }
+
+    if (user.role === 'ADMIN') {
+      throw new CustomError('Cannot block an administrator account', 400, 'ADMIN_PROTECTED');
+    }
+
+    const newBlockedState = !user.is_blocked;
+
+    const { data: updated, error: updateErr } = await supabase
+      .from('users')
+      .update({ is_blocked: newBlockedState })
+      .eq('id', req.params.id)
+      .select()
+      .single();
+
+    if (updateErr || !updated) {
+      throw new CustomError('Failed to update user block status', 500, 'UPDATE_FAILED');
+    }
+
+    return res.json({
+      success: true,
+      message: newBlockedState
+        ? `${updated.full_name} has been temporarily blocked.`
+        : `${updated.full_name} has been unblocked and restored to active.`,
       user: {
         id: updated.id,
         _id: updated.id,
@@ -847,6 +902,7 @@ export const getAdminSettings = async (req: CustomRequest, res: Response, next: 
       success: true,
       settings: {
         aiModerationEnabled: isAiModerationEnabled(),
+        dailyListingLimit: getDailyListingLimit(),
       },
     });
   } catch (error) {
@@ -856,18 +912,26 @@ export const getAdminSettings = async (req: CustomRequest, res: Response, next: 
 
 export const updateAdminSettings = async (req: CustomRequest, res: Response, next: NextFunction) => {
   try {
-    const { aiModerationEnabled } = req.body;
-    if (typeof aiModerationEnabled !== 'boolean') {
-      throw new CustomError('aiModerationEnabled boolean is required.', 400, 'INVALID_INPUT');
+    const { aiModerationEnabled, dailyListingLimit } = req.body;
+
+    if (typeof aiModerationEnabled === 'boolean') {
+      setAiModerationEnabled(aiModerationEnabled);
     }
 
-    setAiModerationEnabled(aiModerationEnabled);
+    if (typeof dailyListingLimit === 'number' && dailyListingLimit >= 1) {
+      setDailyListingLimit(dailyListingLimit);
+    }
+
+    if (typeof aiModerationEnabled !== 'boolean' && typeof dailyListingLimit !== 'number') {
+      throw new CustomError('At least one valid setting (aiModerationEnabled or dailyListingLimit) is required.', 400, 'INVALID_INPUT');
+    }
 
     return res.json({
       success: true,
-      message: `AI Moderation Shield ${aiModerationEnabled ? 'ENABLED' : 'PAUSED (Manual Review Active)'}`,
+      message: 'Platform settings updated successfully.',
       settings: {
         aiModerationEnabled: isAiModerationEnabled(),
+        dailyListingLimit: getDailyListingLimit(),
       },
     });
   } catch (error) {

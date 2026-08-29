@@ -5,6 +5,7 @@ import { uploadImage, deleteImage } from '../services/image.service';
 import { moderateListingWithAI, isAiModerationEnabled } from '../services/aiModeration.service';
 import CustomError from '../utils/customError';
 import { clearHomepageCache } from './discovery.controller';
+import { getDailyListingLimit } from './admin.controller';
 
 export const sanitizeAvatar = (avatar: string | undefined, name: string = 'User'): string => {
   if (!avatar || avatar.startsWith('data:image') || avatar.length > 500) {
@@ -21,17 +22,18 @@ export const createListing = async (req: CustomRequest, res: Response, next: Nex
 
     const { title, description, category, condition, rentalPrice, priceUnit, securityDeposit, location } = req.body;
 
-    // Enforce daily listing limits: max 2 products per day and check if rejected today
+    // Enforce admin-configurable daily listing limit
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    
+    const limit = getDailyListingLimit();
+
     const { count: dailyCount, error: countErr } = await supabase
       .from('listings')
       .select('*', { count: 'exact', head: true })
       .eq('owner_id', req.user._id)
       .gte('created_at', oneDayAgo.toISOString());
 
-    if (dailyCount !== null && dailyCount >= 2) {
-      throw new CustomError('You can only list up to 2 products per day.', 400, 'DAILY_LIMIT_EXCEEDED');
+    if (dailyCount !== null && dailyCount >= limit) {
+      throw new CustomError(`You can only list up to ${limit} product${limit === 1 ? '' : 's'} per day.`, 400, 'DAILY_LIMIT_EXCEEDED');
     }
 
     const { count: rejectedToday } = await supabase

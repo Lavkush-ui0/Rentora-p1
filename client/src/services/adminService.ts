@@ -4,6 +4,7 @@ export const adminService = {
   getUsers: () => api.get('/admin/users'),
   blockUser: (id: string) => api.patch(`/admin/users/${id}/block`),
   unblockUser: (id: string) => api.patch(`/admin/users/${id}/unblock`),
+  toggleBlockUser: (id: string) => api.patch(`/admin/users/${id}/toggle-block`),
 
   getListings: () => api.get('/admin/listings'),
   removeListing: (id: string) => api.delete(`/admin/listings/${id}`),
@@ -26,7 +27,8 @@ export const adminService = {
 
   // AI Moderation Shield & Platform Settings
   getSettings: () => api.get('/admin/settings'),
-  updateSettings: (data: { aiModerationEnabled: boolean }) => api.patch('/admin/settings', data),
+  updateSettings: (data: { aiModerationEnabled?: boolean; dailyListingLimit?: number }) =>
+    api.patch('/admin/settings', data),
 
   // Create User / Admin Accounts
   createUser: (data: {

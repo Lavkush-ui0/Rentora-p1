@@ -4,7 +4,7 @@ import { adminService } from '../services/adminService';
 import {
   Users as UsersIcon, Package as ListingsIcon, CheckCircle2, Plus,
   MessageCircle, ClipboardCheck, CheckCircle, XCircle, Clock,
-  Bot, Sparkles, UserPlus, Lock, Mail, User
+  Bot, Sparkles, UserPlus, Lock, Mail, User, Settings
 } from 'lucide-react';
 import { AdminLayout } from '../layouts/AdminLayout';
 import { getImageUrl, getAvatarUrl } from '../utils/imageUrl';
@@ -238,6 +238,11 @@ export const AdminDashboard: React.FC = () => {
 
   const [aiModerationEnabled, setAiModerationEnabled] = useState<boolean>(true);
   const [togglingAi, setTogglingAi] = useState<boolean>(false);
+  const [dailyListingLimit, setDailyListingLimit] = useState<number>(2);
+  const [limitInput, setLimitInput] = useState<number>(2);
+  const [savingLimit, setSavingLimit] = useState<boolean>(false);
+  const [limitSaved, setLimitSaved] = useState<boolean>(false);
+  const [togglingBlockId, setTogglingBlockId] = useState<string | null>(null);
   const [createAccountModalOpen, setCreateAccountModalOpen] = useState<boolean>(false);
   const [createUserForm, setCreateUserForm] = useState({
     fullName: '',
@@ -265,8 +270,18 @@ export const AdminDashboard: React.FC = () => {
           }
         }
       } else if (currentTab === 'users') {
-        const usersRes = await adminService.getUsers();
+        const [usersRes, settingsRes] = await Promise.all([
+          adminService.getUsers(),
+          adminService.getSettings(),
+        ]);
         if (usersRes.data?.success) setUsers(usersRes.data.users);
+        if (settingsRes.data?.success && settingsRes.data.settings) {
+          const s = settingsRes.data.settings;
+          if (typeof s.dailyListingLimit === 'number') {
+            setDailyListingLimit(s.dailyListingLimit);
+            setLimitInput(s.dailyListingLimit);
+          }
+        }
       } else if (currentTab === 'listings') {
         const listRes = await adminService.getListings();
         if (listRes.data?.success) setListings(listRes.data.listings);
@@ -348,16 +363,41 @@ export const AdminDashboard: React.FC = () => {
     }
   };
 
-  const handleBlockToggle = async (userId: string, isCurrentlyBlocked: boolean) => {
+  const handleBlockToggle = async (userId: string) => {
+    setTogglingBlockId(userId);
     try {
-      if (isCurrentlyBlocked) {
-        await adminService.unblockUser(userId);
-      } else {
-        await adminService.blockUser(userId);
+      const res = await adminService.toggleBlockUser(userId);
+      if (res.data?.success) {
+        // Optimistically update local state from server response
+        const updatedUser = res.data.user;
+        setUsers(prev => prev.map(u =>
+          u._id === userId ? { ...u, isBlocked: updatedUser.isBlocked } : u
+        ));
       }
-      fetchDashboardData();
     } catch (err: any) {
       alert(err.response?.data?.message || 'Failed to toggle user block status.');
+    } finally {
+      setTogglingBlockId(null);
+    }
+  };
+
+  const handleSaveListingLimit = async () => {
+    if (limitInput < 1 || limitInput > 50) {
+      alert('Daily listing limit must be between 1 and 50.');
+      return;
+    }
+    setSavingLimit(true);
+    try {
+      const res = await adminService.updateSettings({ dailyListingLimit: limitInput });
+      if (res.data?.success) {
+        setDailyListingLimit(res.data.settings.dailyListingLimit);
+        setLimitSaved(true);
+        setTimeout(() => setLimitSaved(false), 2000);
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to update listing limit.');
+    } finally {
+      setSavingLimit(false);
     }
   };
 
@@ -659,19 +699,59 @@ export const AdminDashboard: React.FC = () => {
             {/* SUBVIEW 2: USERS LIST */}
             {currentTab === 'users' && (
               <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-3xl overflow-hidden">
-                <div className="p-6 border-b border-gray-50 dark:border-slate-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div>
-                    <h3 className="font-outfit font-black text-sm text-gray-900 dark:text-white">Registered Users & Administrators</h3>
-                    <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">Manage accounts, create new admin credentials, and monitor campus access</p>
+                {/* Panel Header */}
+                <div className="p-6 border-b border-gray-50 dark:border-slate-800/60">
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                    <div>
+                      <h3 className="font-outfit font-black text-sm text-gray-900 dark:text-white">Registered Users &amp; Administrators</h3>
+                      <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">Manage accounts, create new admin credentials, and monitor campus access</p>
+                    </div>
+                    <button
+                      onClick={() => setCreateAccountModalOpen(true)}
+                      className="px-4 py-2.5 bg-primary-600 hover:bg-primary-500 text-white text-xs font-bold rounded-2xl flex items-center space-x-2 shadow-lg shadow-primary-600/20 transition-all active:scale-95 shrink-0 w-fit"
+                    >
+                      <UserPlus className="h-4 w-4" />
+                      <span>Create Account (Admin / Student)</span>
+                    </button>
                   </div>
-                  <button
-                    onClick={() => setCreateAccountModalOpen(true)}
-                    className="px-4 py-2.5 bg-primary-600 hover:bg-primary-500 text-white text-xs font-bold rounded-2xl flex items-center space-x-2 shadow-lg shadow-primary-600/20 transition-all active:scale-95 shrink-0 w-fit"
-                  >
-                    <UserPlus className="h-4 w-4" />
-                    <span>Create Account (Admin / Student)</span>
-                  </button>
+
+                  {/* Daily Listing Limit Control */}
+                  <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-3 p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/30 rounded-2xl">
+                    <div className="flex items-center space-x-2 flex-1">
+                      <Settings className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                      <div>
+                        <p className="text-xs font-black text-amber-800 dark:text-amber-300">Daily Listing Limit per User</p>
+                        <p className="text-[10px] text-amber-600 dark:text-amber-500 mt-0.5">Max products each user can list per 24 hours. Currently: <strong>{dailyListingLimit}</strong></p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        id="daily-listing-limit-input"
+                        type="number"
+                        min={1}
+                        max={50}
+                        value={limitInput}
+                        onChange={e => setLimitInput(Number(e.target.value))}
+                        className="w-16 px-2 py-1.5 text-sm font-bold text-center border border-amber-300 dark:border-amber-800 bg-white dark:bg-slate-800 text-gray-900 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-400"
+                      />
+                      <button
+                        id="save-listing-limit-btn"
+                        onClick={handleSaveListingLimit}
+                        disabled={savingLimit || limitInput === dailyListingLimit}
+                        className={`px-4 py-1.5 text-xs font-bold rounded-xl transition-all active:scale-95 ${
+                          limitSaved
+                            ? 'bg-green-500 text-white'
+                            : limitInput === dailyListingLimit
+                            ? 'bg-gray-100 dark:bg-slate-700 text-gray-400 cursor-not-allowed'
+                            : 'bg-amber-500 hover:bg-amber-600 text-white shadow-sm'
+                        }`}
+                      >
+                        {savingLimit ? 'Saving…' : limitSaved ? '✓ Saved' : 'Apply'}
+                      </button>
+                    </div>
+                  </div>
                 </div>
+
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse">
                     <thead>
@@ -680,8 +760,7 @@ export const AdminDashboard: React.FC = () => {
                         <th className="px-6 py-4">Email</th>
                         <th className="px-6 py-4">Role</th>
                         <th className="px-6 py-4">Last Post</th>
-                        <th className="px-6 py-4">Status</th>
-                        <th className="px-6 py-4 text-right">Actions</th>
+                        <th className="px-6 py-4">Status &amp; Access</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50 dark:divide-slate-800/50 text-xs">
@@ -701,27 +780,40 @@ export const AdminDashboard: React.FC = () => {
                             {u.lastPostAt ? new Date(u.lastPostAt).toLocaleString() : 'Never'}
                           </td>
                           <td className="px-6 py-4">
-                            <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${
-                              u.isBlocked
-                                ? 'bg-red-50 text-red-600 dark:bg-red-950/20 dark:text-red-400'
-                                : 'bg-green-50 text-green-600 dark:bg-green-950/20 dark:text-green-400'
-                            }`}>
-                              {u.isBlocked ? 'Blocked' : 'Active'}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-right">
-                            {u.role !== 'ADMIN' && (
-                              <button
-                                onClick={() => handleBlockToggle(u._id, u.isBlocked)}
-                                className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all ${
-                                  u.isBlocked
-                                    ? 'bg-green-500 hover:bg-green-600 text-white'
-                                    : 'bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-950/25 dark:text-red-400 dark:hover:bg-red-950/40'
-                                }`}
-                              >
-                                {u.isBlocked ? 'Unblock' : 'Block User'}
-                              </button>
-                            )}
+                            <div className="flex items-center gap-3">
+                              {/* Status badge */}
+                              <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full shrink-0 ${
+                                u.isBlocked
+                                  ? 'bg-red-50 text-red-600 dark:bg-red-950/20 dark:text-red-400'
+                                  : 'bg-green-50 text-green-600 dark:bg-green-950/20 dark:text-green-400'
+                              }`}>
+                                {u.isBlocked ? '🔒 Blocked' : '✓ Active'}
+                              </span>
+
+                              {/* iOS-style toggle switch (non-admin only) */}
+                              {u.role !== 'ADMIN' && (
+                                <button
+                                  id={`block-toggle-${u._id}`}
+                                  onClick={() => handleBlockToggle(u._id)}
+                                  disabled={togglingBlockId === u._id}
+                                  title={u.isBlocked ? 'Click to unblock this user' : 'Click to temporarily block this user'}
+                                  className="relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-wait"
+                                  style={{
+                                    backgroundColor: u.isBlocked ? '#ef4444' : '#22c55e',
+                                  }}
+                                >
+                                  <span
+                                    className="inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm transition-transform duration-300"
+                                    style={{ transform: u.isBlocked ? 'translateX(18px)' : 'translateX(2px)' }}
+                                  />
+                                </button>
+                              )}
+                              {u.role !== 'ADMIN' && (
+                                <span className="text-[10px] text-gray-400 dark:text-gray-500">
+                                  {togglingBlockId === u._id ? 'Updating…' : u.isBlocked ? 'Blocked' : 'Unblocked'}
+                                </span>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))}

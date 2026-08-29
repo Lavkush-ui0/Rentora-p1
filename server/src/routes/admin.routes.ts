@@ -4,6 +4,7 @@ import {
   createUserByAdmin,
   blockUser,
   unblockUser,
+  toggleBlockUser,
   getListings,
   removeListing,
   getPendingListings,
@@ -31,6 +32,7 @@ router.get('/users', getUsers);
 router.post('/users/create', createUserByAdmin);
 router.patch('/users/:id/block', blockUser);
 router.patch('/users/:id/unblock', unblockUser);
+router.patch('/users/:id/toggle-block', toggleBlockUser);
 
 // Listings Dashboard
 router.get('/listings', getListings);
