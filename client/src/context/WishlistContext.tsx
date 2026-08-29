@@ -38,7 +38,9 @@ export const WishlistProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [wishlist, setWishlist] = useState<ListingSummary[]>(() => {
     try {
       const saved = localStorage.getItem('rentora_wishlist');
-      return saved ? JSON.parse(saved) : [];
+      if (!saved) return [];
+      const parsed = JSON.parse(saved);
+      return Array.isArray(parsed) ? parsed.filter((item) => item && (item._id || (item as any).id)) : [];
     } catch {
       return [];
     }
@@ -47,7 +49,9 @@ export const WishlistProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [cart, setCart] = useState<ListingSummary[]>(() => {
     try {
       const saved = localStorage.getItem('rentora_cart');
-      return saved ? JSON.parse(saved) : [];
+      if (!saved) return [];
+      const parsed = JSON.parse(saved);
+      return Array.isArray(parsed) ? parsed.filter((item) => item && (item._id || (item as any).id)) : [];
     } catch {
       return [];
     }
@@ -69,36 +73,82 @@ export const WishlistProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   }, [cart]);
 
-  const isInWishlist = (id: string) => wishlist.some((item) => item._id === id);
+  const isInWishlist = (id: string) => {
+    if (!id) return false;
+    return wishlist.some((item) => item && (item._id === id || (item as any).id === id));
+  };
 
   const toggleWishlist = (listing: ListingSummary) => {
+    if (!listing) return;
+    const itemId = listing._id || (listing as any).id;
+    if (!itemId) return;
+
     setWishlist((prev) => {
-      const exists = prev.some((item) => item._id === listing._id);
+      const exists = prev.some((item) => item && (item._id === itemId || (item as any).id === itemId));
       if (exists) {
-        return prev.filter((item) => item._id !== listing._id);
+        return prev.filter((item) => item && (item._id !== itemId && (item as any).id !== itemId));
       } else {
-        return [...prev, listing];
+        const cleanListing: ListingSummary = {
+          _id: itemId,
+          title: listing.title || 'Product',
+          images: Array.isArray(listing.images) ? listing.images : [],
+          condition: listing.condition || 'GOOD',
+          rentalPrice: Number(listing.rentalPrice) || 0,
+          priceUnit: listing.priceUnit || 'DAY',
+          securityDeposit: Number(listing.securityDeposit) || 0,
+          owner: {
+            _id: listing.owner?._id || (listing.owner as any)?.id || '',
+            fullName: listing.owner?.fullName || 'Student',
+            avatar: listing.owner?.avatar || '',
+            ratingAverage: Number(listing.owner?.ratingAverage) || 5,
+          },
+        };
+        return [...prev, cleanListing];
       }
     });
   };
 
   const removeFromWishlist = (id: string) => {
-    setWishlist((prev) => prev.filter((item) => item._id !== id));
+    if (!id) return;
+    setWishlist((prev) => prev.filter((item) => item && item._id !== id && (item as any).id !== id));
   };
 
   const clearWishlist = () => setWishlist([]);
 
-  const isInCart = (id: string) => cart.some((item) => item._id === id);
+  const isInCart = (id: string) => {
+    if (!id) return false;
+    return cart.some((item) => item && (item._id === id || (item as any).id === id));
+  };
 
   const addToCart = (listing: ListingSummary) => {
+    if (!listing) return;
+    const itemId = listing._id || (listing as any).id;
+    if (!itemId) return;
+
     setCart((prev) => {
-      if (prev.some((item) => item._id === listing._id)) return prev;
-      return [...prev, listing];
+      if (prev.some((item) => item && (item._id === itemId || (item as any).id === itemId))) return prev;
+      const cleanListing: ListingSummary = {
+        _id: itemId,
+        title: listing.title || 'Product',
+        images: Array.isArray(listing.images) ? listing.images : [],
+        condition: listing.condition || 'GOOD',
+        rentalPrice: Number(listing.rentalPrice) || 0,
+        priceUnit: listing.priceUnit || 'DAY',
+        securityDeposit: Number(listing.securityDeposit) || 0,
+        owner: {
+          _id: listing.owner?._id || (listing.owner as any)?.id || '',
+          fullName: listing.owner?.fullName || 'Student',
+          avatar: listing.owner?.avatar || '',
+          ratingAverage: Number(listing.owner?.ratingAverage) || 5,
+        },
+      };
+      return [...prev, cleanListing];
     });
   };
 
   const removeFromCart = (id: string) => {
-    setCart((prev) => prev.filter((item) => item._id !== id));
+    if (!id) return;
+    setCart((prev) => prev.filter((item) => item && item._id !== id && (item as any).id !== id));
   };
 
   const clearCart = () => setCart([]);

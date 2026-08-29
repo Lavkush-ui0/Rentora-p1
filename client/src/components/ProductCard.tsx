@@ -39,13 +39,21 @@ const CONDITION_LABELS: Record<string, string> = {
 };
 
 export const ProductCard: React.FC<ProductCardProps> = ({ listing }) => {
-  const {
-    _id, title, images,
-    condition, rentalPrice, priceUnit, securityDeposit, owner, location
-  } = listing;
+  if (!listing) return null;
+
+  const _id = listing._id || (listing as any).id || '';
+  const title = listing.title || 'Product';
+  const images = Array.isArray(listing.images) ? listing.images : [];
+  const condition = listing.condition || 'GOOD';
+  const rentalPrice = Number(listing.rentalPrice) || 0;
+  const priceUnit = listing.priceUnit || 'DAY';
+  const securityDeposit = Number(listing.securityDeposit) || 0;
+  const owner = listing.owner || { _id: '', fullName: 'Student', avatar: '', ratingAverage: 5 };
+  const location = listing.location || '';
+
   const { isInWishlist, toggleWishlist } = useWishlist();
 
-  const isFavorited = isInWishlist(_id);
+  const isFavorited = _id ? isInWishlist(_id) : false;
 
   const fallbackImg = '/rentora-logo.png';
   const displayImage = images && images.length > 0 && images[0]?.trim()
@@ -120,19 +128,19 @@ export const ProductCard: React.FC<ProductCardProps> = ({ listing }) => {
 
         {/* Footer: Owner + Price */}
         <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800 mt-auto">
-          <Link to={`/profile/${owner?._id}`} className="flex items-center gap-2">
+          <Link to={owner?._id ? `/profile/${owner._id}` : '#'} className="flex items-center gap-2">
             <img
-              src={getAvatarUrl(owner?.avatar, owner?.fullName)}
-              alt={owner?.fullName}
+              src={getAvatarUrl(owner?.avatar, owner?.fullName || 'Student')}
+              alt={owner?.fullName || 'Student'}
               className="h-7 w-7 rounded-full object-cover border border-slate-100 dark:border-slate-800"
             />
             <div>
               <p className="text-[10px] font-black text-slate-800 dark:text-slate-200 truncate max-w-[72px]">
-                {owner?.fullName?.split(' ')[0] ?? 'Student'}
+                {owner?.fullName ? owner.fullName.split(' ')[0] : 'Student'}
               </p>
               <div className="flex items-center gap-0.5 text-[9px] text-amber-500 font-bold">
                 <Star size={9} fill="currentColor" />
-                {(owner?.ratingAverage ?? 5).toFixed(1)}
+                {(Number(owner?.ratingAverage) || 5).toFixed(1)}
               </div>
             </div>
           </Link>
