@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { notificationService } from '../services/notificationService';
-import { Bell, BellOff, CheckCheck, Package, MessageCircle, Star, AlertTriangle, ArrowRight } from 'lucide-react';
+import { Bell, BellOff, CheckCheck, Package, MessageCircle, Star, AlertTriangle, ArrowRight, PauseCircle, Edit3 } from 'lucide-react';
 
 const notifIcons: Record<string, React.FC<any>> = {
   RENTAL_REQUEST: Package,
@@ -12,6 +12,7 @@ const notifIcons: Record<string, React.FC<any>> = {
   RENTAL_COMPLETED: CheckCheck,
   NEW_REVIEW: Star,
   LISTING_REMOVED: AlertTriangle,
+  LISTING_PAUSED: PauseCircle,
   ACCOUNT_STATUS: AlertTriangle,
 };
 
@@ -24,6 +25,7 @@ const notifColors: Record<string, string> = {
   RENTAL_COMPLETED: 'text-green-500 bg-green-50 dark:bg-green-950/30',
   NEW_REVIEW: 'text-amber-500 bg-amber-50 dark:bg-amber-950/30',
   LISTING_REMOVED: 'text-red-500 bg-red-50 dark:bg-red-950/30',
+  LISTING_PAUSED: 'text-amber-600 bg-amber-50 dark:bg-amber-950/30',
   ACCOUNT_STATUS: 'text-red-500 bg-red-50 dark:bg-red-950/30',
 };
 
@@ -85,6 +87,15 @@ export const Notifications: React.FC = () => {
 
     if (notif.type === 'REQUEST_REJECTED') {
       return; // Do not navigate
+    }
+
+    if (notif.type === 'LISTING_PAUSED') {
+      if (notif.relatedId) {
+        navigate(`/edit-item/${notif.relatedId}`);
+      } else {
+        navigate('/my-listings');
+      }
+      return;
     }
 
     if (notif.relatedId) {
@@ -200,6 +211,18 @@ export const Notifications: React.FC = () => {
                     </>
                   ) : notif.type === 'REQUEST_REJECTED' ? (
                     null
+                  ) : notif.type === 'LISTING_PAUSED' ? (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleNotificationClick(notif);
+                      }}
+                      className="flex items-center space-x-1 px-3 py-1.5 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 text-xs font-bold rounded-xl hover:bg-amber-100 transition-all shadow-sm"
+                    >
+                      <Edit3 className="h-3.5 w-3.5" />
+                      <span>Edit Description</span>
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </button>
                   ) : (
                     <button
                       onClick={(e) => {

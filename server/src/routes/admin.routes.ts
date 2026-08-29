@@ -7,6 +7,8 @@ import {
   toggleBlockUser,
   getListings,
   removeListing,
+  pauseListing,
+  resumeListing,
   getPendingListings,
   approveListing,
   rejectListing,
@@ -37,6 +39,8 @@ router.patch('/users/:id/toggle-block', toggleBlockUser);
 // Listings Dashboard
 router.get('/listings', getListings);
 router.delete('/listings/:id', removeListing);
+router.patch('/listings/:id/pause', pauseListing);
+router.patch('/listings/:id/resume', resumeListing);
 
 // Listing Approvals
 router.get('/listings/pending', getPendingListings);

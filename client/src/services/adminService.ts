@@ -8,6 +8,8 @@ export const adminService = {
 
   getListings: () => api.get('/admin/listings'),
   removeListing: (id: string) => api.delete(`/admin/listings/${id}`),
+  pauseListing: (id: string, reason?: string) => api.patch(`/admin/listings/${id}/pause`, { reason }),
+  resumeListing: (id: string) => api.patch(`/admin/listings/${id}/resume`),
 
   // Listing Approvals
   getPendingListings: () => api.get('/admin/listings/pending'),

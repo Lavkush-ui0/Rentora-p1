@@ -5,6 +5,7 @@ import { CustomRequest } from '../types';
 import CustomError from '../utils/customError';
 import { clearHomepageCache } from './discovery.controller';
 import { isAiModerationEnabled, setAiModerationEnabled } from '../services/aiModeration.service';
+import { createNotification } from '../services/notification.service';
 
 // ── Global platform settings (in-memory, reset on server restart) ──────────────
 let _dailyListingLimit = 2;
@@ -296,6 +297,122 @@ export const removeListing = async (req: CustomRequest, res: Response, next: Nex
     return res.json({
       success: true,
       message: 'Listing removed successfully by admin',
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const pauseListing = async (req: CustomRequest, res: Response, next: NextFunction) => {
+  try {
+    const { reason } = req.body;
+    const { data: listing, error } = await supabase
+      .from('listings')
+      .select('id, title, owner_id')
+      .eq('id', req.params.id)
+      .maybeSingle();
+
+    if (error || !listing) {
+      throw new CustomError('Listing not found', 404, 'NOT_FOUND');
+    }
+
+    const pauseReason = reason?.trim() || 'Please update the product description to provide more details.';
+
+    const { data: updated, error: updateErr } = await supabase
+      .from('listings')
+      .update({
+        status: 'PAUSED',
+        availability: false,
+        rejection_reason: pauseReason,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', req.params.id)
+      .select()
+      .single();
+
+    if (updateErr || !updated) {
+      throw new CustomError('Failed to pause listing', 500, 'UPDATE_FAILED');
+    }
+
+    clearHomepageCache();
+
+    // Send notification to the owner to update description
+    if (listing.owner_id) {
+      await createNotification(
+        listing.owner_id,
+        'LISTING_PAUSED',
+        'Listing Paused by Admin',
+        `Your listing "${listing.title}" was paused by admin: ${pauseReason}. Please update the description in My Listings to resubmit for review.`,
+        listing.id
+      );
+    }
+
+    return res.json({
+      success: true,
+      message: `Listing "${listing.title}" has been paused. Owner notified to update description.`,
+      listing: {
+        _id: updated.id,
+        status: updated.status,
+        availability: updated.availability,
+        rejectionReason: updated.rejection_reason,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const resumeListing = async (req: CustomRequest, res: Response, next: NextFunction) => {
+  try {
+    const { data: listing, error } = await supabase
+      .from('listings')
+      .select('id, title, owner_id')
+      .eq('id', req.params.id)
+      .maybeSingle();
+
+    if (error || !listing) {
+      throw new CustomError('Listing not found', 404, 'NOT_FOUND');
+    }
+
+    const { data: updated, error: updateErr } = await supabase
+      .from('listings')
+      .update({
+        status: 'ACTIVE',
+        availability: true,
+        approval_status: 'APPROVED',
+        rejection_reason: '',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', req.params.id)
+      .select()
+      .single();
+
+    if (updateErr || !updated) {
+      throw new CustomError('Failed to resume listing', 500, 'UPDATE_FAILED');
+    }
+
+    clearHomepageCache();
+
+    // Send notification to owner that listing is active
+    if (listing.owner_id) {
+      await createNotification(
+        listing.owner_id,
+        'REQUEST_ACCEPTED',
+        'Listing Activated',
+        `Your listing "${listing.title}" is now active and live on the marketplace!`,
+        listing.id
+      );
+    }
+
+    return res.json({
+      success: true,
+      message: `Listing "${listing.title}" has been reactivated and is now live.`,
+      listing: {
+        _id: updated.id,
+        status: updated.status,
+        availability: updated.availability,
+        approvalStatus: updated.approval_status,
+      },
     });
   } catch (error) {
     return next(error);

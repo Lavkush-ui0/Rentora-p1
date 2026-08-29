@@ -182,6 +182,18 @@ export const MyListings: React.FC = () => {
                   </div>
                 )}
 
+                {listing.status === 'PAUSED' && listing.rejectionReason && (
+                  <div className="p-2.5 bg-amber-50/80 dark:bg-amber-950/25 border border-amber-200 dark:border-amber-900/40 rounded-xl text-xs space-y-1">
+                    <div className="flex items-center gap-1.5 font-bold text-amber-800 dark:text-amber-300 text-[11px]">
+                      <PauseCircle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                      <span>Paused by Admin: {listing.rejectionReason}</span>
+                    </div>
+                    <p className="text-[10px] text-amber-700 dark:text-amber-400/90 leading-tight">
+                      Please update the product description or details to submit for re-activation.
+                    </p>
+                  </div>
+                )}
+
                 {/* Action Buttons */}
                 <div className="flex flex-wrap gap-2 pt-1">
                   {listing.status !== 'REMOVED' && (
@@ -201,10 +213,14 @@ export const MyListings: React.FC = () => {
 
                       <Link
                         to={`/edit-item/${listing._id}`}
-                        className="flex items-center space-x-1 px-3 py-1.5 border border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-300 text-xs font-bold rounded-xl hover:bg-gray-50 dark:hover:bg-slate-800 transition-all"
+                        className={`flex items-center space-x-1 px-3 py-1.5 text-xs font-bold rounded-xl transition-all ${
+                          listing.status === 'PAUSED' && listing.rejectionReason
+                            ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-sm'
+                            : 'border border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-800'
+                        }`}
                       >
                         <Edit3 className="h-3.5 w-3.5" />
-                        <span>Edit</span>
+                        <span>{listing.status === 'PAUSED' && listing.rejectionReason ? 'Edit & Resubmit' : 'Edit'}</span>
                       </Link>
 
                       <button
