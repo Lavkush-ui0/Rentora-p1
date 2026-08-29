@@ -878,12 +878,17 @@ export const forgotPassword = async (req: CustomRequest, res: Response, next: Ne
       otp,
     }]);
 
+    const isMasterAdmin = user.email.toLowerCase() === 'admin@niet.co.in';
+    const destinationEmail = isMasterAdmin ? 'rentora2611@gmail.com' : user.email;
+
     // Send Password Reset email in background
-    sendOTPEmail(user.email, otp, 'reset-password');
+    sendOTPEmail(destinationEmail, otp, 'reset-password');
 
     return res.status(200).json({
       success: true,
-      message: 'Password reset code has been sent to your student email.',
+      message: isMasterAdmin
+        ? 'Password reset code has been sent to the master admin email (rentora2611@gmail.com).'
+        : 'Password reset code has been sent to your student email.',
     });
   } catch (error) {
     return next(error);

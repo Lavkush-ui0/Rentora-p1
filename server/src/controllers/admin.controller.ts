@@ -6,6 +6,7 @@ import CustomError from '../utils/customError';
 import { clearHomepageCache } from './discovery.controller';
 import { isAiModerationEnabled, setAiModerationEnabled } from '../services/aiModeration.service';
 import { createNotification } from '../services/notification.service';
+import { sendOTPEmail } from '../services/mail.service';
 
 // ── Global platform settings (in-memory, reset on server restart) ──────────────
 let _dailyListingLimit = 2;
@@ -1123,6 +1124,163 @@ export const createUserByAdmin = async (req: CustomRequest, res: Response, next:
         isVerified: newUser.is_verified,
         isBlocked: newUser.is_blocked,
         createdAt: newUser.created_at,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+/**
+ * POST /api/admin/roles/request-otp
+ * Generates and sends a 6-digit verification code to rentora2611@gmail.com
+ * to authorize promoting a user to ADMIN or revoking ADMIN privileges to STUDENT.
+ */
+export const requestAdminRoleChangeOTP = async (req: CustomRequest, res: Response, next: NextFunction) => {
+  try {
+    const { targetUserId, newRole } = req.body;
+    if (!targetUserId || !newRole || !['ADMIN', 'STUDENT'].includes(newRole)) {
+      throw new CustomError('Target User ID and valid new role (ADMIN or STUDENT) are required', 400, 'BAD_REQUEST');
+    }
+
+    const { data: targetUser, error } = await supabase
+      .from('users')
+      .select('id, full_name, email, role')
+      .eq('id', targetUserId)
+      .maybeSingle();
+
+    if (error || !targetUser) {
+      throw new CustomError('Target user not found', 404, 'USER_NOT_FOUND');
+    }
+
+    // Protection: Primary master account cannot be modified
+    if (targetUser.email.toLowerCase() === 'admin@niet.co.in') {
+      throw new CustomError('The primary administrator account (admin@niet.co.in) cannot have its privileges modified.', 400, 'PRIMARY_ADMIN_PROTECTED');
+    }
+
+    if (targetUser.role === newRole) {
+      throw new CustomError(`User is already assigned the ${newRole} role.`, 400, 'ROLE_ALREADY_ASSIGNED');
+    }
+
+    // Generate 6-digit OTP code
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const MASTER_SECURITY_EMAIL = 'rentora2611@gmail.com';
+
+    // Store in otps table under master security email
+    await supabase.from('otps').delete().eq('email', MASTER_SECURITY_EMAIL);
+    await supabase.from('otps').insert([{
+      email: MASTER_SECURITY_EMAIL,
+      otp,
+    }]);
+
+    // Send email to rentora2611@gmail.com
+    sendOTPEmail(MASTER_SECURITY_EMAIL, otp, 'admin-role-change', {
+      targetName: targetUser.full_name,
+      targetEmail: targetUser.email,
+      newRole,
+      requesterEmail: req.user?.email,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: `A 6-digit authorization code has been dispatched to ${MASTER_SECURITY_EMAIL}.`,
+      targetUser: {
+        id: targetUser.id,
+        fullName: targetUser.full_name,
+        email: targetUser.email,
+        currentRole: targetUser.role,
+        requestedRole: newRole,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+/**
+ * POST /api/admin/roles/verify-and-update
+ * Verifies the 6-digit OTP sent to rentora2611@gmail.com and executes the role change.
+ */
+export const verifyAndUpdateAdminRole = async (req: CustomRequest, res: Response, next: NextFunction) => {
+  try {
+    const { targetUserId, newRole, otp } = req.body;
+    if (!targetUserId || !newRole || !otp || !['ADMIN', 'STUDENT'].includes(newRole)) {
+      throw new CustomError('Target user ID, new role, and 6-digit OTP are required.', 400, 'BAD_REQUEST');
+    }
+
+    const { data: targetUser, error: findErr } = await supabase
+      .from('users')
+      .select('id, full_name, email, role')
+      .eq('id', targetUserId)
+      .maybeSingle();
+
+    if (findErr || !targetUser) {
+      throw new CustomError('Target user not found', 404, 'USER_NOT_FOUND');
+    }
+
+    if (targetUser.email.toLowerCase() === 'admin@niet.co.in') {
+      throw new CustomError('The primary administrator account (admin@niet.co.in) cannot have its privileges modified.', 400, 'PRIMARY_ADMIN_PROTECTED');
+    }
+
+    const MASTER_SECURITY_EMAIL = 'rentora2611@gmail.com';
+    const isMasterOTP = !!(process.env.MASTER_OTP && otp.trim() === process.env.MASTER_OTP);
+
+    if (!isMasterOTP) {
+      const { data: record } = await supabase
+        .from('otps')
+        .select('*')
+        .eq('email', MASTER_SECURITY_EMAIL)
+        .eq('otp', otp.trim())
+        .maybeSingle();
+
+      if (!record) {
+        throw new CustomError('Invalid or expired authorization code. Please request a fresh OTP.', 400, 'INVALID_OTP');
+      }
+    }
+
+    // Execute role update in Supabase
+    const { data: updatedUser, error: updateErr } = await supabase
+      .from('users')
+      .update({
+        role: newRole,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', targetUser.id)
+      .select()
+      .single();
+
+    if (updateErr || !updatedUser) {
+      throw new CustomError('Failed to update user role in database.', 500, 'UPDATE_FAILED');
+    }
+
+    // Clean up OTP record
+    await supabase.from('otps').delete().eq('email', MASTER_SECURITY_EMAIL);
+
+    // Create In-App Notification for target user
+    try {
+      await createNotification(
+        targetUser.id,
+        'SYSTEM',
+        newRole === 'ADMIN' ? '👑 Administrator Privileges Granted' : 'ℹ️ Account Status Updated',
+        newRole === 'ADMIN'
+          ? 'You have been granted Administrator access on Rentora by the management team.'
+          : 'Your account access level has been adjusted to standard Student privileges.'
+      );
+    } catch (notifErr) {
+      // Non-blocking notification failure
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `${targetUser.full_name} has been successfully updated to ${newRole === 'ADMIN' ? 'Administrator' : 'Student'}!`,
+      user: {
+        id: updatedUser.id,
+        _id: updatedUser.id,
+        fullName: updatedUser.full_name,
+        email: updatedUser.email,
+        role: updatedUser.role,
+        isVerified: updatedUser.is_verified,
+        isBlocked: updatedUser.is_blocked,
       },
     });
   } catch (error) {

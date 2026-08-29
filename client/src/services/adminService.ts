@@ -43,6 +43,12 @@ export const adminService = {
     year?: number;
     collegeName?: string;
   }) => api.post('/admin/users/create', data),
+
+  // Admin Role Privilege Management (Guarded by Master OTP at rentora2611@gmail.com)
+  requestAdminRoleChangeOTP: (data: { targetUserId: string; newRole: 'ADMIN' | 'STUDENT' }) =>
+    api.post('/admin/roles/request-otp', data),
+  verifyAndUpdateAdminRole: (data: { targetUserId: string; newRole: 'ADMIN' | 'STUDENT'; otp: string }) =>
+    api.post('/admin/roles/verify-and-update', data),
 };
 
 export default adminService;

@@ -5,7 +5,8 @@ import {
   Users as UsersIcon, Package as ListingsIcon, CheckCircle2, Plus,
   MessageCircle, ClipboardCheck, CheckCircle, XCircle, Clock,
   Bot, Sparkles, UserPlus, Lock, Mail, User, Settings,
-  ArrowUpDown, PauseCircle, PlayCircle, Search, Calendar
+  ArrowUpDown, PauseCircle, PlayCircle, Search, Calendar,
+  ShieldCheck, ShieldAlert, KeyRound, Crown, UserX
 } from 'lucide-react';
 import { AdminLayout } from '../layouts/AdminLayout';
 import { getImageUrl, getAvatarUrl } from '../utils/imageUrl';
@@ -270,6 +271,109 @@ export const AdminDashboard: React.FC = () => {
   const [creatingUser, setCreatingUser] = useState<boolean>(false);
   const [createUserError, setCreateUserError] = useState<string>('');
   const [createUserSuccess, setCreateUserSuccess] = useState<string>('');
+
+  // Admin Role Privileges Management States (Master OTP at rentora2611@gmail.com)
+  const [adminRoleModalOpen, setAdminRoleModalOpen] = useState<boolean>(false);
+  const [adminRoleSearch, setAdminRoleSearch] = useState<string>('');
+  const [adminRoleFilter, setAdminRoleFilter] = useState<'ALL' | 'ADMIN' | 'STUDENT'>('ALL');
+  const [selectedUserForRoleChange, setSelectedUserForRoleChange] = useState<any | null>(null);
+  const [targetNewRole, setTargetNewRole] = useState<'ADMIN' | 'STUDENT'>('ADMIN');
+  const [roleChangeOtpModalOpen, setRoleChangeOtpModalOpen] = useState<boolean>(false);
+  const [roleChangeOtp, setRoleChangeOtp] = useState<string>('');
+  const [requestingRoleOtp, setRequestingRoleOtp] = useState<boolean>(false);
+  const [verifyingRoleOtp, setVerifyingRoleOtp] = useState<boolean>(false);
+  const [roleChangeError, setRoleChangeError] = useState<string>('');
+  const [roleChangeSuccess, setRoleChangeSuccess] = useState<string>('');
+  const [roleOtpTimer, setRoleOtpTimer] = useState<number>(0);
+
+  useEffect(() => {
+    let interval: any = null;
+    if (roleOtpTimer > 0) {
+      interval = setInterval(() => setRoleOtpTimer(t => t - 1), 1000);
+    }
+    return () => clearInterval(interval);
+  }, [roleOtpTimer]);
+
+  const handleInitiateRoleChange = async (targetUser: any, newRole: 'ADMIN' | 'STUDENT') => {
+    if (targetUser.email?.toLowerCase() === 'admin@niet.co.in') {
+      alert('The primary master administrator account (admin@niet.co.in) cannot have its privileges modified.');
+      return;
+    }
+    setSelectedUserForRoleChange(targetUser);
+    setTargetNewRole(newRole);
+    setRoleChangeOtp('');
+    setRoleChangeError('');
+    setRoleChangeSuccess('');
+    setRequestingRoleOtp(true);
+
+    try {
+      const res = await adminService.requestAdminRoleChangeOTP({
+        targetUserId: targetUser._id || targetUser.id,
+        newRole,
+      });
+      if (res.data?.success) {
+        setRoleChangeOtpModalOpen(true);
+        setRoleOtpTimer(60);
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to request authorization code.');
+    } finally {
+      setRequestingRoleOtp(false);
+    }
+  };
+
+  const handleResendRoleOtp = async () => {
+    if (!selectedUserForRoleChange || roleOtpTimer > 0) return;
+    setRequestingRoleOtp(true);
+    setRoleChangeError('');
+    try {
+      const res = await adminService.requestAdminRoleChangeOTP({
+        targetUserId: selectedUserForRoleChange._id || selectedUserForRoleChange.id,
+        newRole: targetNewRole,
+      });
+      if (res.data?.success) {
+        setRoleOtpTimer(60);
+      }
+    } catch (err: any) {
+      setRoleChangeError(err.response?.data?.message || 'Failed to resend code.');
+    } finally {
+      setRequestingRoleOtp(false);
+    }
+  };
+
+  const handleVerifyRoleOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedUserForRoleChange || !roleChangeOtp.trim()) return;
+
+    setVerifyingRoleOtp(true);
+    setRoleChangeError('');
+    try {
+      const res = await adminService.verifyAndUpdateAdminRole({
+        targetUserId: selectedUserForRoleChange._id || selectedUserForRoleChange.id,
+        newRole: targetNewRole,
+        otp: roleChangeOtp.trim(),
+      });
+      if (res.data?.success) {
+        setRoleChangeSuccess(res.data.message);
+        // Update local users list
+        setUsers(prev => prev.map((u: any) =>
+          (u._id === selectedUserForRoleChange._id || u.id === selectedUserForRoleChange.id)
+            ? { ...u, role: targetNewRole }
+            : u
+        ));
+        setTimeout(() => {
+          setRoleChangeOtpModalOpen(false);
+          setRoleChangeSuccess('');
+          setRoleChangeOtp('');
+          setSelectedUserForRoleChange(null);
+        }, 1500);
+      }
+    } catch (err: any) {
+      setRoleChangeError(err.response?.data?.message || 'Invalid or expired authorization code.');
+    } finally {
+      setVerifyingRoleOtp(false);
+    }
+  };
 
   const fetchDashboardData = async () => {
     setLoading(true);
@@ -753,15 +857,25 @@ export const AdminDashboard: React.FC = () => {
                   <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                     <div>
                       <h3 className="font-outfit font-black text-sm text-gray-900 dark:text-white">Registered Users &amp; Administrators</h3>
-                      <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">Manage accounts, create new admin credentials, and monitor campus access</p>
+                      <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">Manage accounts, assign/revoke admin privileges, and monitor campus access</p>
                     </div>
-                    <button
-                      onClick={() => setCreateAccountModalOpen(true)}
-                      className="px-4 py-2.5 bg-primary-600 hover:bg-primary-500 text-white text-xs font-bold rounded-2xl flex items-center space-x-2 shadow-lg shadow-primary-600/20 transition-all active:scale-95 shrink-0 w-fit"
-                    >
-                      <UserPlus className="h-4 w-4" />
-                      <span>Create Account (Admin / Student)</span>
-                    </button>
+                    <div className="flex items-center gap-2.5 flex-wrap">
+                      <button
+                        id="manage-admins-btn"
+                        onClick={() => setAdminRoleModalOpen(true)}
+                        className="px-4 py-2.5 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white text-xs font-bold rounded-2xl flex items-center space-x-2 shadow-lg shadow-amber-500/20 transition-all active:scale-95 shrink-0"
+                      >
+                        <ShieldCheck className="h-4 w-4" />
+                        <span>Add / Update Admin</span>
+                      </button>
+                      <button
+                        onClick={() => setCreateAccountModalOpen(true)}
+                        className="px-4 py-2.5 bg-primary-600 hover:bg-primary-500 text-white text-xs font-bold rounded-2xl flex items-center space-x-2 shadow-lg shadow-primary-600/20 transition-all active:scale-95 shrink-0"
+                      >
+                        <UserPlus className="h-4 w-4" />
+                        <span>Create Account</span>
+                      </button>
+                    </div>
                   </div>
 
                   {/* Daily Listing Limit Control */}
@@ -829,7 +943,7 @@ export const AdminDashboard: React.FC = () => {
                             {u.lastPostAt ? new Date(u.lastPostAt).toLocaleString() : 'Never'}
                           </td>
                           <td className="px-6 py-4">
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2 flex-wrap">
                               {/* Status badge */}
                               <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full shrink-0 ${
                                 u.isBlocked
@@ -857,10 +971,32 @@ export const AdminDashboard: React.FC = () => {
                                   />
                                 </button>
                               )}
-                              {u.role !== 'ADMIN' && (
-                                <span className="text-[10px] text-gray-400 dark:text-gray-500">
-                                  {togglingBlockId === u._id ? 'Updating…' : u.isBlocked ? 'Blocked' : 'Unblocked'}
+
+                              {/* Quick Role Action Button */}
+                              {u.email?.toLowerCase() === 'admin@niet.co.in' ? (
+                                <span className="px-2 py-0.5 text-[9px] font-black bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 rounded-md border border-amber-300 dark:border-amber-800 flex items-center gap-1">
+                                  <Crown className="h-3 w-3" /> Master Admin
                                 </span>
+                              ) : u.role === 'ADMIN' ? (
+                                <button
+                                  onClick={() => handleInitiateRoleChange(u, 'STUDENT')}
+                                  disabled={requestingRoleOtp}
+                                  className="px-2 py-1 bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-950/30 dark:text-red-400 text-[10px] font-bold rounded-xl transition-all flex items-center gap-1 border border-red-200 dark:border-red-900/30"
+                                  title="Revoke Administrator privileges back to Student"
+                                >
+                                  <UserX className="h-3 w-3" />
+                                  <span>Revoke Admin</span>
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handleInitiateRoleChange(u, 'ADMIN')}
+                                  disabled={requestingRoleOtp}
+                                  className="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300 text-[10px] font-bold rounded-xl transition-all flex items-center gap-1 border border-amber-200 dark:border-amber-900/30"
+                                  title="Promote Student to Administrator (requires master OTP)"
+                                >
+                                  <ShieldCheck className="h-3 w-3" />
+                                  <span>Make Admin</span>
+                                </button>
                               )}
                             </div>
                           </td>
@@ -1893,6 +2029,254 @@ export const AdminDashboard: React.FC = () => {
                   >
                     <PauseCircle className="h-4 w-4" />
                     <span>{pausingListing ? 'Pausing...' : 'Pause & Notify Owner'}</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+        {/* MODAL 4: ADMIN ROLE MANAGEMENT MODAL ("Add / Update Admin") */}
+        {adminRoleModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-3xl p-5 sm:p-7 max-w-2xl w-full shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
+              <div className="flex items-start justify-between border-b border-gray-100 dark:border-slate-800 pb-4">
+                <div className="flex items-center space-x-3">
+                  <div className="h-10 w-10 rounded-2xl bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                    <ShieldCheck className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-outfit font-black text-base text-gray-900 dark:text-white">Admin Privilege Management</h3>
+                    <p className="text-xs text-gray-400">Promote users to Admin or revoke Admin status with master email verification</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setAdminRoleModalOpen(false)}
+                  className="h-8 w-8 rounded-full bg-gray-100 dark:bg-slate-800 text-gray-400 hover:text-gray-600 dark:hover:text-white flex items-center justify-center transition-colors"
+                >
+                  <XCircle className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Master Email Notice */}
+              <div className="p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/30 rounded-2xl flex items-center space-x-2.5 text-amber-800 dark:text-amber-300 text-xs">
+                <KeyRound className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                <span>
+                  All admin promotions &amp; revocations require a 6-digit authorization code sent to <strong>rentora2611@gmail.com</strong>.
+                </span>
+              </div>
+
+              {/* Search & Role Filter Tabs */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3.5 top-3 h-3.5 w-3.5 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search by student name or email..."
+                    value={adminRoleSearch}
+                    onChange={(e) => setAdminRoleSearch(e.target.value)}
+                    className="w-full bg-gray-50 dark:bg-slate-800/60 text-gray-900 dark:text-white pl-9 pr-4 py-2 rounded-2xl border border-gray-200 dark:border-slate-700 text-xs font-semibold focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+                <div className="flex items-center gap-1 p-1 bg-gray-100 dark:bg-slate-800 rounded-2xl shrink-0">
+                  {(['ALL', 'ADMIN', 'STUDENT'] as const).map(tab => (
+                    <button
+                      key={tab}
+                      onClick={() => setAdminRoleFilter(tab)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                        adminRoleFilter === tab
+                          ? 'bg-white dark:bg-slate-700 text-amber-600 dark:text-amber-400 shadow-sm'
+                          : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
+                      }`}
+                    >
+                      {tab === 'ALL' ? 'All Users' : tab === 'ADMIN' ? 'Admins' : 'Students'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Users List with Promotion/Revocation Actions */}
+              <div className="space-y-2.5 max-h-[360px] overflow-y-auto pr-1">
+                {users
+                  .filter((u: any) => {
+                    if (adminRoleFilter !== 'ALL' && u.role !== adminRoleFilter) return false;
+                    if (adminRoleSearch.trim()) {
+                      const q = adminRoleSearch.toLowerCase().trim();
+                      const matchName = u.fullName?.toLowerCase().includes(q);
+                      const matchEmail = u.email?.toLowerCase().includes(q);
+                      if (!matchName && !matchEmail) return false;
+                    }
+                    return true;
+                  })
+                  .map((u: any) => {
+                    const isMaster = u.email?.toLowerCase() === 'admin@niet.co.in';
+                    const isAdmin = u.role === 'ADMIN';
+
+                    return (
+                      <div
+                        key={u._id || u.id}
+                        className="flex items-center justify-between p-3.5 bg-gray-50 dark:bg-slate-800/40 rounded-2xl border border-gray-100 dark:border-slate-800 hover:border-gray-200 dark:hover:border-slate-700 transition-all"
+                      >
+                        <div className="flex items-center space-x-3 min-w-0">
+                          <img
+                            src={getAvatarUrl(u.avatar, u.fullName)}
+                            alt=""
+                            className="h-10 w-10 rounded-full object-cover border border-gray-200 dark:border-slate-700 shrink-0"
+                          />
+                          <div className="min-w-0">
+                            <div className="flex items-center space-x-2">
+                              <p className="font-bold text-xs text-gray-900 dark:text-white truncate">{u.fullName}</p>
+                              {isAdmin ? (
+                                <span className={`px-2 py-0.2 text-[9px] font-black rounded-md ${
+                                  isMaster
+                                    ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300'
+                                    : 'bg-purple-100 text-purple-800 dark:bg-purple-950/50 dark:text-purple-300'
+                                }`}>
+                                  {isMaster ? '👑 Primary Master' : '👑 Administrator'}
+                                </span>
+                              ) : (
+                                <span className="px-2 py-0.2 text-[9px] font-bold bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-gray-300 rounded-md">
+                                  🎓 Student
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5 truncate">{u.email}</p>
+                          </div>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="shrink-0 ml-3">
+                          {isMaster ? (
+                            <span className="text-[10px] text-gray-400 italic">Protected</span>
+                          ) : isAdmin ? (
+                            <button
+                              onClick={() => handleInitiateRoleChange(u, 'STUDENT')}
+                              disabled={requestingRoleOtp}
+                              className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-950/30 dark:text-red-400 text-xs font-bold rounded-xl transition-all flex items-center space-x-1.5 border border-red-200 dark:border-red-900/40 active:scale-95 disabled:opacity-50"
+                            >
+                              <UserX className="h-3.5 w-3.5" />
+                              <span>Revoke Admin</span>
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleInitiateRoleChange(u, 'ADMIN')}
+                              disabled={requestingRoleOtp}
+                              className="px-3 py-1.5 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white text-xs font-bold rounded-xl shadow-md shadow-amber-500/20 transition-all flex items-center space-x-1.5 active:scale-95 disabled:opacity-50"
+                            >
+                              <ShieldCheck className="h-3.5 w-3.5" />
+                              <span>Promote to Admin</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL 5: MASTER SECURITY EMAIL OTP VERIFICATION DIALOG */}
+        {roleChangeOtpModalOpen && selectedUserForRoleChange && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-5 animate-in zoom-in-95 duration-200">
+              <div className="flex items-center justify-between border-b border-gray-100 dark:border-slate-800 pb-4">
+                <div className="flex items-center space-x-3">
+                  <div className="h-10 w-10 rounded-2xl bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 flex items-center justify-center">
+                    <ShieldAlert className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-outfit font-black text-base text-gray-900 dark:text-white">Master Authorization</h3>
+                    <p className="text-xs text-gray-400">High-security administrative confirmation</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setRoleChangeOtpModalOpen(false)}
+                  className="h-8 w-8 rounded-full bg-gray-100 dark:bg-slate-800 text-gray-400 hover:text-gray-600 dark:hover:text-white flex items-center justify-center transition-colors"
+                >
+                  <XCircle className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Action summary card */}
+              <div className={`p-4 rounded-2xl border ${
+                targetNewRole === 'ADMIN'
+                  ? 'bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/30'
+                  : 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-900/30'
+              }`}>
+                <p className="text-xs font-bold text-gray-900 dark:text-white">
+                  Action: {targetNewRole === 'ADMIN' ? '👑 Promote to Administrator' : '🎓 Revoke Admin privileges back to Student'}
+                </p>
+                <p className="text-[11px] text-gray-600 dark:text-gray-300 mt-1">
+                  Target: <strong>{selectedUserForRoleChange.fullName}</strong> ({selectedUserForRoleChange.email})
+                </p>
+                <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-2">
+                  A 6-digit authorization code was sent to <strong>rentora2611@gmail.com</strong>.
+                </p>
+              </div>
+
+              {roleChangeError && (
+                <div className="p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 rounded-2xl text-red-600 dark:text-red-400 text-xs font-semibold">
+                  {roleChangeError}
+                </div>
+              )}
+
+              {roleChangeSuccess && (
+                <div className="p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 rounded-2xl text-emerald-600 dark:text-emerald-400 text-xs font-bold flex items-center space-x-2">
+                  <CheckCircle className="h-4 w-4" />
+                  <span>{roleChangeSuccess}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleVerifyRoleOtp} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5 text-center">
+                    Enter 6-Digit Master Security Code
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={6}
+                    autoFocus
+                    placeholder="123456"
+                    value={roleChangeOtp}
+                    onChange={(e) => setRoleChangeOtp(e.target.value.replace(/\D/g, ''))}
+                    className="w-full text-center text-2xl font-mono font-black tracking-[10px] bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white py-3 rounded-2xl border border-gray-200 dark:border-slate-700 focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between text-xs font-semibold text-gray-500 dark:text-gray-400">
+                  <span>Didn't receive code?</span>
+                  <button
+                    type="button"
+                    onClick={handleResendRoleOtp}
+                    disabled={roleOtpTimer > 0 || requestingRoleOtp}
+                    className="text-primary-600 dark:text-primary-400 font-bold hover:underline disabled:opacity-50 disabled:no-underline cursor-pointer"
+                  >
+                    {roleOtpTimer > 0 ? `Resend in ${roleOtpTimer}s` : 'Resend Code'}
+                  </button>
+                </div>
+
+                <div className="flex items-center space-x-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setRoleChangeOtpModalOpen(false)}
+                    className="flex-1 py-3 border border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 text-xs font-bold rounded-2xl transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={verifyingRoleOtp || roleChangeOtp.length !== 6}
+                    className="flex-1 py-3 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white text-xs font-black uppercase tracking-wider rounded-2xl shadow-lg shadow-amber-500/20 transition-all disabled:opacity-50 flex items-center justify-center space-x-1.5"
+                  >
+                    {verifyingRoleOtp ? (
+                      <span>Verifying...</span>
+                    ) : (
+                      <>
+                        <ShieldCheck className="h-4 w-4" />
+                        <span>Authorize &amp; Apply</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </form>
