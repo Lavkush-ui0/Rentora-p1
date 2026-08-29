@@ -50,8 +50,8 @@ const SVGLineGraph: React.FC<{ data: DailyStat[] }> = ({ data }) => {
   const requestsPath = points.map(p => `${p.x},${p.yRequests}`).join(' ');
 
   return (
-    <div className="relative bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-6 rounded-3xl shadow-sm">
-      <div className="flex items-center justify-between mb-6">
+    <div className="relative bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-4 sm:p-6 rounded-3xl shadow-sm overflow-hidden">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>
           <h3 className="font-outfit font-black text-gray-900 dark:text-gray-100 text-sm">
             Platform Traffic Analytics
@@ -530,9 +530,9 @@ export const AdminDashboard: React.FC = () => {
     <AdminLayout>
       <div className="space-y-8 animate-in fade-in duration-300">
         {/* Header summary */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-black font-outfit text-gray-900 dark:text-white capitalize">
+            <h1 className="text-xl sm:text-2xl font-black font-outfit text-gray-900 dark:text-white capitalize">
               {currentTab === 'dashboard' ? 'Overview' : `${currentTab} management`}
             </h1>
             <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
@@ -541,7 +541,7 @@ export const AdminDashboard: React.FC = () => {
           </div>
           <button
             onClick={fetchDashboardData}
-            className="px-4 py-2 border border-gray-200 dark:border-slate-800 text-xs font-bold rounded-xl hover:bg-gray-100 dark:hover:bg-slate-800 transition-all"
+            className="px-4 py-2 border border-gray-200 dark:border-slate-800 text-xs font-bold rounded-xl hover:bg-gray-100 dark:hover:bg-slate-800 transition-all self-start sm:self-auto shrink-0"
           >
             Refresh Data
           </button>
@@ -1631,7 +1631,7 @@ export const AdminDashboard: React.FC = () => {
         {/* CREATE USER / ADMIN MODAL */}
         {createAccountModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl space-y-6 animate-in zoom-in-95 duration-200">
+            <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-3xl p-5 sm:p-8 max-w-lg w-full shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
               <div className="flex items-center justify-between border-b border-gray-100 dark:border-slate-800 pb-4">
                 <div className="flex items-center space-x-3">
                   <div className="h-10 w-10 rounded-2xl bg-primary-50 dark:bg-primary-950/30 text-primary-600 dark:text-primary-400 flex items-center justify-center">
@@ -1746,7 +1746,7 @@ export const AdminDashboard: React.FC = () => {
 
                 {/* Student specific fields */}
                 {createUserForm.role === 'STUDENT' && (
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
                       <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Course</label>
                       <input
@@ -1805,7 +1805,7 @@ export const AdminDashboard: React.FC = () => {
         {/* MODAL 3: PAUSE LISTING MODAL */}
         {pauseModalListing && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-            <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-4">
+            <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-3xl p-5 sm:p-6 max-w-lg w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
               <div className="flex items-start justify-between">
                 <div className="flex items-center space-x-2.5">
                   <div className="p-2.5 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 rounded-2xl">
