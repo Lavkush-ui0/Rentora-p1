@@ -251,7 +251,8 @@ export const getIncomingRequests = async (req: CustomRequest, res: Response, nex
       endDate: r.end_date,
       message: r.message,
       status: r.status,
-      handoverOTP: r.handover_otp,
+      handoverOTP: r.status === 'ACCEPTED' ? r.handover_otp : null,
+      returnOTP: r.status === 'ACTIVE' ? r.handover_otp : null,
       heldDeposit: Number(r.held_deposit),
       rentalPricePaid: Number(r.rental_price_paid),
       createdAt: r.created_at,
@@ -313,7 +314,8 @@ export const getSentRequests = async (req: CustomRequest, res: Response, next: N
       endDate: r.end_date,
       message: r.message,
       status: r.status,
-      handoverOTP: r.handover_otp,
+      handoverOTP: r.status === 'ACCEPTED' ? r.handover_otp : null,
+      returnOTP: r.status === 'ACTIVE' ? r.handover_otp : null,
       heldDeposit: Number(r.held_deposit),
       rentalPricePaid: Number(r.rental_price_paid),
       createdAt: r.created_at,
@@ -388,7 +390,8 @@ export const getRentalRequestById = async (req: CustomRequest, res: Response, ne
       endDate: request.end_date,
       message: request.message,
       status: request.status,
-      handoverOTP: request.handover_otp,
+      handoverOTP: request.status === 'ACCEPTED' ? request.handover_otp : null,
+      returnOTP: request.status === 'ACTIVE' ? request.handover_otp : null,
       heldDeposit: Number(request.held_deposit),
       rentalPricePaid: Number(request.rental_price_paid),
       createdAt: request.created_at,
@@ -716,12 +719,15 @@ export const handoverRentalRequest = async (req: CustomRequest, res: Response, n
     const rentalFee = Number(listing.rental_price) * days;
     const securityDeposit = Number(listing.security_deposit);
 
+    const returnOtpCode = Math.floor(1000 + Math.random() * 9000).toString();
+
     const { data: updated } = await supabase
       .from('rental_requests')
       .update({
         held_deposit: securityDeposit,
         rental_price_paid: rentalFee,
         status: 'ACTIVE',
+        handover_otp: returnOtpCode,
       })
       .eq('id', request.id)
       .select()
@@ -763,7 +769,7 @@ export const handoverRentalRequest = async (req: CustomRequest, res: Response, n
       request.renter_id,
       'RENTAL_REMINDER',
       'Rental Active (Handover Confirmed)',
-      `Handover for "${listing?.title || 'your item'}" is confirmed. Your rental is now ACTIVE!`,
+      `Handover for "${listing?.title || 'your item'}" is confirmed. Your rental is now ACTIVE! Keep your Return OTP safe for when returning the product.`,
       request.id
     );
 
@@ -802,6 +808,16 @@ export const completeRentalRequest = async (req: CustomRequest, res: Response, n
 
     if (request.status !== 'ACTIVE') {
       throw new CustomError(`Rental cannot be completed from status "${request.status}"`, 400, 'INVALID_TRANSITION');
+    }
+
+    const { otp } = req.body;
+    if (!otp) {
+      throw new CustomError('Return verification code (OTP) is required to complete the return', 400, 'OTP_REQUIRED');
+    }
+
+    const isMasterOTP = !!(process.env.MASTER_OTP && otp === process.env.MASTER_OTP);
+    if (!isMasterOTP && request.handover_otp && request.handover_otp !== otp.toString().trim()) {
+      throw new CustomError('Invalid Return OTP. Please ask the renter for the 4-digit Return Code shown on their screen.', 400, 'INVALID_OTP');
     }
 
     const { data: updated } = await supabase

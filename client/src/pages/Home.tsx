@@ -11,6 +11,11 @@ import {
   ShieldCheck, MapPin, Zap
 } from 'lucide-react';
 
+// ── Cache version: bump this string any time data structure changes so stale
+//    sessionStorage from previous sessions is automatically discarded.
+const CACHE_VERSION = 'v3-cloudinary';
+const mkCacheKey = (type: string, loc: string) => `rentora_${type}_${loc}_${CACHE_VERSION}`;
+
 /* ── Skeleton ─────────────────────────────────────────────────── */
 const SkeletonCard = () => (
   <div className="skeleton rounded-3xl border border-slate-100 dark:border-slate-800 overflow-hidden h-72" />
@@ -74,11 +79,12 @@ export const Home: React.FC = () => {
     localStorage.getItem('rentora_location') || 'All'
   );
 
-  // Initialize immediately from local cache so cards render in 0 milliseconds
+  // Initialize immediately from versioned cache so cards render in 0ms on repeat visits.
+  // Old sessionStorage keys (without version suffix) are silently ignored.
   const [data, setData] = useState<HomepageData | null>(() => {
     try {
       const loc = localStorage.getItem('rentora_location') || 'All';
-      const cached = sessionStorage.getItem(`rentora_home_data_${loc}`);
+      const cached = sessionStorage.getItem(mkCacheKey('home_data', loc));
       return cached ? JSON.parse(cached) : null;
     } catch {
       return null;
@@ -88,18 +94,25 @@ export const Home: React.FC = () => {
   const [allListings, setAllListings] = useState<any[]>(() => {
     try {
       const loc = localStorage.getItem('rentora_location') || 'All';
-      const cached = sessionStorage.getItem(`rentora_all_listings_${loc}`);
+      const cached = sessionStorage.getItem(mkCacheKey('all_listings', loc));
       return cached ? JSON.parse(cached) : [];
     } catch {
       return [];
     }
   });
 
-  // Only show skeleton loaders if no cached data exists at all
+  // Only show skeleton loaders if no versioned cached data exists
   const [loading, setLoading] = useState<boolean>(() => {
     const loc = localStorage.getItem('rentora_location') || 'All';
-    return !sessionStorage.getItem(`rentora_home_data_${loc}`);
+    return !sessionStorage.getItem(mkCacheKey('home_data', loc));
   });
+
+  // Warm-up ping: fires immediately on mount so the Render backend wakes from cold-start
+  // before the user scrolls or interacts, cutting perceived latency.
+  useEffect(() => {
+    const apiBase = (import.meta.env.VITE_API_URL as string)?.trim() || 'http://localhost:5001/api';
+    fetch(`${apiBase}/health`, { method: 'GET', cache: 'no-store' }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     const handleLocationChange = () => {
@@ -111,8 +124,8 @@ export const Home: React.FC = () => {
 
   useEffect(() => {
     const fetchData = async () => {
-      // If we don't have cached data for this location, show loader
-      const cached = sessionStorage.getItem(`rentora_home_data_${selectedLocation}`);
+      // Show skeleton only if no versioned cache exists for this location
+      const cached = sessionStorage.getItem(mkCacheKey('home_data', selectedLocation));
       if (!cached) {
         setLoading(true);
       }
@@ -126,14 +139,14 @@ export const Home: React.FC = () => {
         if (homeRes.data?.success) {
           setData(homeRes.data.data);
           try {
-            sessionStorage.setItem(`rentora_home_data_${selectedLocation}`, JSON.stringify(homeRes.data.data));
+            sessionStorage.setItem(mkCacheKey('home_data', selectedLocation), JSON.stringify(homeRes.data.data));
           } catch {}
         }
 
         if (listingsRes.data?.success) {
           setAllListings(listingsRes.data.listings);
           try {
-            sessionStorage.setItem(`rentora_all_listings_${selectedLocation}`, JSON.stringify(listingsRes.data.listings));
+            sessionStorage.setItem(mkCacheKey('all_listings', selectedLocation), JSON.stringify(listingsRes.data.listings));
           } catch {}
         }
       } catch (err) {

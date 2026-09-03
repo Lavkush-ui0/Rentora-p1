@@ -39,34 +39,26 @@ const CONDITION_LABELS: Record<string, string> = {
 };
 
 export const ProductCard: React.FC<ProductCardProps> = ({ listing }) => {
-  const {
-    _id, title, images,
-    category: rawCategory = 'Gear',
-    condition, rentalPrice, priceUnit, securityDeposit, owner, location
-  } = listing;
+  if (!listing) return null;
+
+  const _id = listing._id || (listing as any).id || '';
+  const title = listing.title || 'Product';
+  const images = Array.isArray(listing.images) ? listing.images : [];
+  const condition = listing.condition || 'GOOD';
+  const rentalPrice = Number(listing.rentalPrice) || 0;
+  const priceUnit = listing.priceUnit || 'DAY';
+  const securityDeposit = Number(listing.securityDeposit) || 0;
+  const owner = listing.owner || { _id: '', fullName: 'Student', avatar: '', ratingAverage: 5 };
+  const location = listing.location || '';
+
   const { isInWishlist, toggleWishlist } = useWishlist();
 
-  // Normalise category — API may return populated object
-  const category = typeof rawCategory === 'object' && rawCategory !== null
-    ? (rawCategory as any).name || 'Gear'
-    : String(rawCategory || 'Gear');
+  const isFavorited = _id ? isInWishlist(_id) : false;
 
-  const isFavorited = isInWishlist(_id);
-
-  // Category based high-resolution fallback photos
-  const CATEGORY_FALLBACKS: Record<string, string> = {
-    'Books & Study Material': 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=600&auto=format&fit=crop',
-    'Electronics & Technical': 'https://images.unsplash.com/photo-1574607383476-f517f220d398?q=80&w=600&auto=format&fit=crop',
-    'Clothing & Accessories': 'https://images.unsplash.com/photo-1581093588401-fbb62a02f120?q=80&w=600&auto=format&fit=crop',
-    'Sports Equipment': 'https://images.unsplash.com/photo-1531415074968-036ba1b575da?q=80&w=600&auto=format&fit=crop',
-    'Gaming': 'https://images.unsplash.com/photo-1600080972464-8e5f35f63d08?q=80&w=600&auto=format&fit=crop',
-    'Other': 'https://images.unsplash.com/photo-1526738549149-8e07eca6c147?q=80&w=600&auto=format&fit=crop',
-  };
-
-  const defaultCategoryImg = CATEGORY_FALLBACKS[category] || 'https://images.unsplash.com/photo-1526738549149-8e07eca6c147?q=80&w=600&auto=format&fit=crop';
+  const fallbackImg = '/rentora-logo.png';
   const displayImage = images && images.length > 0 && images[0]?.trim()
-    ? getImageUrl(images[0], defaultCategoryImg)
-    : defaultCategoryImg;
+    ? getImageUrl(images[0], fallbackImg)
+    : fallbackImg;
 
   const handleWishlistClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -81,14 +73,15 @@ export const ProductCard: React.FC<ProductCardProps> = ({ listing }) => {
     <article className="group flex flex-col bg-white dark:bg-slate-900 rounded-3xl overflow-hidden border border-slate-100 dark:border-slate-800 card-lift transition-all duration-300 relative">
 
       {/* Thumbnail / Real Product Photo */}
-      <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
+      <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
         <Link to={`/listing/${_id}`} className="block w-full h-full" tabIndex={-1}>
           <img
             src={displayImage}
             alt={title}
             onError={(e) => {
-              // Fallback to category photo if remote image fails
-              (e.target as HTMLImageElement).src = defaultCategoryImg;
+              const target = e.target as HTMLImageElement;
+              target.onerror = null;
+              target.src = fallbackImg;
             }}
             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
             loading="lazy"
@@ -135,19 +128,19 @@ export const ProductCard: React.FC<ProductCardProps> = ({ listing }) => {
 
         {/* Footer: Owner + Price */}
         <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800 mt-auto">
-          <Link to={`/profile/${owner?._id}`} className="flex items-center gap-2">
+          <Link to={owner?._id ? `/profile/${owner._id}` : '#'} className="flex items-center gap-2">
             <img
-              src={getAvatarUrl(owner?.avatar, owner?.fullName)}
-              alt={owner?.fullName}
+              src={getAvatarUrl(owner?.avatar, owner?.fullName || 'Student')}
+              alt={owner?.fullName || 'Student'}
               className="h-7 w-7 rounded-full object-cover border border-slate-100 dark:border-slate-800"
             />
             <div>
               <p className="text-[10px] font-black text-slate-800 dark:text-slate-200 truncate max-w-[72px]">
-                {owner?.fullName?.split(' ')[0] ?? 'Student'}
+                {owner?.fullName ? owner.fullName.split(' ')[0] : 'Student'}
               </p>
               <div className="flex items-center gap-0.5 text-[9px] text-amber-500 font-bold">
                 <Star size={9} fill="currentColor" />
-                {(owner?.ratingAverage ?? 5).toFixed(1)}
+                {(Number(owner?.ratingAverage) || 5).toFixed(1)}
               </div>
             </div>
           </Link>

@@ -93,9 +93,6 @@ Populate initial categories, demo users, sample listings, and default admin acco
 npm run seed
 ```
 
-Default Admin Credentials:
-- **Email**: `admin@niet.co.in`
-- **Password**: `AdminPass123!`
 
 ### 5. Running Dev Servers
 Run both backend Express server and Vite frontend client concurrently:

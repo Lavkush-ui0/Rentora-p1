@@ -250,19 +250,9 @@ export const ListingDetails: React.FC = () => {
     );
   }
 
-  const CATEGORY_FALLBACKS: Record<string, string> = {
-    'Books & Study Material': 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=800&auto=format&fit=crop',
-    'Electronics & Technical': 'https://images.unsplash.com/photo-1574607383476-f517f220d398?q=80&w=800&auto=format&fit=crop',
-    'Clothing & Accessories': 'https://images.unsplash.com/photo-1581093588401-fbb62a02f120?q=80&w=800&auto=format&fit=crop',
-    'Sports Equipment': 'https://images.unsplash.com/photo-1531415074968-036ba1b575da?q=80&w=800&auto=format&fit=crop',
-    'Gaming': 'https://images.unsplash.com/photo-1600080972464-8e5f35f63d08?q=80&w=800&auto=format&fit=crop',
-    'Other': 'https://images.unsplash.com/photo-1526738549149-8e07eca6c147?q=80&w=800&auto=format&fit=crop',
-  };
-
-  const catName = listing.category?.name || 'Other';
-  const defaultCategoryImg = CATEGORY_FALLBACKS[catName] || 'https://images.unsplash.com/photo-1526738549149-8e07eca6c147?q=80&w=800&auto=format&fit=crop';
+  const fallbackImg = '/rentora-logo.png';
   const rawImg = listing.images?.[currentImg] || listing.images?.[0];
-  const displayImage = rawImg?.trim() ? getImageUrl(rawImg, defaultCategoryImg) : defaultCategoryImg;
+  const displayImage = rawImg?.trim() ? getImageUrl(rawImg, fallbackImg) : fallbackImg;
 
   return (
     <div className="max-w-5xl mx-auto space-y-8 text-left">
@@ -310,7 +300,9 @@ export const ListingDetails: React.FC = () => {
               src={displayImage}
               alt={listing.title}
               onError={(e) => {
-                (e.target as HTMLImageElement).src = defaultCategoryImg;
+                const target = e.target as HTMLImageElement;
+                target.onerror = null;
+                target.src = fallbackImg;
               }}
               className="h-full w-full object-cover transition-all duration-500"
             />

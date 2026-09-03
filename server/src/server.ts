@@ -158,6 +158,21 @@ const PORT = config.PORT;
 if (process.env.NODE_ENV !== 'test') {
   server.listen(PORT, () => {
     logger.info(`[Rentora Server] Running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
+
+    // Render Keep-Alive Heartbeat (Pings itself every 10 minutes to prevent Render free tier from sleeping)
+    const keepAliveUrl = process.env.RENDER_EXTERNAL_URL || process.env.BACKEND_URL;
+    if (keepAliveUrl) {
+      logger.info(`[Keep-Alive Heartbeat] Initialized for ${keepAliveUrl}`);
+      setInterval(async () => {
+        try {
+          const pingUrl = `${keepAliveUrl.replace(/\/$/, '')}/api/health`;
+          const res = await fetch(pingUrl);
+          logger.info(`[Keep-Alive Heartbeat] Pinged ${pingUrl} | Status: ${res.status}`);
+        } catch (err: any) {
+          logger.warn(`[Keep-Alive Heartbeat] Ping error: ${err.message}`);
+        }
+      }, 10 * 60 * 1000); // Every 10 minutes
+    }
   });
 }
 

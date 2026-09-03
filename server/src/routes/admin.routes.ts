@@ -4,8 +4,11 @@ import {
   createUserByAdmin,
   blockUser,
   unblockUser,
+  toggleBlockUser,
   getListings,
   removeListing,
+  pauseListing,
+  resumeListing,
   getPendingListings,
   approveListing,
   rejectListing,
@@ -18,6 +21,8 @@ import {
   getDashboardStats,
   getAdminSettings,
   updateAdminSettings,
+  requestAdminRoleChangeOTP,
+  verifyAndUpdateAdminRole,
 } from '../controllers/admin.controller';
 import { authenticateUser, requireAdmin } from '../middleware/auth.middleware';
 
@@ -31,10 +36,17 @@ router.get('/users', getUsers);
 router.post('/users/create', createUserByAdmin);
 router.patch('/users/:id/block', blockUser);
 router.patch('/users/:id/unblock', unblockUser);
+router.patch('/users/:id/toggle-block', toggleBlockUser);
+
+// Admin Role Privilege Management (Guarded by Master OTP at rentora2611@gmail.com)
+router.post('/roles/request-otp', requestAdminRoleChangeOTP);
+router.post('/roles/verify-and-update', verifyAndUpdateAdminRole);
 
 // Listings Dashboard
 router.get('/listings', getListings);
 router.delete('/listings/:id', removeListing);
+router.patch('/listings/:id/pause', pauseListing);
+router.patch('/listings/:id/resume', resumeListing);
 
 // Listing Approvals
 router.get('/listings/pending', getPendingListings);

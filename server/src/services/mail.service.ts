@@ -45,37 +45,80 @@ const getTransporter = (): nodemailer.Transporter | null => {
   return transporter;
 };
 
-export const sendOTPEmail = async (email: string, otp: string, type: 'register' | 'login' = 'register') => {
+export interface RoleChangeMeta {
+  targetName?: string;
+  targetEmail?: string;
+  newRole?: 'ADMIN' | 'STUDENT';
+  requesterEmail?: string;
+}
+
+export const sendOTPEmail = async (
+  email: string,
+  otp: string,
+  type: 'register' | 'login' | 'reset-password' | 'admin-role-change' = 'register',
+  meta?: RoleChangeMeta
+) => {
   const isLogin = type === 'login';
-  const subject = isLogin ? '🔑 Rentora Login Code' : '🔒 Rentora Verification Code';
-  const title = isLogin ? 'Login to Rentora' : 'Verify Your Account';
-  const description = isLogin
+  const isReset = type === 'reset-password';
+  const isRoleChange = type === 'admin-role-change';
+
+  const subject = isRoleChange
+    ? `🛡️ Rentora Master Security: Authorize Admin Privilege Change (${meta?.newRole === 'ADMIN' ? 'PROMOTION' : 'REVOCATION'})`
+    : isReset
+    ? '🔐 Rentora Password Reset Code'
+    : isLogin
+    ? '🔑 Rentora Login Code'
+    : '🔒 Rentora Verification Code';
+
+  const title = isRoleChange
+    ? 'Master Security Authorization'
+    : isReset
+    ? 'Reset Your Password'
+    : isLogin
+    ? 'Login to Rentora'
+    : 'Verify Your Account';
+
+  const actionText = meta?.newRole === 'ADMIN'
+    ? `Promote <strong>${meta.targetName || 'User'}</strong> (${meta.targetEmail || 'No email'}) to <strong>ADMINISTRATOR</strong>`
+    : `Revoke administrator privileges from <strong>${meta?.targetName || 'User'}</strong> (${meta?.targetEmail || 'No email'}) back to <strong>STUDENT</strong>`;
+
+  const description = isRoleChange
+    ? `An administrator privilege change was initiated: ${actionText}. Use the 6-digit master security code below to authorize and complete this action. This code will expire in 10 minutes.`
+    : isReset
+    ? 'Use the 6-digit verification code below to reset your Rentora account password. This code will expire in 15 minutes.'
+    : isLogin
     ? 'Use the code below to log in to your Rentora account. This code is valid for 10 minutes.'
     : 'Use the code below to complete your registration. This code will expire in 10 minutes.';
 
-  const text = isLogin
+  const text = isRoleChange
+    ? `Rentora Master Security Authorization Code: ${otp}. Action: ${meta?.newRole === 'ADMIN' ? 'Promote' : 'Revoke'} ${meta?.targetName} (${meta?.targetEmail}) to ${meta?.newRole}. Expires in 10 minutes.`
+    : isReset
+    ? `Your Rentora password reset code is: ${otp}. This code is valid for 15 minutes.`
+    : isLogin
     ? `Your Rentora login verification code is: ${otp}. This code is valid for 10 minutes.`
     : `Your Rentora account verification code is: ${otp}. This code is valid for 10 minutes.`;
 
   const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e1e1e1; border-radius: 10px;">
-      <h2 style="color: #4f46e5; text-align: center;">${title}</h2>
-      <p>Dear Rentora User,</p>
-      <p>${description}</p>
-      <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; text-align: center; margin: 20px 0;">
-        <span style="font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #111827;">${otp}</span>
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #ffffff;">
+      <h2 style="color: ${isRoleChange ? '#9E1B1B' : '#4f46e5'}; text-align: center; margin-top: 0;">${title}</h2>
+      <p style="color: #334155; font-size: 14px; line-height: 1.6;">Dear Rentora Master Administrator,</p>
+      <div style="background-color: ${isRoleChange ? '#fff1f2' : '#f8fafc'}; border: 1px solid ${isRoleChange ? '#fecdd3' : '#e2e8f0'}; padding: 14px; border-radius: 12px; margin: 16px 0; color: #1e293b; font-size: 13px; line-height: 1.5;">
+        ${description}
       </div>
-      <p>If you did not make this request, please ignore this email.</p>
-      <hr style="border: none; border-top: 1px solid #e1e1e1; margin: 20px 0;" />
-      <p style="font-size: 12px; color: #6b7280; text-align: center;">
-        This is an automated message from Rentora. Please do not reply directly.
+      <div style="background-color: #f1f5f9; padding: 16px; border-radius: 12px; text-align: center; margin: 20px 0;">
+        <span style="font-size: 36px; font-weight: 800; letter-spacing: 6px; color: #0f172a; font-family: monospace;">${otp}</span>
+      </div>
+      ${isRoleChange ? '<p style="color: #e11d48; font-size: 12px; font-weight: bold; text-align: center;">⚠️ If you did NOT authorize this admin role change, do not share this code.</p>' : '<p style="font-size: 12px; color: #64748b;">If you did not make this request, please ignore this email.</p>'}
+      <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+      <p style="font-size: 11px; color: #94a3b8; text-align: center; margin-bottom: 0;">
+        Rentora Security Notification System — NIET Greater Noida
       </p>
     </div>
   `;
 
   // Log OTP in development mode for easier debugging/testing
   if (process.env.NODE_ENV === 'development') {
-    logger.info(`🔑 [Dev Mode OTP Log] To: ${email} | OTP: ${otp}`);
+    logger.info(`🔑 [Dev Mode OTP Log] To: ${email} | Type: ${type} | OTP: ${otp}`);
   }
 
   // Option 1: Use Resend API if API Key is configured

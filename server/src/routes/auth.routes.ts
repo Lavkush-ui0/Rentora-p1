@@ -12,6 +12,8 @@ import {
   resendOTP,
   loginSendOTP,
   loginVerifyOTP,
+  forgotPassword,
+  resetPassword,
 } from '../controllers/auth.controller';
 import { authenticateUser } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validate';
@@ -28,6 +30,8 @@ router.post('/verify-otp', verifyOTP);
 router.post('/resend-otp', resendOTP);
 router.post('/login-send-otp', loginSendOTP);
 router.post('/login-verify-otp', loginVerifyOTP);
+router.post('/forgot-password', forgotPassword);
+router.post('/reset-password', resetPassword);
 
 // Protected routes
 router.get('/profile', authenticateUser, getProfile);

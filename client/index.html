@@ -13,11 +13,16 @@
     <meta name="author" content="Rentora Team — NIET" />
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
     <link rel="canonical" href="https://rentora.org.in/" />
+    <meta name="google-site-verification" content="FD2iWEeS0zEH9TWOD_s-tQHM7-KujYWhAk_vHQbBw98" />
 
-    <!-- Favicon & Touch Icons -->
-    <link rel="icon" type="image/png" href="/rentora-logo.png" />
+    <!-- Favicon & Touch Icons for Google Search Results & Browsers -->
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
-    <link rel="apple-touch-icon" href="/rentora-logo.png" />
+    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48x48.png" />
+    <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192x192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/rentora-logo.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#9E1B1B" />
     <meta name="mobile-web-app-capable" content="yes" />
@@ -63,12 +68,28 @@
           "@id": "https://rentora.org.in/#website",
           "url": "https://rentora.org.in/",
           "name": "Rentora",
+          "image": "https://rentora.org.in/rentora-logo.png",
           "description": "Student-to-student campus rental marketplace for NIET Greater Noida.",
           "inLanguage": "en-IN",
+          "publisher": {
+            "@id": "https://rentora.org.in/#organization"
+          },
           "potentialAction": {
             "@type": "SearchAction",
             "target": "https://rentora.org.in/home?search={search_term_string}",
             "query-input": "required name=search_term_string"
+          }
+        },
+        {
+          "@type": "Organization",
+          "@id": "https://rentora.org.in/#organization",
+          "name": "Rentora",
+          "url": "https://rentora.org.in/",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://rentora.org.in/rentora-logo.png",
+            "width": 512,
+            "height": 512
           }
         },
         {

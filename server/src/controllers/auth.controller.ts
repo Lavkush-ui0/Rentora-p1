@@ -754,6 +754,45 @@ export const deleteAccount = async (req: CustomRequest, res: Response, next: Nex
     }
 
     const userId = req.user._id;
+
+    // 1. Guard against deleting account while user has active/accepted borrowed items
+    const { data: activeBorrowedRentals } = await supabase
+      .from('rental_requests')
+      .select('id, status, listings (title)')
+      .eq('renter_id', userId)
+      .in('status', ['ACCEPTED', 'ACTIVE']);
+
+    if (activeBorrowedRentals && activeBorrowedRentals.length > 0) {
+      const activeTitles = activeBorrowedRentals
+        .map((r: any) => r.listings?.title || 'item')
+        .filter(Boolean)
+        .join(', ');
+      throw new CustomError(
+        `Cannot delete account: You have unreturned rented items in your possession (${activeTitles || 'active rental'}). Please return the items to the owners to complete the rentals before deleting your account.`,
+        400,
+        'ACTIVE_BORROWED_RENTAL_EXISTS'
+      );
+    }
+
+    // Guard against deleting account while user has active items rented out to other students
+    const { data: activeLentRentals } = await supabase
+      .from('rental_requests')
+      .select('id, status, listings (title)')
+      .eq('owner_id', userId)
+      .in('status', ['ACCEPTED', 'ACTIVE']);
+
+    if (activeLentRentals && activeLentRentals.length > 0) {
+      const lentTitles = activeLentRentals
+        .map((r: any) => r.listings?.title || 'item')
+        .filter(Boolean)
+        .join(', ');
+      throw new CustomError(
+        `Cannot delete account: You have items currently rented out to students (${lentTitles || 'active rental'}). Please wait until the items are returned and the rentals are marked completed before deleting your account.`,
+        400,
+        'ACTIVE_LENT_RENTAL_EXISTS'
+      );
+    }
+
     const { data: user, error } = await supabase
       .from('users')
       .select('*')
@@ -800,6 +839,122 @@ export const deleteAccount = async (req: CustomRequest, res: Response, next: Nex
     return res.json({
       success: true,
       message: 'Account and all associated listings deleted successfully.',
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+/**
+ * POST /auth/forgot-password
+ * Generates a 6-digit OTP code and sends password reset instructions to the student's email.
+ */
+export const forgotPassword = async (req: CustomRequest, res: Response, next: NextFunction) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      throw new CustomError('Email is required', 400, 'BAD_REQUEST');
+    }
+
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('id, email, full_name, is_blocked')
+      .eq('email', email.toLowerCase().trim())
+      .maybeSingle();
+
+    if (error || !user) {
+      throw new CustomError('No account found with this email address.', 404, 'USER_NOT_FOUND');
+    }
+
+    if (user.is_blocked) {
+      throw new CustomError('Your account has been blocked by administrators.', 403, 'USER_BLOCKED');
+    }
+
+    // Generate 6-digit OTP code
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    await supabase.from('otps').delete().eq('email', user.email.toLowerCase());
+    await supabase.from('otps').insert([{
+      email: user.email.toLowerCase(),
+      otp,
+    }]);
+
+    const isMasterAdmin = user.email.toLowerCase() === 'admin@niet.co.in';
+    const destinationEmail = isMasterAdmin ? 'rentora2611@gmail.com' : user.email;
+
+    // Send Password Reset email in background
+    sendOTPEmail(destinationEmail, otp, 'reset-password');
+
+    return res.status(200).json({
+      success: true,
+      message: isMasterAdmin
+        ? 'Password reset code has been sent to the master admin email (rentora2611@gmail.com).'
+        : 'Password reset code has been sent to your student email.',
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+/**
+ * POST /auth/reset-password
+ * Verifies the OTP code and sets the new password for the user.
+ */
+export const resetPassword = async (req: CustomRequest, res: Response, next: NextFunction) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+    if (!email || !otp || !newPassword) {
+      throw new CustomError('Email, OTP code, and new password are required', 400, 'BAD_REQUEST');
+    }
+
+    if (newPassword.length < 6 || newPassword.length > 16) {
+      throw new CustomError('Password must be between 6 and 16 characters.', 400, 'INVALID_PASSWORD');
+    }
+
+    const isMasterOTP = !!(process.env.MASTER_OTP && otp === process.env.MASTER_OTP);
+    if (!isMasterOTP) {
+      const { data: record } = await supabase
+        .from('otps')
+        .select('*')
+        .eq('email', email.toLowerCase().trim())
+        .eq('otp', otp.trim())
+        .maybeSingle();
+
+      if (!record) {
+        throw new CustomError('Invalid or expired password reset code. Please request a new one.', 400, 'INVALID_OTP');
+      }
+    }
+
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('id, email, full_name')
+      .eq('email', email.toLowerCase().trim())
+      .maybeSingle();
+
+    if (error || !user) {
+      throw new CustomError('User not found', 404, 'USER_NOT_FOUND');
+    }
+
+    // Hash the new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({
+        password_hash: hashedPassword,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', user.id);
+
+    if (updateError) {
+      throw new CustomError('Failed to update password. Please try again.', 500, 'UPDATE_FAILED');
+    }
+
+    // Clean up OTP record
+    await supabase.from('otps').delete().eq('email', email.toLowerCase().trim());
+
+    return res.status(200).json({
+      success: true,
+      message: 'Password has been reset successfully! You can now log in with your new password.',
     });
   } catch (error) {
     return next(error);

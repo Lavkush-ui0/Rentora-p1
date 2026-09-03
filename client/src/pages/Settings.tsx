@@ -18,6 +18,7 @@ export const Settings: React.FC = () => {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   const [form, setForm] = useState({
     fullName: user?.fullName || '',
@@ -86,8 +87,8 @@ export const Settings: React.FC = () => {
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const rawFile = e.target.files?.[0];
     if (rawFile) {
-      // Compress if > 2MB
-      const file = await compressImageIfNeeded(rawFile);
+      // Compress avatar to strictly < 250KB
+      const file = await compressImageIfNeeded(rawFile, { maxSizeKB: 250, maxDimension: 512 });
       setSelectedFile(file);
       setWebcamImage(null);
       
@@ -219,12 +220,14 @@ export const Settings: React.FC = () => {
     if (deleteConfirmText.toUpperCase() !== 'DELETE') return;
     setDeleting(true);
     setError('');
+    setDeleteError('');
     try {
       await deleteUserAccount();
       navigate('/login');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to delete account. Please try again.');
-      setDeleteModalOpen(false);
+      const msg = err.response?.data?.message || 'Failed to delete account. Please try again.';
+      setError(msg);
+      setDeleteError(msg);
     } finally {
       setDeleting(false);
     }
@@ -512,6 +515,14 @@ export const Settings: React.FC = () => {
             <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
               This will permanently delete your account, listings, and details. To confirm, please type <strong className="text-gray-900 dark:text-gray-100">DELETE</strong> below.
             </p>
+
+            {deleteError && (
+              <div className="flex items-start space-x-2 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 p-3 rounded-2xl text-red-700 dark:text-red-400 text-xs">
+                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                <p className="font-semibold">{deleteError}</p>
+              </div>
+            )}
+
             <input
               type="text"
               placeholder="Type DELETE to confirm"
@@ -525,6 +536,7 @@ export const Settings: React.FC = () => {
                 onClick={() => {
                   setDeleteModalOpen(false);
                   setDeleteConfirmText('');
+                  setDeleteError('');
                 }}
                 className="px-4 py-2 border border-gray-200 dark:border-slate-700 text-gray-750 dark:text-gray-300 font-bold text-xs rounded-xl hover:bg-gray-50 dark:hover:bg-slate-850 transition-colors"
               >

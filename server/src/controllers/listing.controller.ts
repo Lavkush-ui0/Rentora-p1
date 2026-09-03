@@ -5,6 +5,14 @@ import { uploadImage, deleteImage } from '../services/image.service';
 import { moderateListingWithAI, isAiModerationEnabled } from '../services/aiModeration.service';
 import CustomError from '../utils/customError';
 import { clearHomepageCache } from './discovery.controller';
+import { getDailyListingLimit } from './admin.controller';
+
+export const sanitizeAvatar = (avatar: string | undefined, name: string = 'User'): string => {
+  if (!avatar || avatar.startsWith('data:image') || avatar.length > 500) {
+    return `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(name || 'User')}`;
+  }
+  return avatar;
+};
 
 export const createListing = async (req: CustomRequest, res: Response, next: NextFunction) => {
   try {
@@ -14,17 +22,18 @@ export const createListing = async (req: CustomRequest, res: Response, next: Nex
 
     const { title, description, category, condition, rentalPrice, priceUnit, securityDeposit, location } = req.body;
 
-    // Enforce daily listing limits: max 2 products per day and check if rejected today
+    // Enforce admin-configurable daily listing limit
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    
+    const limit = getDailyListingLimit();
+
     const { count: dailyCount, error: countErr } = await supabase
       .from('listings')
       .select('*', { count: 'exact', head: true })
       .eq('owner_id', req.user._id)
       .gte('created_at', oneDayAgo.toISOString());
 
-    if (dailyCount !== null && dailyCount >= 2) {
-      throw new CustomError('You can only list up to 2 products per day.', 400, 'DAILY_LIMIT_EXCEEDED');
+    if (dailyCount !== null && dailyCount >= limit) {
+      throw new CustomError(`You can only list up to ${limit} product${limit === 1 ? '' : 's'} per day.`, 400, 'DAILY_LIMIT_EXCEEDED');
     }
 
     const { count: rejectedToday } = await supabase
@@ -278,7 +287,7 @@ export const getListings = async (req: CustomRequest, res: Response, next: NextF
         owner: l.owner ? {
           _id: l.owner.id,
           fullName: l.owner.full_name,
-          avatar: l.owner.avatar,
+          avatar: sanitizeAvatar(l.owner.avatar, l.owner.full_name),
           ratingAverage: Number(l.owner.rating_average)
         } : null,
         category: l.category ? {
@@ -289,7 +298,7 @@ export const getListings = async (req: CustomRequest, res: Response, next: NextF
         title: l.title,
         slug: l.slug,
         description: l.description,
-        images: l.images,
+        images: l.images && Array.isArray(l.images) ? l.images : [],
         condition: l.condition,
         rentalPrice: Number(l.rental_price),
         priceUnit: l.price_unit,
@@ -346,7 +355,7 @@ export const getListingById = async (req: CustomRequest, res: Response, next: Ne
         _id: l.owner.id,
         fullName: l.owner.full_name,
         email: l.owner.email,
-        avatar: l.owner.avatar,
+        avatar: sanitizeAvatar(l.owner.avatar, l.owner.full_name),
         bio: l.owner.bio,
         ratingAverage: Number(l.owner.rating_average),
         ratingCount: l.owner.rating_count,
@@ -361,7 +370,7 @@ export const getListingById = async (req: CustomRequest, res: Response, next: Ne
       title: l.title,
       slug: l.slug,
       description: l.description,
-      images: l.images,
+      images: l.images && Array.isArray(l.images) ? l.images : [],
       condition: l.condition,
       rentalPrice: Number(l.rental_price),
       priceUnit: l.price_unit,

@@ -14,18 +14,25 @@ export const clearHomepageCache = () => {
   homepageCache.clear();
 };
 
+export const sanitizeAvatar = (avatar: string | undefined, name: string = 'User'): string => {
+  if (!avatar || avatar.startsWith('data:image') || avatar.length > 500) {
+    return `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(name || 'User')}`;
+  }
+  return avatar;
+};
+
 const mapListings = (list: any[]) => (list || []).map((l: any) => ({
   _id: l.id,
   owner: l.owner ? {
     _id: l.owner.id,
     fullName: l.owner.full_name,
-    avatar: l.owner.avatar,
+    avatar: sanitizeAvatar(l.owner.avatar, l.owner.full_name),
     ratingAverage: Number(l.owner.rating_average)
   } : null,
   title: l.title,
   slug: l.slug,
   description: l.description,
-  images: l.images,
+  images: l.images && Array.isArray(l.images) ? l.images : [],
   condition: l.condition,
   rentalPrice: Number(l.rental_price),
   priceUnit: l.price_unit,
@@ -94,7 +101,7 @@ export const getHomepageData = async (req: Request, res: Response, next: NextFun
       .order('rating_average', { ascending: false })
       .order('request_count', { ascending: false })
       .order('view_count', { ascending: false })
-      .limit(20);
+      .limit(4);
 
     if (location && location !== 'All') {
       queryRated = queryRated.eq('location', location);
@@ -200,7 +207,7 @@ export const getHomepageData = async (req: Request, res: Response, next: NextFun
       topStudents = (studentsData || []).map((s: any) => ({
         _id: s.id,
         fullName: s.full_name,
-        avatar: s.avatar,
+        avatar: sanitizeAvatar(s.avatar, s.full_name),
         ratingAverage: Number(s.rating_average),
         completedRentals: s.completed_rentals,
         bio: s.bio,
@@ -235,7 +242,7 @@ export const getHomepageData = async (req: Request, res: Response, next: NextFun
       const formattedFallbacks = (fallbackStudents || []).map((s: any) => ({
         _id: s.id,
         fullName: s.full_name,
-        avatar: s.avatar,
+        avatar: sanitizeAvatar(s.avatar, s.full_name),
         ratingAverage: Number(s.rating_average),
         completedRentals: s.completed_rentals,
         bio: s.bio,
@@ -267,7 +274,7 @@ export const getHomepageData = async (req: Request, res: Response, next: NextFun
         const formattedGlobals = (globalFallbacks || []).map((s: any) => ({
           _id: s.id,
           fullName: s.full_name,
-          avatar: s.avatar,
+          avatar: sanitizeAvatar(s.avatar, s.full_name),
           ratingAverage: Number(s.rating_average),
           completedRentals: s.completed_rentals,
           bio: s.bio,

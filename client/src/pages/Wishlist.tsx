@@ -96,11 +96,13 @@ export const Wishlist: React.FC = () => {
 
       {/* Content Rendering */}
       {activeTab === 'wishlist' ? (
-        wishlist.length > 0 ? (
+        wishlist.filter((item) => item && (item._id || (item as any).id)).length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {wishlist.map((item) => (
-              <ProductCard key={item._id} listing={item as any} />
-            ))}
+            {wishlist
+              .filter((item) => item && (item._id || (item as any).id))
+              .map((item) => (
+                <ProductCard key={item._id || (item as any).id} listing={item as any} />
+              ))}
           </div>
         ) : (
           <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-3xl border border-gray-100 dark:border-slate-800 p-8">
@@ -121,53 +123,64 @@ export const Wishlist: React.FC = () => {
           </div>
         )
       ) : (
-        cart.length > 0 ? (
+        cart.filter((item) => item && (item._id || (item as any).id)).length > 0 ? (
           <div className="space-y-4 max-w-4xl mx-auto">
-            {cart.map((item) => (
-              <div
-                key={item._id}
-                className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white dark:bg-slate-900 rounded-3xl border border-gray-100 dark:border-slate-800 p-5 shadow-sm hover:shadow-md transition-all"
-              >
-                <div className="flex items-center space-x-4 w-full sm:w-auto">
-                  <img
-                    src={item.images?.[0] || 'https://picsum.photos/150/150'}
-                    alt={item.title}
-                    className="h-20 w-20 rounded-2xl object-cover border border-gray-100 dark:border-slate-800 shrink-0"
-                  />
-                  <div>
-                    <Link
-                      to={`/listing/${item._id}`}
-                      className="font-bold text-base text-gray-900 dark:text-gray-100 hover:text-primary-600 transition-colors line-clamp-1"
-                    >
-                      {item.title}
-                    </Link>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      Offered by <span className="font-semibold text-gray-700 dark:text-gray-300">{item.owner?.fullName}</span>
-                    </p>
-                    <p className="text-sm font-extrabold text-primary-600 dark:text-primary-400 mt-2">
-                      ₹{item.rentalPrice} <span className="text-xs font-normal text-gray-400">/ {item.priceUnit?.toLowerCase()}</span>
-                    </p>
-                  </div>
-                </div>
+            {cart
+              .filter((item) => item && (item._id || (item as any).id))
+              .map((item) => {
+                const itemId = item._id || (item as any).id;
+                const itemImg = item.images && item.images.length > 0 ? item.images[0] : '/rentora-logo.png';
+                return (
+                  <div
+                    key={itemId}
+                    className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white dark:bg-slate-900 rounded-3xl border border-gray-100 dark:border-slate-800 p-5 shadow-sm hover:shadow-md transition-all"
+                  >
+                    <div className="flex items-center space-x-4 w-full sm:w-auto">
+                      <img
+                        src={itemImg}
+                        alt={item.title || 'Product'}
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.onerror = null;
+                          target.src = '/rentora-logo.png';
+                        }}
+                        className="h-20 w-20 rounded-2xl object-cover border border-gray-100 dark:border-slate-800 shrink-0"
+                      />
+                      <div>
+                        <Link
+                          to={`/listing/${itemId}`}
+                          className="font-bold text-base text-gray-900 dark:text-gray-100 hover:text-primary-600 transition-colors line-clamp-1"
+                        >
+                          {item.title || 'Untitled Product'}
+                        </Link>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          Offered by <span className="font-semibold text-gray-700 dark:text-gray-300">{item.owner?.fullName || 'Student'}</span>
+                        </p>
+                        <p className="text-sm font-extrabold text-primary-600 dark:text-primary-400 mt-2">
+                          ₹{item.rentalPrice || 0} <span className="text-xs font-normal text-gray-400">/ {String(item.priceUnit || 'day').toLowerCase()}</span>
+                        </p>
+                      </div>
+                    </div>
 
-                <div className="flex items-center gap-3 w-full sm:w-auto justify-end pt-3 sm:pt-0 border-t sm:border-t-0 border-gray-100 dark:border-slate-800">
-                  <button
-                    onClick={() => removeFromCart(item._id)}
-                    className="p-2.5 rounded-xl text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all"
-                    title="Remove from Cart"
-                  >
-                    <Trash2 className="h-5 w-5" />
-                  </button>
-                  <Link
-                    to={`/listing/${item._id}`}
-                    className="flex-1 sm:flex-none flex items-center justify-center space-x-2 bg-primary-600 hover:bg-primary-700 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-md transition-all"
-                  >
-                    <Calendar className="h-4 w-4" />
-                    <span>Request Rental</span>
-                  </Link>
-                </div>
-              </div>
-            ))}
+                    <div className="flex items-center gap-3 w-full sm:w-auto justify-end pt-3 sm:pt-0 border-t sm:border-t-0 border-gray-100 dark:border-slate-800">
+                      <button
+                        onClick={() => removeFromCart(itemId)}
+                        className="p-2.5 rounded-xl text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all"
+                        title="Remove from Cart"
+                      >
+                        <Trash2 className="h-5 w-5" />
+                      </button>
+                      <Link
+                        to={`/listing/${itemId}`}
+                        className="flex-1 sm:flex-none flex items-center justify-center space-x-2 bg-primary-600 hover:bg-primary-700 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-md transition-all"
+                      >
+                        <Calendar className="h-4 w-4" />
+                        <span>Request Rental</span>
+                      </Link>
+                    </div>
+                  </div>
+                );
+              })}
           </div>
         ) : (
           <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-3xl border border-gray-100 dark:border-slate-800 p-8">

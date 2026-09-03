@@ -5,48 +5,63 @@ import { CustomRequest } from '../types';
 import CustomError from '../utils/customError';
 import { clearHomepageCache } from './discovery.controller';
 import { isAiModerationEnabled, setAiModerationEnabled } from '../services/aiModeration.service';
+import { createNotification } from '../services/notification.service';
+import { sendOTPEmail } from '../services/mail.service';
+
+// ── Global platform settings (in-memory, reset on server restart) ──────────────
+let _dailyListingLimit = 2;
+export const getDailyListingLimit = () => _dailyListingLimit;
+export const setDailyListingLimit = (n: number) => { _dailyListingLimit = Math.max(1, Math.min(50, n)); };
+// ───────────────────────────────────────────────────────────────────────────────
+
+const sanitizeAvatar = (avatar?: string | null, name: string = 'User'): string => {
+  if (!avatar || avatar.startsWith('data:') || avatar.length > 500) {
+    return `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(name || 'User')}`;
+  }
+  return avatar;
+};
 
 // 1. User administration
 export const getUsers = async (req: CustomRequest, res: Response, next: NextFunction) => {
   try {
-    const { data: users, error } = await supabase
-      .from('users')
-      .select('*')
-      .order('created_at', { ascending: false });
+    // Run users fetch and listings lookup concurrently in a single batch
+    const [usersRes, listingsRes] = await Promise.all([
+      supabase.from('users').select('*').order('created_at', { ascending: false }),
+      supabase.from('listings').select('owner_id, created_at').neq('status', 'REMOVED').order('created_at', { ascending: false }),
+    ]);
 
-    if (error || !users) {
+    if (usersRes.error || !usersRes.data) {
       throw new CustomError('Failed to retrieve users', 500, 'FETCH_FAILED');
     }
 
-    const usersWithLastPost = await Promise.all(users.map(async (u) => {
-      const { data: lastListing } = await supabase
-        .from('listings')
-        .select('created_at')
-        .eq('owner_id', u.id)
-        .neq('status', 'REMOVED')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      
-      return {
-        id: u.id,
-        _id: u.id,
-        fullName: u.full_name,
-        email: u.email,
-        role: u.role,
-        course: u.course,
-        branch: u.branch,
-        year: u.year,
-        collegeName: u.college_name,
-        avatar: u.avatar,
-        bio: u.bio,
-        ratingAverage: Number(u.rating_average),
-        completedRentals: u.completed_rentals,
-        isBlocked: u.is_blocked,
-        isVerified: u.is_verified,
-        createdAt: u.created_at,
-        lastPostAt: lastListing ? lastListing.created_at : null
-      };
+    // Build O(1) lookup map for last listing created_at
+    const lastPostMap = new Map<string, string>();
+    if (listingsRes.data) {
+      for (const l of listingsRes.data) {
+        if (l.owner_id && !lastPostMap.has(l.owner_id)) {
+          lastPostMap.set(l.owner_id, l.created_at);
+        }
+      }
+    }
+
+    const usersWithLastPost = usersRes.data.map((u) => ({
+      id: u.id,
+      _id: u.id,
+      fullName: u.full_name,
+      email: u.email,
+      role: u.role,
+      course: u.course,
+      branch: u.branch,
+      year: u.year,
+      collegeName: u.college_name,
+      avatar: sanitizeAvatar(u.avatar, u.full_name),
+      bio: u.bio,
+      ratingAverage: Number(u.rating_average),
+      completedRentals: u.completed_rentals,
+      isBlocked: u.is_blocked,
+      isVerified: u.is_verified,
+      createdAt: u.created_at,
+      lastPostAt: lastPostMap.get(u.id) || null,
     }));
 
     return res.json({
@@ -142,6 +157,55 @@ export const unblockUser = async (req: CustomRequest, res: Response, next: NextF
   }
 };
 
+// Single-endpoint toggle for block/unblock — replaces calling two separate endpoints
+export const toggleBlockUser = async (req: CustomRequest, res: Response, next: NextFunction) => {
+  try {
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', req.params.id)
+      .maybeSingle();
+
+    if (error || !user) {
+      throw new CustomError('User not found', 404, 'NOT_FOUND');
+    }
+
+    if (user.role === 'ADMIN') {
+      throw new CustomError('Cannot block an administrator account', 400, 'ADMIN_PROTECTED');
+    }
+
+    const newBlockedState = !user.is_blocked;
+
+    const { data: updated, error: updateErr } = await supabase
+      .from('users')
+      .update({ is_blocked: newBlockedState })
+      .eq('id', req.params.id)
+      .select()
+      .single();
+
+    if (updateErr || !updated) {
+      throw new CustomError('Failed to update user block status', 500, 'UPDATE_FAILED');
+    }
+
+    return res.json({
+      success: true,
+      message: newBlockedState
+        ? `${updated.full_name} has been temporarily blocked.`
+        : `${updated.full_name} has been unblocked and restored to active.`,
+      user: {
+        id: updated.id,
+        _id: updated.id,
+        fullName: updated.full_name,
+        email: updated.email,
+        role: updated.role,
+        isBlocked: updated.is_blocked,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
 // 2. Listing administration
 export const getListings = async (req: CustomRequest, res: Response, next: NextFunction) => {
   try {
@@ -183,7 +247,7 @@ export const getListings = async (req: CustomRequest, res: Response, next: NextF
         title: l.title,
         slug: l.slug,
         description: l.description,
-        images: l.images,
+        images: l.images && l.images.length > 0 ? [l.images[0]] : [],
         condition: l.condition,
         rentalPrice: Number(l.rental_price),
         priceUnit: l.price_unit,
@@ -240,6 +304,122 @@ export const removeListing = async (req: CustomRequest, res: Response, next: Nex
   }
 };
 
+export const pauseListing = async (req: CustomRequest, res: Response, next: NextFunction) => {
+  try {
+    const { reason } = req.body;
+    const { data: listing, error } = await supabase
+      .from('listings')
+      .select('id, title, owner_id')
+      .eq('id', req.params.id)
+      .maybeSingle();
+
+    if (error || !listing) {
+      throw new CustomError('Listing not found', 404, 'NOT_FOUND');
+    }
+
+    const pauseReason = reason?.trim() || 'Please update the product description to provide more details.';
+
+    const { data: updated, error: updateErr } = await supabase
+      .from('listings')
+      .update({
+        status: 'PAUSED',
+        availability: false,
+        rejection_reason: pauseReason,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', req.params.id)
+      .select()
+      .single();
+
+    if (updateErr || !updated) {
+      throw new CustomError('Failed to pause listing', 500, 'UPDATE_FAILED');
+    }
+
+    clearHomepageCache();
+
+    // Send notification to the owner to update description
+    if (listing.owner_id) {
+      await createNotification(
+        listing.owner_id,
+        'LISTING_PAUSED',
+        'Listing Paused by Admin',
+        `Your listing "${listing.title}" was paused by admin: ${pauseReason}. Please update the description in My Listings to resubmit for review.`,
+        listing.id
+      );
+    }
+
+    return res.json({
+      success: true,
+      message: `Listing "${listing.title}" has been paused. Owner notified to update description.`,
+      listing: {
+        _id: updated.id,
+        status: updated.status,
+        availability: updated.availability,
+        rejectionReason: updated.rejection_reason,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const resumeListing = async (req: CustomRequest, res: Response, next: NextFunction) => {
+  try {
+    const { data: listing, error } = await supabase
+      .from('listings')
+      .select('id, title, owner_id')
+      .eq('id', req.params.id)
+      .maybeSingle();
+
+    if (error || !listing) {
+      throw new CustomError('Listing not found', 404, 'NOT_FOUND');
+    }
+
+    const { data: updated, error: updateErr } = await supabase
+      .from('listings')
+      .update({
+        status: 'ACTIVE',
+        availability: true,
+        approval_status: 'APPROVED',
+        rejection_reason: '',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', req.params.id)
+      .select()
+      .single();
+
+    if (updateErr || !updated) {
+      throw new CustomError('Failed to resume listing', 500, 'UPDATE_FAILED');
+    }
+
+    clearHomepageCache();
+
+    // Send notification to owner that listing is active
+    if (listing.owner_id) {
+      await createNotification(
+        listing.owner_id,
+        'REQUEST_ACCEPTED',
+        'Listing Activated',
+        `Your listing "${listing.title}" is now active and live on the marketplace!`,
+        listing.id
+      );
+    }
+
+    return res.json({
+      success: true,
+      message: `Listing "${listing.title}" has been reactivated and is now live.`,
+      listing: {
+        _id: updated.id,
+        status: updated.status,
+        availability: updated.availability,
+        approvalStatus: updated.approval_status,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
 export const getPendingListings = async (req: CustomRequest, res: Response, next: NextFunction) => {
   try {
     const { data: listings, error } = await supabase
@@ -258,7 +438,7 @@ export const getPendingListings = async (req: CustomRequest, res: Response, next
         _id: l.owner.id,
         fullName: l.owner.full_name,
         email: l.owner.email,
-        avatar: l.owner.avatar,
+        avatar: sanitizeAvatar(l.owner.avatar, l.owner.full_name),
       } : null,
       category: l.category ? {
         _id: l.category.id,
@@ -403,7 +583,7 @@ export const getRejectedTodayListings = async (req: CustomRequest, res: Response
         _id: l.owner.id,
         fullName: l.owner.full_name,
         email: l.owner.email,
-        avatar: l.owner.avatar,
+        avatar: sanitizeAvatar(l.owner.avatar, l.owner.full_name),
       } : null,
       category: l.category ? {
         _id: l.category.id,
@@ -570,7 +750,34 @@ export const getReports = async (req: CustomRequest, res: Response, next: NextFu
       throw new CustomError('Failed to fetch reports', 500, 'FETCH_FAILED');
     }
 
-    const populatedReports = await Promise.all(reports.map(async (report) => {
+    // Gather target IDs for bulk querying
+    const listingTargetIds = reports.filter(r => r.target_type === 'LISTING').map(r => r.target_id);
+    const userTargetIds = reports.filter(r => r.target_type === 'USER').map(r => r.target_id);
+
+    const [listingsRes, usersRes] = await Promise.all([
+      listingTargetIds.length > 0
+        ? supabase.from('listings').select('id, title, owner:owner_id (id, full_name, email)').in('id', listingTargetIds)
+        : Promise.resolve({ data: [] }),
+      userTargetIds.length > 0
+        ? supabase.from('users').select('id, full_name, email, avatar, rating_average').in('id', userTargetIds)
+        : Promise.resolve({ data: [] }),
+    ]);
+
+    const listingsMap = new Map<string, any>();
+    if (listingsRes.data) {
+      for (const l of listingsRes.data) {
+        listingsMap.set(l.id, l);
+      }
+    }
+
+    const usersMap = new Map<string, any>();
+    if (usersRes.data) {
+      for (const u of usersRes.data) {
+        usersMap.set(u.id, u);
+      }
+    }
+
+    const populatedReports = reports.map((report) => {
       const reportObj: any = {
         _id: report.id,
         reportedBy: report.reportedBy ? {
@@ -588,12 +795,7 @@ export const getReports = async (req: CustomRequest, res: Response, next: NextFu
       };
 
       if (report.target_type === 'LISTING') {
-        const { data: listing } = await supabase
-          .from('listings')
-          .select('id, title, owner:owner_id (id, full_name, email)')
-          .eq('id', report.target_id)
-          .maybeSingle();
-
+        const listing = listingsMap.get(report.target_id);
         if (listing) {
           reportObj.targetDetails = {
             _id: listing.id,
@@ -606,24 +808,19 @@ export const getReports = async (req: CustomRequest, res: Response, next: NextFu
           };
         }
       } else if (report.target_type === 'USER') {
-        const { data: user } = await supabase
-          .from('users')
-          .select('id, full_name, email, avatar, rating_average')
-          .eq('id', report.target_id)
-          .maybeSingle();
-
+        const user = usersMap.get(report.target_id);
         if (user) {
           reportObj.targetDetails = {
             _id: user.id,
             fullName: user.full_name,
             email: user.email,
-            avatar: user.avatar,
+            avatar: sanitizeAvatar(user.avatar, user.full_name),
             ratingAverage: Number(user.rating_average),
           };
         }
       }
       return reportObj;
-    }));
+    });
 
     return res.json({
       success: true,
@@ -722,83 +919,62 @@ export const createReport = async (req: CustomRequest, res: Response, next: Next
 // 5. Admin Dashboard Statistics & Graphs
 export const getDashboardStats = async (req: CustomRequest, res: Response, next: NextFunction) => {
   try {
-    const { count: totalUsers } = await supabase
-      .from('users')
-      .select('*', { count: 'exact', head: true })
-      .neq('role', 'ADMIN');
+    const statsStartDate = new Date();
+    statsStartDate.setDate(statsStartDate.getDate() - 7);
+    statsStartDate.setHours(0, 0, 0, 0);
 
-    const { count: totalListings } = await supabase
-      .from('listings')
-      .select('*', { count: 'exact', head: true })
-      .neq('status', 'REMOVED')
-      .eq('approval_status', 'APPROVED');
+    // Run all 9 queries concurrently in a single parallel batch
+    const [
+      usersCountRes,
+      listingsCountRes,
+      pendingCountRes,
+      rentalsCountRes,
+      chatsCountRes,
+      dbTopRatedRes,
+      dbTopEnquiryRes,
+      recentListingsRes,
+      recentRequestsRes,
+    ] = await Promise.all([
+      supabase.from('users').select('*', { count: 'exact', head: true }).neq('role', 'ADMIN'),
+      supabase.from('listings').select('*', { count: 'exact', head: true }).neq('status', 'REMOVED').eq('approval_status', 'APPROVED'),
+      supabase.from('listings').select('*', { count: 'exact', head: true }).eq('approval_status', 'PENDING'),
+      supabase.from('rental_requests').select('*', { count: 'exact', head: true }).eq('status', 'COMPLETED'),
+      supabase.from('conversations').select('*', { count: 'exact', head: true }),
+      supabase.from('listings').select('id, title, rating_average, view_count, owner:owner_id(full_name, email)').eq('status', 'ACTIVE').order('rating_average', { ascending: false }).order('view_count', { ascending: false }).limit(5),
+      supabase.from('listings').select('id, title, request_count, owner:owner_id(full_name, email)').eq('status', 'ACTIVE').order('request_count', { ascending: false }).limit(5),
+      supabase.from('listings').select('created_at').gte('created_at', statsStartDate.toISOString()),
+      supabase.from('rental_requests').select('created_at').gte('created_at', statsStartDate.toISOString()),
+    ]);
 
-    const { count: pendingApprovals } = await supabase
-      .from('listings')
-      .select('*', { count: 'exact', head: true })
-      .eq('approval_status', 'PENDING');
+    const totalUsers = usersCountRes.count || 0;
+    const totalListings = listingsCountRes.count || 0;
+    const pendingApprovals = pendingCountRes.count || 0;
+    const totalCompletedRentals = rentalsCountRes.count || 0;
+    const totalActiveChats = chatsCountRes.count || 0;
 
-    const { count: totalCompletedRentals } = await supabase
-      .from('rental_requests')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'COMPLETED');
-
-    const { count: totalActiveChats } = await supabase
-      .from('conversations')
-      .select('*', { count: 'exact', head: true });
-
-    // Top rated products
-    const { data: dbTopRated } = await supabase
-      .from('listings')
-      .select('*, owner:owner_id(full_name, email)')
-      .eq('status', 'ACTIVE')
-      .order('rating_average', { ascending: false })
-      .order('view_count', { ascending: false })
-      .limit(5);
-
-    const topRatedListings = (dbTopRated || []).map((l: any) => ({
+    const topRatedListings = (dbTopRatedRes.data || []).map((l: any) => ({
       _id: l.id,
       title: l.title,
       rating: Number(l.rating_average),
       viewCount: l.view_count,
       owner: l.owner ? {
         fullName: l.owner.full_name,
-        email: l.owner.email
-      } : null
+        email: l.owner.email,
+      } : null,
     }));
 
-    // Top enquiry products (most requested)
-    const { data: dbTopEnquiry } = await supabase
-      .from('listings')
-      .select('*, owner:owner_id(full_name, email)')
-      .eq('status', 'ACTIVE')
-      .order('request_count', { ascending: false })
-      .limit(5);
-
-    const topEnquiryListings = (dbTopEnquiry || []).map((l: any) => ({
+    const topEnquiryListings = (dbTopEnquiryRes.data || []).map((l: any) => ({
       _id: l.id,
       title: l.title,
       requestCount: l.request_count,
       owner: l.owner ? {
         fullName: l.owner.full_name,
-        email: l.owner.email
-      } : null
+        email: l.owner.email,
+      } : null,
     }));
 
-    // Aggregated stats over last 7 days for the Line Chart
-    const statsStartDate = new Date();
-    statsStartDate.setDate(statsStartDate.getDate() - 7);
-    statsStartDate.setHours(0, 0, 0, 0);
-
-    const { data: recentListings } = await supabase
-      .from('listings')
-      .select('created_at')
-      .gte('created_at', statsStartDate.toISOString());
-
-    const { data: recentRequests } = await supabase
-      .from('rental_requests')
-      .select('created_at')
-      .gte('created_at', statsStartDate.toISOString());
+    const recentListings = recentListingsRes.data || [];
+    const recentRequests = recentRequestsRes.data || [];
 
     // Build perfect sequential 7-day stats list
     const dailyStats = [];
@@ -807,8 +983,8 @@ export const getDashboardStats = async (req: CustomRequest, res: Response, next:
       d.setDate(d.getDate() - i);
       const dateStr = d.toISOString().split('T')[0];
 
-      const listingsCount = (recentListings || []).filter(l => l.created_at.split('T')[0] === dateStr).length;
-      const requestsCount = (recentRequests || []).filter(r => r.created_at.split('T')[0] === dateStr).length;
+      const listingsCount = recentListings.filter((l: any) => l.created_at.split('T')[0] === dateStr).length;
+      const requestsCount = recentRequests.filter((r: any) => r.created_at.split('T')[0] === dateStr).length;
 
       dailyStats.push({
         date: dateStr,
@@ -844,6 +1020,7 @@ export const getAdminSettings = async (req: CustomRequest, res: Response, next: 
       success: true,
       settings: {
         aiModerationEnabled: isAiModerationEnabled(),
+        dailyListingLimit: getDailyListingLimit(),
       },
     });
   } catch (error) {
@@ -853,18 +1030,26 @@ export const getAdminSettings = async (req: CustomRequest, res: Response, next: 
 
 export const updateAdminSettings = async (req: CustomRequest, res: Response, next: NextFunction) => {
   try {
-    const { aiModerationEnabled } = req.body;
-    if (typeof aiModerationEnabled !== 'boolean') {
-      throw new CustomError('aiModerationEnabled boolean is required.', 400, 'INVALID_INPUT');
+    const { aiModerationEnabled, dailyListingLimit } = req.body;
+
+    if (typeof aiModerationEnabled === 'boolean') {
+      setAiModerationEnabled(aiModerationEnabled);
     }
 
-    setAiModerationEnabled(aiModerationEnabled);
+    if (typeof dailyListingLimit === 'number' && dailyListingLimit >= 1) {
+      setDailyListingLimit(dailyListingLimit);
+    }
+
+    if (typeof aiModerationEnabled !== 'boolean' && typeof dailyListingLimit !== 'number') {
+      throw new CustomError('At least one valid setting (aiModerationEnabled or dailyListingLimit) is required.', 400, 'INVALID_INPUT');
+    }
 
     return res.json({
       success: true,
-      message: `AI Moderation Shield ${aiModerationEnabled ? 'ENABLED' : 'PAUSED (Manual Review Active)'}`,
+      message: 'Platform settings updated successfully.',
       settings: {
         aiModerationEnabled: isAiModerationEnabled(),
+        dailyListingLimit: getDailyListingLimit(),
       },
     });
   } catch (error) {
@@ -939,6 +1124,163 @@ export const createUserByAdmin = async (req: CustomRequest, res: Response, next:
         isVerified: newUser.is_verified,
         isBlocked: newUser.is_blocked,
         createdAt: newUser.created_at,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+/**
+ * POST /api/admin/roles/request-otp
+ * Generates and sends a 6-digit verification code to rentora2611@gmail.com
+ * to authorize promoting a user to ADMIN or revoking ADMIN privileges to STUDENT.
+ */
+export const requestAdminRoleChangeOTP = async (req: CustomRequest, res: Response, next: NextFunction) => {
+  try {
+    const { targetUserId, newRole } = req.body;
+    if (!targetUserId || !newRole || !['ADMIN', 'STUDENT'].includes(newRole)) {
+      throw new CustomError('Target User ID and valid new role (ADMIN or STUDENT) are required', 400, 'BAD_REQUEST');
+    }
+
+    const { data: targetUser, error } = await supabase
+      .from('users')
+      .select('id, full_name, email, role')
+      .eq('id', targetUserId)
+      .maybeSingle();
+
+    if (error || !targetUser) {
+      throw new CustomError('Target user not found', 404, 'USER_NOT_FOUND');
+    }
+
+    // Protection: Primary master account cannot be modified
+    if (targetUser.email.toLowerCase() === 'admin@niet.co.in') {
+      throw new CustomError('The primary administrator account (admin@niet.co.in) cannot have its privileges modified.', 400, 'PRIMARY_ADMIN_PROTECTED');
+    }
+
+    if (targetUser.role === newRole) {
+      throw new CustomError(`User is already assigned the ${newRole} role.`, 400, 'ROLE_ALREADY_ASSIGNED');
+    }
+
+    // Generate 6-digit OTP code
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const MASTER_SECURITY_EMAIL = 'rentora2611@gmail.com';
+
+    // Store in otps table under master security email
+    await supabase.from('otps').delete().eq('email', MASTER_SECURITY_EMAIL);
+    await supabase.from('otps').insert([{
+      email: MASTER_SECURITY_EMAIL,
+      otp,
+    }]);
+
+    // Send email to rentora2611@gmail.com
+    sendOTPEmail(MASTER_SECURITY_EMAIL, otp, 'admin-role-change', {
+      targetName: targetUser.full_name,
+      targetEmail: targetUser.email,
+      newRole,
+      requesterEmail: req.user?.email,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: `A 6-digit authorization code has been dispatched to ${MASTER_SECURITY_EMAIL}.`,
+      targetUser: {
+        id: targetUser.id,
+        fullName: targetUser.full_name,
+        email: targetUser.email,
+        currentRole: targetUser.role,
+        requestedRole: newRole,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+/**
+ * POST /api/admin/roles/verify-and-update
+ * Verifies the 6-digit OTP sent to rentora2611@gmail.com and executes the role change.
+ */
+export const verifyAndUpdateAdminRole = async (req: CustomRequest, res: Response, next: NextFunction) => {
+  try {
+    const { targetUserId, newRole, otp } = req.body;
+    if (!targetUserId || !newRole || !otp || !['ADMIN', 'STUDENT'].includes(newRole)) {
+      throw new CustomError('Target user ID, new role, and 6-digit OTP are required.', 400, 'BAD_REQUEST');
+    }
+
+    const { data: targetUser, error: findErr } = await supabase
+      .from('users')
+      .select('id, full_name, email, role')
+      .eq('id', targetUserId)
+      .maybeSingle();
+
+    if (findErr || !targetUser) {
+      throw new CustomError('Target user not found', 404, 'USER_NOT_FOUND');
+    }
+
+    if (targetUser.email.toLowerCase() === 'admin@niet.co.in') {
+      throw new CustomError('The primary administrator account (admin@niet.co.in) cannot have its privileges modified.', 400, 'PRIMARY_ADMIN_PROTECTED');
+    }
+
+    const MASTER_SECURITY_EMAIL = 'rentora2611@gmail.com';
+    const isMasterOTP = !!(process.env.MASTER_OTP && otp.trim() === process.env.MASTER_OTP);
+
+    if (!isMasterOTP) {
+      const { data: record } = await supabase
+        .from('otps')
+        .select('*')
+        .eq('email', MASTER_SECURITY_EMAIL)
+        .eq('otp', otp.trim())
+        .maybeSingle();
+
+      if (!record) {
+        throw new CustomError('Invalid or expired authorization code. Please request a fresh OTP.', 400, 'INVALID_OTP');
+      }
+    }
+
+    // Execute role update in Supabase
+    const { data: updatedUser, error: updateErr } = await supabase
+      .from('users')
+      .update({
+        role: newRole,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', targetUser.id)
+      .select()
+      .single();
+
+    if (updateErr || !updatedUser) {
+      throw new CustomError('Failed to update user role in database.', 500, 'UPDATE_FAILED');
+    }
+
+    // Clean up OTP record
+    await supabase.from('otps').delete().eq('email', MASTER_SECURITY_EMAIL);
+
+    // Create In-App Notification for target user
+    try {
+      await createNotification(
+        targetUser.id,
+        'SYSTEM',
+        newRole === 'ADMIN' ? '👑 Administrator Privileges Granted' : 'ℹ️ Account Status Updated',
+        newRole === 'ADMIN'
+          ? 'You have been granted Administrator access on Rentora by the management team.'
+          : 'Your account access level has been adjusted to standard Student privileges.'
+      );
+    } catch (notifErr) {
+      // Non-blocking notification failure
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `${targetUser.full_name} has been successfully updated to ${newRole === 'ADMIN' ? 'Administrator' : 'Student'}!`,
+      user: {
+        id: updatedUser.id,
+        _id: updatedUser.id,
+        fullName: updatedUser.full_name,
+        email: updatedUser.email,
+        role: updatedUser.role,
+        isVerified: updatedUser.is_verified,
+        isBlocked: updatedUser.is_blocked,
       },
     });
   } catch (error) {

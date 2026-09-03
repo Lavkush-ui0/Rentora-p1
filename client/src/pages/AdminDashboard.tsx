@@ -4,7 +4,9 @@ import { adminService } from '../services/adminService';
 import {
   Users as UsersIcon, Package as ListingsIcon, CheckCircle2, Plus,
   MessageCircle, ClipboardCheck, CheckCircle, XCircle, Clock,
-  Bot, Sparkles, UserPlus, Lock, Mail, User
+  Bot, Sparkles, UserPlus, Lock, Mail, User, Settings,
+  ArrowUpDown, PauseCircle, PlayCircle, Search, Calendar,
+  ShieldCheck, ShieldAlert, KeyRound, Crown, UserX
 } from 'lucide-react';
 import { AdminLayout } from '../layouts/AdminLayout';
 import { getImageUrl, getAvatarUrl } from '../utils/imageUrl';
@@ -49,8 +51,8 @@ const SVGLineGraph: React.FC<{ data: DailyStat[] }> = ({ data }) => {
   const requestsPath = points.map(p => `${p.x},${p.yRequests}`).join(' ');
 
   return (
-    <div className="relative bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-6 rounded-3xl shadow-sm">
-      <div className="flex items-center justify-between mb-6">
+    <div className="relative bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-4 sm:p-6 rounded-3xl shadow-sm overflow-hidden">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>
           <h3 className="font-outfit font-black text-gray-900 dark:text-gray-100 text-sm">
             Platform Traffic Analytics
@@ -238,6 +240,23 @@ export const AdminDashboard: React.FC = () => {
 
   const [aiModerationEnabled, setAiModerationEnabled] = useState<boolean>(true);
   const [togglingAi, setTogglingAi] = useState<boolean>(false);
+  const [dailyListingLimit, setDailyListingLimit] = useState<number>(2);
+  const [limitInput, setLimitInput] = useState<number>(2);
+  const [savingLimit, setSavingLimit] = useState<boolean>(false);
+  const [limitSaved, setLimitSaved] = useState<boolean>(false);
+  const [togglingBlockId, setTogglingBlockId] = useState<string | null>(null);
+
+  // Listing Management filter & sort states (defaults to ACTIVE only)
+  const [listingStatusFilter, setListingStatusFilter] = useState<'ACTIVE' | 'PAUSED' | 'REMOVED' | 'ALL'>('ACTIVE');
+  const [listingTimeFilter, setListingTimeFilter] = useState<'ALL' | 'TODAY' | 'WEEK' | 'MONTH'>('ALL');
+  const [listingSort, setListingSort] = useState<'NEWEST' | 'OLDEST' | 'PRICE_LOW' | 'PRICE_HIGH' | 'REQUESTS'>('NEWEST');
+  const [listingSearch, setListingSearch] = useState<string>('');
+
+  // Pause listing modal
+  const [pauseModalListing, setPauseModalListing] = useState<any | null>(null);
+  const [pauseReasonInput, setPauseReasonInput] = useState<string>('');
+  const [pausingListing, setPausingListing] = useState<boolean>(false);
+
   const [createAccountModalOpen, setCreateAccountModalOpen] = useState<boolean>(false);
   const [createUserForm, setCreateUserForm] = useState({
     fullName: '',
@@ -253,6 +272,109 @@ export const AdminDashboard: React.FC = () => {
   const [createUserError, setCreateUserError] = useState<string>('');
   const [createUserSuccess, setCreateUserSuccess] = useState<string>('');
 
+  // Admin Role Privileges Management States (Master OTP at rentora2611@gmail.com)
+  const [adminRoleModalOpen, setAdminRoleModalOpen] = useState<boolean>(false);
+  const [adminRoleSearch, setAdminRoleSearch] = useState<string>('');
+  const [adminRoleFilter, setAdminRoleFilter] = useState<'ALL' | 'ADMIN' | 'STUDENT'>('ALL');
+  const [selectedUserForRoleChange, setSelectedUserForRoleChange] = useState<any | null>(null);
+  const [targetNewRole, setTargetNewRole] = useState<'ADMIN' | 'STUDENT'>('ADMIN');
+  const [roleChangeOtpModalOpen, setRoleChangeOtpModalOpen] = useState<boolean>(false);
+  const [roleChangeOtp, setRoleChangeOtp] = useState<string>('');
+  const [requestingRoleOtp, setRequestingRoleOtp] = useState<boolean>(false);
+  const [verifyingRoleOtp, setVerifyingRoleOtp] = useState<boolean>(false);
+  const [roleChangeError, setRoleChangeError] = useState<string>('');
+  const [roleChangeSuccess, setRoleChangeSuccess] = useState<string>('');
+  const [roleOtpTimer, setRoleOtpTimer] = useState<number>(0);
+
+  useEffect(() => {
+    let interval: any = null;
+    if (roleOtpTimer > 0) {
+      interval = setInterval(() => setRoleOtpTimer(t => t - 1), 1000);
+    }
+    return () => clearInterval(interval);
+  }, [roleOtpTimer]);
+
+  const handleInitiateRoleChange = async (targetUser: any, newRole: 'ADMIN' | 'STUDENT') => {
+    if (targetUser.email?.toLowerCase() === 'admin@niet.co.in') {
+      alert('The primary master administrator account (admin@niet.co.in) cannot have its privileges modified.');
+      return;
+    }
+    setSelectedUserForRoleChange(targetUser);
+    setTargetNewRole(newRole);
+    setRoleChangeOtp('');
+    setRoleChangeError('');
+    setRoleChangeSuccess('');
+    setRequestingRoleOtp(true);
+
+    try {
+      const res = await adminService.requestAdminRoleChangeOTP({
+        targetUserId: targetUser._id || targetUser.id,
+        newRole,
+      });
+      if (res.data?.success) {
+        setRoleChangeOtpModalOpen(true);
+        setRoleOtpTimer(60);
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to request authorization code.');
+    } finally {
+      setRequestingRoleOtp(false);
+    }
+  };
+
+  const handleResendRoleOtp = async () => {
+    if (!selectedUserForRoleChange || roleOtpTimer > 0) return;
+    setRequestingRoleOtp(true);
+    setRoleChangeError('');
+    try {
+      const res = await adminService.requestAdminRoleChangeOTP({
+        targetUserId: selectedUserForRoleChange._id || selectedUserForRoleChange.id,
+        newRole: targetNewRole,
+      });
+      if (res.data?.success) {
+        setRoleOtpTimer(60);
+      }
+    } catch (err: any) {
+      setRoleChangeError(err.response?.data?.message || 'Failed to resend code.');
+    } finally {
+      setRequestingRoleOtp(false);
+    }
+  };
+
+  const handleVerifyRoleOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedUserForRoleChange || !roleChangeOtp.trim()) return;
+
+    setVerifyingRoleOtp(true);
+    setRoleChangeError('');
+    try {
+      const res = await adminService.verifyAndUpdateAdminRole({
+        targetUserId: selectedUserForRoleChange._id || selectedUserForRoleChange.id,
+        newRole: targetNewRole,
+        otp: roleChangeOtp.trim(),
+      });
+      if (res.data?.success) {
+        setRoleChangeSuccess(res.data.message);
+        // Update local users list
+        setUsers(prev => prev.map((u: any) =>
+          (u._id === selectedUserForRoleChange._id || u.id === selectedUserForRoleChange.id)
+            ? { ...u, role: targetNewRole }
+            : u
+        ));
+        setTimeout(() => {
+          setRoleChangeOtpModalOpen(false);
+          setRoleChangeSuccess('');
+          setRoleChangeOtp('');
+          setSelectedUserForRoleChange(null);
+        }, 1500);
+      }
+    } catch (err: any) {
+      setRoleChangeError(err.response?.data?.message || 'Invalid or expired authorization code.');
+    } finally {
+      setVerifyingRoleOtp(false);
+    }
+  };
+
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
@@ -265,8 +387,18 @@ export const AdminDashboard: React.FC = () => {
           }
         }
       } else if (currentTab === 'users') {
-        const usersRes = await adminService.getUsers();
+        const [usersRes, settingsRes] = await Promise.all([
+          adminService.getUsers(),
+          adminService.getSettings(),
+        ]);
         if (usersRes.data?.success) setUsers(usersRes.data.users);
+        if (settingsRes.data?.success && settingsRes.data.settings) {
+          const s = settingsRes.data.settings;
+          if (typeof s.dailyListingLimit === 'number') {
+            setDailyListingLimit(s.dailyListingLimit);
+            setLimitInput(s.dailyListingLimit);
+          }
+        }
       } else if (currentTab === 'listings') {
         const listRes = await adminService.getListings();
         if (listRes.data?.success) setListings(listRes.data.listings);
@@ -348,16 +480,41 @@ export const AdminDashboard: React.FC = () => {
     }
   };
 
-  const handleBlockToggle = async (userId: string, isCurrentlyBlocked: boolean) => {
+  const handleBlockToggle = async (userId: string) => {
+    setTogglingBlockId(userId);
     try {
-      if (isCurrentlyBlocked) {
-        await adminService.unblockUser(userId);
-      } else {
-        await adminService.blockUser(userId);
+      const res = await adminService.toggleBlockUser(userId);
+      if (res.data?.success) {
+        // Optimistically update local state from server response
+        const updatedUser = res.data.user;
+        setUsers(prev => prev.map(u =>
+          u._id === userId ? { ...u, isBlocked: updatedUser.isBlocked } : u
+        ));
       }
-      fetchDashboardData();
     } catch (err: any) {
       alert(err.response?.data?.message || 'Failed to toggle user block status.');
+    } finally {
+      setTogglingBlockId(null);
+    }
+  };
+
+  const handleSaveListingLimit = async () => {
+    if (limitInput < 1 || limitInput > 50) {
+      alert('Daily listing limit must be between 1 and 50.');
+      return;
+    }
+    setSavingLimit(true);
+    try {
+      const res = await adminService.updateSettings({ dailyListingLimit: limitInput });
+      if (res.data?.success) {
+        setDailyListingLimit(res.data.settings.dailyListingLimit);
+        setLimitSaved(true);
+        setTimeout(() => setLimitSaved(false), 2000);
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to update listing limit.');
+    } finally {
+      setSavingLimit(false);
     }
   };
 
@@ -368,6 +525,42 @@ export const AdminDashboard: React.FC = () => {
       fetchDashboardData();
     } catch (err: any) {
       alert(err.response?.data?.message || 'Failed to remove listing.');
+    }
+  };
+
+  const handleOpenPauseModal = (listing: any) => {
+    setPauseModalListing(listing);
+    setPauseReasonInput('Please update the product description to provide more details about this item.');
+  };
+
+  const handleConfirmPauseListing = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pauseModalListing) return;
+    setPausingListing(true);
+    try {
+      const res = await adminService.pauseListing(pauseModalListing._id, pauseReasonInput);
+      if (res.data?.success) {
+        alert(res.data.message || 'Listing paused and owner notified.');
+        setPauseModalListing(null);
+        setPauseReasonInput('');
+        fetchDashboardData();
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to pause listing.');
+    } finally {
+      setPausingListing(false);
+    }
+  };
+
+  const handleResumeListing = async (listingId: string) => {
+    try {
+      const res = await adminService.resumeListing(listingId);
+      if (res.data?.success) {
+        alert(res.data.message || 'Listing has been reactivated.');
+        fetchDashboardData();
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to resume listing.');
     }
   };
 
@@ -441,9 +634,9 @@ export const AdminDashboard: React.FC = () => {
     <AdminLayout>
       <div className="space-y-8 animate-in fade-in duration-300">
         {/* Header summary */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-black font-outfit text-gray-900 dark:text-white capitalize">
+            <h1 className="text-xl sm:text-2xl font-black font-outfit text-gray-900 dark:text-white capitalize">
               {currentTab === 'dashboard' ? 'Overview' : `${currentTab} management`}
             </h1>
             <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
@@ -452,7 +645,7 @@ export const AdminDashboard: React.FC = () => {
           </div>
           <button
             onClick={fetchDashboardData}
-            className="px-4 py-2 border border-gray-200 dark:border-slate-800 text-xs font-bold rounded-xl hover:bg-gray-100 dark:hover:bg-slate-800 transition-all"
+            className="px-4 py-2 border border-gray-200 dark:border-slate-800 text-xs font-bold rounded-xl hover:bg-gray-100 dark:hover:bg-slate-800 transition-all self-start sm:self-auto shrink-0"
           >
             Refresh Data
           </button>
@@ -659,19 +852,69 @@ export const AdminDashboard: React.FC = () => {
             {/* SUBVIEW 2: USERS LIST */}
             {currentTab === 'users' && (
               <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-3xl overflow-hidden">
-                <div className="p-6 border-b border-gray-50 dark:border-slate-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div>
-                    <h3 className="font-outfit font-black text-sm text-gray-900 dark:text-white">Registered Users & Administrators</h3>
-                    <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">Manage accounts, create new admin credentials, and monitor campus access</p>
+                {/* Panel Header */}
+                <div className="p-6 border-b border-gray-50 dark:border-slate-800/60">
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                    <div>
+                      <h3 className="font-outfit font-black text-sm text-gray-900 dark:text-white">Registered Users &amp; Administrators</h3>
+                      <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">Manage accounts, assign/revoke admin privileges, and monitor campus access</p>
+                    </div>
+                    <div className="flex items-center gap-2.5 flex-wrap">
+                      <button
+                        id="manage-admins-btn"
+                        onClick={() => setAdminRoleModalOpen(true)}
+                        className="px-4 py-2.5 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white text-xs font-bold rounded-2xl flex items-center space-x-2 shadow-lg shadow-amber-500/20 transition-all active:scale-95 shrink-0"
+                      >
+                        <ShieldCheck className="h-4 w-4" />
+                        <span>Add / Update Admin</span>
+                      </button>
+                      <button
+                        onClick={() => setCreateAccountModalOpen(true)}
+                        className="px-4 py-2.5 bg-primary-600 hover:bg-primary-500 text-white text-xs font-bold rounded-2xl flex items-center space-x-2 shadow-lg shadow-primary-600/20 transition-all active:scale-95 shrink-0"
+                      >
+                        <UserPlus className="h-4 w-4" />
+                        <span>Create Account</span>
+                      </button>
+                    </div>
                   </div>
-                  <button
-                    onClick={() => setCreateAccountModalOpen(true)}
-                    className="px-4 py-2.5 bg-primary-600 hover:bg-primary-500 text-white text-xs font-bold rounded-2xl flex items-center space-x-2 shadow-lg shadow-primary-600/20 transition-all active:scale-95 shrink-0 w-fit"
-                  >
-                    <UserPlus className="h-4 w-4" />
-                    <span>Create Account (Admin / Student)</span>
-                  </button>
+
+                  {/* Daily Listing Limit Control */}
+                  <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-3 p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/30 rounded-2xl">
+                    <div className="flex items-center space-x-2 flex-1">
+                      <Settings className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                      <div>
+                        <p className="text-xs font-black text-amber-800 dark:text-amber-300">Daily Listing Limit per User</p>
+                        <p className="text-[10px] text-amber-600 dark:text-amber-500 mt-0.5">Max products each user can list per 24 hours. Currently: <strong>{dailyListingLimit}</strong></p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        id="daily-listing-limit-input"
+                        type="number"
+                        min={1}
+                        max={50}
+                        value={limitInput}
+                        onChange={e => setLimitInput(Number(e.target.value))}
+                        className="w-16 px-2 py-1.5 text-sm font-bold text-center border border-amber-300 dark:border-amber-800 bg-white dark:bg-slate-800 text-gray-900 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-400"
+                      />
+                      <button
+                        id="save-listing-limit-btn"
+                        onClick={handleSaveListingLimit}
+                        disabled={savingLimit || limitInput === dailyListingLimit}
+                        className={`px-4 py-1.5 text-xs font-bold rounded-xl transition-all active:scale-95 ${
+                          limitSaved
+                            ? 'bg-green-500 text-white'
+                            : limitInput === dailyListingLimit
+                            ? 'bg-gray-100 dark:bg-slate-700 text-gray-400 cursor-not-allowed'
+                            : 'bg-amber-500 hover:bg-amber-600 text-white shadow-sm'
+                        }`}
+                      >
+                        {savingLimit ? 'Saving…' : limitSaved ? '✓ Saved' : 'Apply'}
+                      </button>
+                    </div>
+                  </div>
                 </div>
+
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse">
                     <thead>
@@ -680,8 +923,7 @@ export const AdminDashboard: React.FC = () => {
                         <th className="px-6 py-4">Email</th>
                         <th className="px-6 py-4">Role</th>
                         <th className="px-6 py-4">Last Post</th>
-                        <th className="px-6 py-4">Status</th>
-                        <th className="px-6 py-4 text-right">Actions</th>
+                        <th className="px-6 py-4">Status &amp; Access</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50 dark:divide-slate-800/50 text-xs">
@@ -701,27 +943,62 @@ export const AdminDashboard: React.FC = () => {
                             {u.lastPostAt ? new Date(u.lastPostAt).toLocaleString() : 'Never'}
                           </td>
                           <td className="px-6 py-4">
-                            <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${
-                              u.isBlocked
-                                ? 'bg-red-50 text-red-600 dark:bg-red-950/20 dark:text-red-400'
-                                : 'bg-green-50 text-green-600 dark:bg-green-950/20 dark:text-green-400'
-                            }`}>
-                              {u.isBlocked ? 'Blocked' : 'Active'}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-right">
-                            {u.role !== 'ADMIN' && (
-                              <button
-                                onClick={() => handleBlockToggle(u._id, u.isBlocked)}
-                                className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all ${
-                                  u.isBlocked
-                                    ? 'bg-green-500 hover:bg-green-600 text-white'
-                                    : 'bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-950/25 dark:text-red-400 dark:hover:bg-red-950/40'
-                                }`}
-                              >
-                                {u.isBlocked ? 'Unblock' : 'Block User'}
-                              </button>
-                            )}
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {/* Status badge */}
+                              <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full shrink-0 ${
+                                u.isBlocked
+                                  ? 'bg-red-50 text-red-600 dark:bg-red-950/20 dark:text-red-400'
+                                  : 'bg-green-50 text-green-600 dark:bg-green-950/20 dark:text-green-400'
+                              }`}>
+                                {u.isBlocked ? '🔒 Blocked' : '✓ Active'}
+                              </span>
+
+                              {/* iOS-style toggle switch (non-admin only) */}
+                              {u.role !== 'ADMIN' && (
+                                <button
+                                  id={`block-toggle-${u._id}`}
+                                  onClick={() => handleBlockToggle(u._id)}
+                                  disabled={togglingBlockId === u._id}
+                                  title={u.isBlocked ? 'Click to unblock this user' : 'Click to temporarily block this user'}
+                                  className="relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-wait"
+                                  style={{
+                                    backgroundColor: u.isBlocked ? '#ef4444' : '#22c55e',
+                                  }}
+                                >
+                                  <span
+                                    className="inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm transition-transform duration-300"
+                                    style={{ transform: u.isBlocked ? 'translateX(18px)' : 'translateX(2px)' }}
+                                  />
+                                </button>
+                              )}
+
+                              {/* Quick Role Action Button */}
+                              {u.email?.toLowerCase() === 'admin@niet.co.in' ? (
+                                <span className="px-2 py-0.5 text-[9px] font-black bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 rounded-md border border-amber-300 dark:border-amber-800 flex items-center gap-1">
+                                  <Crown className="h-3 w-3" /> Master Admin
+                                </span>
+                              ) : u.role === 'ADMIN' ? (
+                                <button
+                                  onClick={() => handleInitiateRoleChange(u, 'STUDENT')}
+                                  disabled={requestingRoleOtp}
+                                  className="px-2 py-1 bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-950/30 dark:text-red-400 text-[10px] font-bold rounded-xl transition-all flex items-center gap-1 border border-red-200 dark:border-red-900/30"
+                                  title="Revoke Administrator privileges back to Student"
+                                >
+                                  <UserX className="h-3 w-3" />
+                                  <span>Revoke Admin</span>
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handleInitiateRoleChange(u, 'ADMIN')}
+                                  disabled={requestingRoleOtp}
+                                  className="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300 text-[10px] font-bold rounded-xl transition-all flex items-center gap-1 border border-amber-200 dark:border-amber-900/30"
+                                  title="Promote Student to Administrator (requires master OTP)"
+                                >
+                                  <ShieldCheck className="h-3 w-3" />
+                                  <span>Make Admin</span>
+                                </button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -732,107 +1009,333 @@ export const AdminDashboard: React.FC = () => {
             )}
 
             {/* SUBVIEW 3: LISTINGS LIST */}
-            {currentTab === 'listings' && (
-              <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-3xl overflow-hidden">
-                <div className="p-6 border-b border-gray-50 dark:border-slate-800/60">
-                  <h3 className="font-outfit font-black text-sm text-gray-900 dark:text-white">Active Listed Items</h3>
-                  <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">Moderate rental catalog listings</p>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-gray-50 dark:bg-slate-800/40 text-[10px] font-black uppercase text-gray-400 tracking-wider border-b border-gray-100 dark:border-slate-800">
-                        <th className="px-6 py-4">Item</th>
-                        <th className="px-6 py-4">Owner</th>
-                        <th className="px-6 py-4">Price</th>
-                        <th className="px-6 py-4">Upload Date & Time</th>
-                        <th className="px-6 py-4 text-center">Requests</th>
-                        <th className="px-6 py-4 text-center">Submissions</th>
-                        <th className="px-6 py-4">Status</th>
-                        <th className="px-6 py-4 text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50 dark:divide-slate-800/50 text-xs">
-                      {listings.map((l: any) => (
-                        <tr key={l._id} className="hover:bg-gray-50/50 dark:hover:bg-slate-800/20">
-                          <td className="px-6 py-4 flex items-center space-x-3">
-                            <img
-                              src={getImageUrl(l.images?.[0])}
-                              alt=""
-                              className="h-9 w-9 rounded-xl object-cover border border-gray-100 dark:border-slate-850"
-                            />
-                            <div className="min-w-0">
-                              <p className="font-bold text-gray-900 dark:text-white truncate max-w-[160px]">{l.title}</p>
-                              <p className="text-[10px] text-gray-400 mt-0.5">Deposit: ₹{l.securityDeposit}</p>
-                              {l.postIpAddress && (
-                                <p className="text-[9px] text-slate-500 dark:text-slate-400 font-mono mt-0.5">IP: {l.postIpAddress}</p>
-                              )}
-                              {l.rentedPeriod && (
-                                <div className="mt-1 text-[9px] font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/20 px-2 py-1 rounded-md inline-flex items-center gap-0.5 border border-blue-100 dark:border-blue-900/30 w-fit">
-                                  <span>Rented: {new Date(l.rentedPeriod.startDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })} - {new Date(l.rentedPeriod.endDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}</span>
-                                </div>
-                              )}
-                              {l.postCoordinates?.latitude && l.postCoordinates?.longitude ? (
-                                <div className="mt-1 flex items-center space-x-1">
-                                  <span className="text-[9px] text-green-600 dark:text-green-400 font-semibold font-mono">📍 GPS Attached</span>
-                                  <a
-                                    href={`https://www.google.com/maps?q=${l.postCoordinates.latitude},${l.postCoordinates.longitude}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="px-1.5 py-0.5 bg-blue-50 hover:bg-blue-100 text-blue-600 dark:bg-blue-950/20 dark:text-blue-400 text-[8px] font-black uppercase rounded-md transition-all inline-block"
-                                  >
-                                    Track User Location
-                                  </a>
-                                </div>
-                              ) : (
-                                <p className="text-[9px] text-gray-400 dark:text-gray-500 italic mt-0.5">No GPS coords attached</p>
-                              )}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="text-gray-900 dark:text-white font-bold">{l.owner?.fullName || 'Deleted'}</div>
-                            {l.owner?.email && (
-                              <div className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">{l.owner.email}</div>
-                            )}
-                          </td>
-                          <td className="px-6 py-4 font-bold text-primary-600 dark:text-primary-400">
-                            ₹{l.rentalPrice}/{l.priceUnit?.toLowerCase()}
-                          </td>
-                          <td className="px-6 py-4 text-gray-500 dark:text-gray-400 font-medium">
-                            {new Date(l.createdAt).toLocaleString()}
-                          </td>
-                          <td className="px-6 py-4 text-center font-bold">{l.requestCount}</td>
-                          <td className="px-6 py-4 text-center font-bold">{l.submissionCount ?? 1}</td>
-                          <td className="px-6 py-4">
-                            <span className={`px-2.5 py-0.5 text-[10px] font-bold rounded-full ${
-                              l.status === 'ACTIVE'
-                                ? 'bg-green-50 text-green-600 dark:bg-green-950/20 dark:text-green-400'
-                                : l.status === 'REMOVED'
-                                ? 'bg-red-50 text-red-600 dark:bg-red-950/20 dark:text-red-400'
-                                : l.status === 'RENTED'
-                                ? 'bg-blue-50 text-blue-600 dark:bg-blue-950/20 dark:text-blue-400'
-                                : 'bg-amber-50 text-amber-600 dark:bg-amber-950/20 dark:text-amber-400'
-                            }`}>
-                              {l.status}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-right">
-                            {l.status !== 'REMOVED' && (
-                              <button
-                                onClick={() => handleRemoveListing(l._id)}
-                                className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-950/25 dark:text-red-400 dark:hover:bg-red-950/40 text-xs font-bold rounded-xl transition-all"
-                              >
-                                Take Down
-                              </button>
-                            )}
-                          </td>
+            {currentTab === 'listings' && (() => {
+              // Calculate counts for filters
+              const activeCount = listings.filter((l: any) => l.status === 'ACTIVE').length;
+              const pausedCount = listings.filter((l: any) => l.status === 'PAUSED').length;
+              const removedCount = listings.filter((l: any) => l.status === 'REMOVED').length;
+              const totalCount = listings.length;
+
+              // Filter & Sort listings
+              const filteredListings = listings.filter((l: any) => {
+                // 1. Status Filter
+                if (listingStatusFilter !== 'ALL' && l.status !== listingStatusFilter) {
+                  return false;
+                }
+
+                // 2. Timeframe Filter
+                if (listingTimeFilter !== 'ALL') {
+                  const createdAt = new Date(l.createdAt).getTime();
+                  const now = Date.now();
+                  if (listingTimeFilter === 'TODAY') {
+                    if (createdAt < now - 24 * 60 * 60 * 1000) return false;
+                  } else if (listingTimeFilter === 'WEEK') {
+                    if (createdAt < now - 7 * 24 * 60 * 60 * 1000) return false;
+                  } else if (listingTimeFilter === 'MONTH') {
+                    if (createdAt < now - 30 * 24 * 60 * 60 * 1000) return false;
+                  }
+                }
+
+                // 3. Search Filter
+                if (listingSearch.trim()) {
+                  const q = listingSearch.toLowerCase().trim();
+                  const titleMatch = l.title?.toLowerCase().includes(q);
+                  const ownerMatch = l.owner?.fullName?.toLowerCase().includes(q);
+                  const emailMatch = l.owner?.email?.toLowerCase().includes(q);
+                  const locMatch = l.location?.toLowerCase().includes(q);
+                  if (!titleMatch && !ownerMatch && !emailMatch && !locMatch) return false;
+                }
+
+                return true;
+              }).sort((a: any, b: any) => {
+                switch (listingSort) {
+                  case 'PRICE_LOW':
+                    return Number(a.rentalPrice || 0) - Number(b.rentalPrice || 0);
+                  case 'PRICE_HIGH':
+                    return Number(b.rentalPrice || 0) - Number(a.rentalPrice || 0);
+                  case 'OLDEST':
+                    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+                  case 'REQUESTS':
+                    return Number(b.requestCount || 0) - Number(a.requestCount || 0);
+                  case 'NEWEST':
+                  default:
+                    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+                }
+              });
+
+              return (
+                <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm">
+                  {/* Header & Status Tabs */}
+                  <div className="p-6 border-b border-gray-50 dark:border-slate-800/60 space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div>
+                        <h3 className="font-outfit font-black text-sm text-gray-900 dark:text-white flex items-center gap-2">
+                          <span>Listing Management</span>
+                          <span className="text-[10px] font-bold px-2 py-0.5 bg-primary-50 dark:bg-primary-950/30 text-primary-600 dark:text-primary-400 rounded-full border border-primary-200 dark:border-primary-900/40">
+                            {filteredListings.length} of {totalCount} shown
+                          </span>
+                        </h3>
+                        <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">
+                          Browse active marketplace items, pause listings to request description updates, or take down non-compliant items
+                        </p>
+                      </div>
+
+                      {/* Status Filter Tabs (Defaults to ACTIVE) */}
+                      <div className="flex items-center gap-1.5 p-1 bg-gray-100 dark:bg-slate-800/80 rounded-2xl shrink-0 overflow-x-auto">
+                        <button
+                          onClick={() => setListingStatusFilter('ACTIVE')}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                            listingStatusFilter === 'ACTIVE'
+                              ? 'bg-white dark:bg-slate-700 text-green-600 dark:text-green-400 shadow-sm'
+                              : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                          }`}
+                        >
+                          <span className="h-2 w-2 rounded-full bg-green-500"></span>
+                          <span>Active</span>
+                          <span className="text-[10px] px-1.5 py-0.2 bg-green-50 dark:bg-green-950/40 rounded-md">{activeCount}</span>
+                        </button>
+
+                        <button
+                          onClick={() => setListingStatusFilter('PAUSED')}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                            listingStatusFilter === 'PAUSED'
+                              ? 'bg-white dark:bg-slate-700 text-amber-600 dark:text-amber-400 shadow-sm'
+                              : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                          }`}
+                        >
+                          <span className="h-2 w-2 rounded-full bg-amber-500"></span>
+                          <span>Paused</span>
+                          <span className="text-[10px] px-1.5 py-0.2 bg-amber-50 dark:bg-amber-950/40 rounded-md">{pausedCount}</span>
+                        </button>
+
+                        <button
+                          onClick={() => setListingStatusFilter('REMOVED')}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                            listingStatusFilter === 'REMOVED'
+                              ? 'bg-white dark:bg-slate-700 text-red-600 dark:text-red-400 shadow-sm'
+                              : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                          }`}
+                        >
+                          <span className="h-2 w-2 rounded-full bg-red-500"></span>
+                          <span>Taken Down</span>
+                          <span className="text-[10px] px-1.5 py-0.2 bg-red-50 dark:bg-red-950/40 rounded-md">{removedCount}</span>
+                        </button>
+
+                        <button
+                          onClick={() => setListingStatusFilter('ALL')}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                            listingStatusFilter === 'ALL'
+                              ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm'
+                              : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                          }`}
+                        >
+                          <span>All</span>
+                          <span className="text-[10px] px-1.5 py-0.2 bg-gray-200 dark:bg-slate-600 rounded-md">{totalCount}</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Filter & Sort Controls Toolbar */}
+                    <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 pt-2">
+                      {/* Search Box */}
+                      <div className="relative flex-1 min-w-[200px]">
+                        <Search className="absolute left-3.5 top-3 h-3.5 w-3.5 text-gray-400" />
+                        <input
+                          type="text"
+                          placeholder="Search product title, owner, email, or campus spot..."
+                          value={listingSearch}
+                          onChange={(e) => setListingSearch(e.target.value)}
+                          className="w-full bg-gray-50 dark:bg-slate-800/60 text-gray-900 dark:text-white pl-9 pr-4 py-2 rounded-2xl border border-gray-200 dark:border-slate-700/80 text-xs font-semibold focus:outline-none focus:border-primary-500"
+                        />
+                        {listingSearch && (
+                          <button
+                            onClick={() => setListingSearch('')}
+                            className="absolute right-3 top-2.5 text-[10px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Dropdown Filters (Timeframe & Sort) */}
+                      <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                        {/* Timeframe Filter */}
+                        <div className="flex items-center space-x-1 bg-gray-50 dark:bg-slate-800/60 border border-gray-200 dark:border-slate-700/80 rounded-2xl px-3 py-1.5 shrink-0">
+                          <Calendar className="h-3.5 w-3.5 text-gray-400" />
+                          <select
+                            value={listingTimeFilter}
+                            onChange={(e: any) => setListingTimeFilter(e.target.value)}
+                            className="bg-transparent text-gray-700 dark:text-gray-300 text-xs font-bold focus:outline-none cursor-pointer"
+                          >
+                            <option value="ALL" className="dark:bg-slate-800">All Time</option>
+                            <option value="TODAY" className="dark:bg-slate-800">Past 24 Hours</option>
+                            <option value="WEEK" className="dark:bg-slate-800">Past 1 Week</option>
+                            <option value="MONTH" className="dark:bg-slate-800">Past 30 Days</option>
+                          </select>
+                        </div>
+
+                        {/* Sort Selector */}
+                        <div className="flex items-center space-x-1 bg-gray-50 dark:bg-slate-800/60 border border-gray-200 dark:border-slate-700/80 rounded-2xl px-3 py-1.5 shrink-0">
+                          <ArrowUpDown className="h-3.5 w-3.5 text-gray-400" />
+                          <select
+                            value={listingSort}
+                            onChange={(e: any) => setListingSort(e.target.value)}
+                            className="bg-transparent text-gray-700 dark:text-gray-300 text-xs font-bold focus:outline-none cursor-pointer"
+                          >
+                            <option value="NEWEST" className="dark:bg-slate-800">Date: Newest First</option>
+                            <option value="OLDEST" className="dark:bg-slate-800">Date: Oldest First</option>
+                            <option value="PRICE_LOW" className="dark:bg-slate-800">Price: Low → High</option>
+                            <option value="PRICE_HIGH" className="dark:bg-slate-800">Price: High → Low</option>
+                            <option value="REQUESTS" className="dark:bg-slate-800">Most Demanded</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Listings Table */}
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-gray-50 dark:bg-slate-800/40 text-[10px] font-black uppercase text-gray-400 tracking-wider border-b border-gray-100 dark:border-slate-800">
+                          <th className="px-6 py-4">Item</th>
+                          <th className="px-6 py-4">Owner</th>
+                          <th className="px-6 py-4">Price</th>
+                          <th className="px-6 py-4">Upload Date &amp; Time</th>
+                          <th className="px-6 py-4 text-center">Requests</th>
+                          <th className="px-6 py-4 text-center">Submissions</th>
+                          <th className="px-6 py-4">Status</th>
+                          <th className="px-6 py-4 text-right">Actions</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50 dark:divide-slate-800/50 text-xs">
+                        {filteredListings.length > 0 ? (
+                          filteredListings.map((l: any) => (
+                            <tr key={l._id} className="hover:bg-gray-50/50 dark:hover:bg-slate-800/20 transition-colors">
+                              <td className="px-6 py-4 flex items-center space-x-3">
+                                <img
+                                  src={getImageUrl(l.images?.[0])}
+                                  alt=""
+                                  className="h-10 w-10 rounded-xl object-cover border border-gray-100 dark:border-slate-850 shrink-0"
+                                />
+                                <div className="min-w-0">
+                                  <p className="font-bold text-gray-900 dark:text-white truncate max-w-[160px]">{l.title}</p>
+                                  <p className="text-[10px] text-gray-400 mt-0.5">Deposit: ₹{l.securityDeposit}</p>
+                                  {l.postIpAddress && (
+                                    <p className="text-[9px] text-slate-500 dark:text-slate-400 font-mono mt-0.5">IP: {l.postIpAddress}</p>
+                                  )}
+                                  {l.status === 'PAUSED' && l.rejectionReason && (
+                                    <p className="text-[9px] text-amber-600 dark:text-amber-400 italic mt-0.5 truncate max-w-[180px]" title={l.rejectionReason}>
+                                      Note: {l.rejectionReason}
+                                    </p>
+                                  )}
+                                  {l.rentedPeriod && (
+                                    <div className="mt-1 text-[9px] font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/20 px-2 py-1 rounded-md inline-flex items-center gap-0.5 border border-blue-100 dark:border-blue-900/30 w-fit">
+                                      <span>Rented: {new Date(l.rentedPeriod.startDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })} - {new Date(l.rentedPeriod.endDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}</span>
+                                    </div>
+                                  )}
+                                  {l.postCoordinates?.latitude && l.postCoordinates?.longitude ? (
+                                    <div className="mt-1 flex items-center space-x-1">
+                                      <span className="text-[9px] text-green-600 dark:text-green-400 font-semibold font-mono">📍 GPS Attached</span>
+                                      <a
+                                        href={`https://www.google.com/maps?q=${l.postCoordinates.latitude},${l.postCoordinates.longitude}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="px-1.5 py-0.5 bg-blue-50 hover:bg-blue-100 text-blue-600 dark:bg-blue-950/20 dark:text-blue-400 text-[8px] font-black uppercase rounded-md transition-all inline-block"
+                                      >
+                                        Track
+                                      </a>
+                                    </div>
+                                  ) : (
+                                    <p className="text-[9px] text-gray-400 dark:text-gray-500 italic mt-0.5">No GPS coords</p>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4">
+                                <div className="text-gray-900 dark:text-white font-bold">{l.owner?.fullName || 'Deleted'}</div>
+                                {l.owner?.email && (
+                                  <div className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">{l.owner.email}</div>
+                                )}
+                              </td>
+                              <td className="px-6 py-4 font-bold text-primary-600 dark:text-primary-400">
+                                ₹{l.rentalPrice}/{l.priceUnit?.toLowerCase()}
+                              </td>
+                              <td className="px-6 py-4 text-gray-500 dark:text-gray-400 font-medium">
+                                {new Date(l.createdAt).toLocaleString()}
+                              </td>
+                              <td className="px-6 py-4 text-center font-bold">{l.requestCount}</td>
+                              <td className="px-6 py-4 text-center font-bold">{l.submissionCount ?? 1}</td>
+                              <td className="px-6 py-4">
+                                <span className={`px-2.5 py-0.5 text-[10px] font-bold rounded-full ${
+                                  l.status === 'ACTIVE'
+                                    ? 'bg-green-50 text-green-600 dark:bg-green-950/20 dark:text-green-400 border border-green-200 dark:border-green-900/30'
+                                    : l.status === 'REMOVED'
+                                    ? 'bg-red-50 text-red-600 dark:bg-red-950/20 dark:text-red-400 border border-red-200 dark:border-red-900/30'
+                                    : l.status === 'RENTED'
+                                    ? 'bg-blue-50 text-blue-600 dark:bg-blue-950/20 dark:text-blue-400 border border-blue-200 dark:border-blue-900/30'
+                                    : 'bg-amber-50 text-amber-600 dark:bg-amber-950/20 dark:text-amber-400 border border-amber-200 dark:border-amber-900/30'
+                                }`}>
+                                  {l.status}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 text-right">
+                                <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                                  {/* Pause Button for Active Items */}
+                                  {l.status === 'ACTIVE' && (
+                                    <button
+                                      onClick={() => handleOpenPauseModal(l)}
+                                      className="px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300 dark:hover:bg-amber-950/50 text-xs font-bold rounded-xl transition-all flex items-center gap-1"
+                                      title="Pause listing and notify owner to update description"
+                                    >
+                                      <PauseCircle className="h-3.5 w-3.5" />
+                                      <span>Pause</span>
+                                    </button>
+                                  )}
+
+                                  {/* Resume Button for Paused Items */}
+                                  {l.status === 'PAUSED' && (
+                                    <button
+                                      onClick={() => handleResumeListing(l._id)}
+                                      className="px-2.5 py-1.5 bg-green-50 hover:bg-green-100 text-green-700 dark:bg-green-950/30 dark:text-green-300 dark:hover:bg-green-950/50 text-xs font-bold rounded-xl transition-all flex items-center gap-1"
+                                      title="Reactivate this listing and notify owner"
+                                    >
+                                      <PlayCircle className="h-3.5 w-3.5" />
+                                      <span>Resume</span>
+                                    </button>
+                                  )}
+
+                                  {/* Take Down Button */}
+                                  {l.status !== 'REMOVED' && (
+                                    <button
+                                      onClick={() => handleRemoveListing(l._id)}
+                                      className="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-950/25 dark:text-red-400 dark:hover:bg-red-950/40 text-xs font-bold rounded-xl transition-all"
+                                      title="Permanently mark as taken down"
+                                    >
+                                      Take Down
+                                    </button>
+                                  )}
+
+                                  {l.status === 'REMOVED' && (
+                                    <span className="text-[10px] text-gray-400 italic">Taken Down</span>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={8} className="px-6 py-12 text-center text-gray-400 dark:text-gray-500">
+                              <p className="font-bold text-sm">No listings match the selected filters.</p>
+                              <p className="text-xs mt-1">Try selecting a different status filter or clearing your search query.</p>
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* SUBVIEW 4: CATEGORIES MANAGEMENT */}
             {currentTab === 'categories' && (
@@ -1264,7 +1767,7 @@ export const AdminDashboard: React.FC = () => {
         {/* CREATE USER / ADMIN MODAL */}
         {createAccountModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl space-y-6 animate-in zoom-in-95 duration-200">
+            <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-3xl p-5 sm:p-8 max-w-lg w-full shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
               <div className="flex items-center justify-between border-b border-gray-100 dark:border-slate-800 pb-4">
                 <div className="flex items-center space-x-3">
                   <div className="h-10 w-10 rounded-2xl bg-primary-50 dark:bg-primary-950/30 text-primary-600 dark:text-primary-400 flex items-center justify-center">
@@ -1379,7 +1882,7 @@ export const AdminDashboard: React.FC = () => {
 
                 {/* Student specific fields */}
                 {createUserForm.role === 'STUDENT' && (
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
                       <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Course</label>
                       <input
@@ -1428,6 +1931,352 @@ export const AdminDashboard: React.FC = () => {
                     className="flex-1 py-3 bg-primary-600 hover:bg-primary-500 text-white text-xs font-black uppercase tracking-wider rounded-2xl shadow-lg shadow-primary-600/20 transition-all disabled:opacity-50"
                   >
                     {creatingUser ? 'Creating...' : 'Provision Account'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL 3: PAUSE LISTING MODAL */}
+        {pauseModalListing && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+            <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-3xl p-5 sm:p-6 max-w-lg w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center space-x-2.5">
+                  <div className="p-2.5 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 rounded-2xl">
+                    <PauseCircle className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-outfit font-black text-sm text-gray-900 dark:text-white">Pause Listing</h3>
+                    <p className="text-[11px] text-gray-400 dark:text-gray-500">Temporarily pause item & notify owner to update details</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setPauseModalListing(null)}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-lg leading-none"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Item Details Summary Card */}
+              <div className="flex items-center space-x-3 p-3 bg-gray-50 dark:bg-slate-800/60 rounded-2xl border border-gray-100 dark:border-slate-800">
+                <img
+                  src={getImageUrl(pauseModalListing.images?.[0])}
+                  alt=""
+                  className="h-12 w-12 rounded-xl object-cover border border-gray-200 dark:border-slate-700 shrink-0"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="font-bold text-xs text-gray-900 dark:text-white truncate">{pauseModalListing.title}</p>
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+                    Owner: {pauseModalListing.owner?.fullName} ({pauseModalListing.owner?.email})
+                  </p>
+                  <p className="text-[10px] text-primary-600 dark:text-primary-400 font-bold mt-0.5">
+                    ₹{pauseModalListing.rentalPrice}/{pauseModalListing.priceUnit?.toLowerCase()}
+                  </p>
+                </div>
+              </div>
+
+              <form onSubmit={handleConfirmPauseListing} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
+                    Reason / Instructions for Owner
+                  </label>
+                  <p className="text-[10px] text-gray-400 dark:text-gray-500 mb-2">
+                    This note will be sent directly to the student in a notification so they can edit the description and request to list again.
+                  </p>
+                  <textarea
+                    required
+                    rows={3}
+                    value={pauseReasonInput}
+                    onChange={(e) => setPauseReasonInput(e.target.value)}
+                    placeholder="e.g. Please update the product description with more detailed specifications and included accessories..."
+                    className="w-full bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white p-3 rounded-2xl border border-gray-200 dark:border-slate-700 text-xs font-medium focus:outline-none focus:border-amber-500 resize-none"
+                  />
+
+                  {/* Quick Preset Buttons */}
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {[
+                      'Please provide a more detailed product description.',
+                      'Please clarify item condition & accessories in description.',
+                      'Please update price or security deposit details.'
+                    ].map((preset, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setPauseReasonInput(preset)}
+                        className="text-[10px] px-2 py-1 bg-gray-100 hover:bg-gray-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-gray-600 dark:text-gray-300 rounded-lg transition-all"
+                      >
+                        + {preset.slice(0, 35)}...
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setPauseModalListing(null)}
+                    className="flex-1 py-3 border border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 text-xs font-bold rounded-2xl transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={pausingListing || !pauseReasonInput.trim()}
+                    className="flex-1 py-3 bg-amber-500 hover:bg-amber-600 text-white text-xs font-black uppercase tracking-wider rounded-2xl shadow-lg shadow-amber-500/20 transition-all disabled:opacity-50 flex items-center justify-center space-x-1.5"
+                  >
+                    <PauseCircle className="h-4 w-4" />
+                    <span>{pausingListing ? 'Pausing...' : 'Pause & Notify Owner'}</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+        {/* MODAL 4: ADMIN ROLE MANAGEMENT MODAL ("Add / Update Admin") */}
+        {adminRoleModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-3xl p-5 sm:p-7 max-w-2xl w-full shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
+              <div className="flex items-start justify-between border-b border-gray-100 dark:border-slate-800 pb-4">
+                <div className="flex items-center space-x-3">
+                  <div className="h-10 w-10 rounded-2xl bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                    <ShieldCheck className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-outfit font-black text-base text-gray-900 dark:text-white">Admin Privilege Management</h3>
+                    <p className="text-xs text-gray-400">Promote users to Admin or revoke Admin status with master email verification</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setAdminRoleModalOpen(false)}
+                  className="h-8 w-8 rounded-full bg-gray-100 dark:bg-slate-800 text-gray-400 hover:text-gray-600 dark:hover:text-white flex items-center justify-center transition-colors"
+                >
+                  <XCircle className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Master Email Notice */}
+              <div className="p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/30 rounded-2xl flex items-center space-x-2.5 text-amber-800 dark:text-amber-300 text-xs">
+                <KeyRound className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                <span>
+                  All admin promotions &amp; revocations require a 6-digit authorization code sent to <strong>rentora2611@gmail.com</strong>.
+                </span>
+              </div>
+
+              {/* Search & Role Filter Tabs */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3.5 top-3 h-3.5 w-3.5 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search by student name or email..."
+                    value={adminRoleSearch}
+                    onChange={(e) => setAdminRoleSearch(e.target.value)}
+                    className="w-full bg-gray-50 dark:bg-slate-800/60 text-gray-900 dark:text-white pl-9 pr-4 py-2 rounded-2xl border border-gray-200 dark:border-slate-700 text-xs font-semibold focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+                <div className="flex items-center gap-1 p-1 bg-gray-100 dark:bg-slate-800 rounded-2xl shrink-0">
+                  {(['ALL', 'ADMIN', 'STUDENT'] as const).map(tab => (
+                    <button
+                      key={tab}
+                      onClick={() => setAdminRoleFilter(tab)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                        adminRoleFilter === tab
+                          ? 'bg-white dark:bg-slate-700 text-amber-600 dark:text-amber-400 shadow-sm'
+                          : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
+                      }`}
+                    >
+                      {tab === 'ALL' ? 'All Users' : tab === 'ADMIN' ? 'Admins' : 'Students'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Users List with Promotion/Revocation Actions */}
+              <div className="space-y-2.5 max-h-[360px] overflow-y-auto pr-1">
+                {users
+                  .filter((u: any) => {
+                    if (adminRoleFilter !== 'ALL' && u.role !== adminRoleFilter) return false;
+                    if (adminRoleSearch.trim()) {
+                      const q = adminRoleSearch.toLowerCase().trim();
+                      const matchName = u.fullName?.toLowerCase().includes(q);
+                      const matchEmail = u.email?.toLowerCase().includes(q);
+                      if (!matchName && !matchEmail) return false;
+                    }
+                    return true;
+                  })
+                  .map((u: any) => {
+                    const isMaster = u.email?.toLowerCase() === 'admin@niet.co.in';
+                    const isAdmin = u.role === 'ADMIN';
+
+                    return (
+                      <div
+                        key={u._id || u.id}
+                        className="flex items-center justify-between p-3.5 bg-gray-50 dark:bg-slate-800/40 rounded-2xl border border-gray-100 dark:border-slate-800 hover:border-gray-200 dark:hover:border-slate-700 transition-all"
+                      >
+                        <div className="flex items-center space-x-3 min-w-0">
+                          <img
+                            src={getAvatarUrl(u.avatar, u.fullName)}
+                            alt=""
+                            className="h-10 w-10 rounded-full object-cover border border-gray-200 dark:border-slate-700 shrink-0"
+                          />
+                          <div className="min-w-0">
+                            <div className="flex items-center space-x-2">
+                              <p className="font-bold text-xs text-gray-900 dark:text-white truncate">{u.fullName}</p>
+                              {isAdmin ? (
+                                <span className={`px-2 py-0.2 text-[9px] font-black rounded-md ${
+                                  isMaster
+                                    ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300'
+                                    : 'bg-purple-100 text-purple-800 dark:bg-purple-950/50 dark:text-purple-300'
+                                }`}>
+                                  {isMaster ? '👑 Primary Master' : '👑 Administrator'}
+                                </span>
+                              ) : (
+                                <span className="px-2 py-0.2 text-[9px] font-bold bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-gray-300 rounded-md">
+                                  🎓 Student
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5 truncate">{u.email}</p>
+                          </div>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="shrink-0 ml-3">
+                          {isMaster ? (
+                            <span className="text-[10px] text-gray-400 italic">Protected</span>
+                          ) : isAdmin ? (
+                            <button
+                              onClick={() => handleInitiateRoleChange(u, 'STUDENT')}
+                              disabled={requestingRoleOtp}
+                              className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-950/30 dark:text-red-400 text-xs font-bold rounded-xl transition-all flex items-center space-x-1.5 border border-red-200 dark:border-red-900/40 active:scale-95 disabled:opacity-50"
+                            >
+                              <UserX className="h-3.5 w-3.5" />
+                              <span>Revoke Admin</span>
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleInitiateRoleChange(u, 'ADMIN')}
+                              disabled={requestingRoleOtp}
+                              className="px-3 py-1.5 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white text-xs font-bold rounded-xl shadow-md shadow-amber-500/20 transition-all flex items-center space-x-1.5 active:scale-95 disabled:opacity-50"
+                            >
+                              <ShieldCheck className="h-3.5 w-3.5" />
+                              <span>Promote to Admin</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL 5: MASTER SECURITY EMAIL OTP VERIFICATION DIALOG */}
+        {roleChangeOtpModalOpen && selectedUserForRoleChange && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-200">
+            <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-5 animate-in zoom-in-95 duration-200">
+              <div className="flex items-center justify-between border-b border-gray-100 dark:border-slate-800 pb-4">
+                <div className="flex items-center space-x-3">
+                  <div className="h-10 w-10 rounded-2xl bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 flex items-center justify-center">
+                    <ShieldAlert className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-outfit font-black text-base text-gray-900 dark:text-white">Master Authorization</h3>
+                    <p className="text-xs text-gray-400">High-security administrative confirmation</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setRoleChangeOtpModalOpen(false)}
+                  className="h-8 w-8 rounded-full bg-gray-100 dark:bg-slate-800 text-gray-400 hover:text-gray-600 dark:hover:text-white flex items-center justify-center transition-colors"
+                >
+                  <XCircle className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Action summary card */}
+              <div className={`p-4 rounded-2xl border ${
+                targetNewRole === 'ADMIN'
+                  ? 'bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/30'
+                  : 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-900/30'
+              }`}>
+                <p className="text-xs font-bold text-gray-900 dark:text-white">
+                  Action: {targetNewRole === 'ADMIN' ? '👑 Promote to Administrator' : '🎓 Revoke Admin privileges back to Student'}
+                </p>
+                <p className="text-[11px] text-gray-600 dark:text-gray-300 mt-1">
+                  Target: <strong>{selectedUserForRoleChange.fullName}</strong> ({selectedUserForRoleChange.email})
+                </p>
+                <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-2">
+                  A 6-digit authorization code was sent to <strong>rentora2611@gmail.com</strong>.
+                </p>
+              </div>
+
+              {roleChangeError && (
+                <div className="p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 rounded-2xl text-red-600 dark:text-red-400 text-xs font-semibold">
+                  {roleChangeError}
+                </div>
+              )}
+
+              {roleChangeSuccess && (
+                <div className="p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 rounded-2xl text-emerald-600 dark:text-emerald-400 text-xs font-bold flex items-center space-x-2">
+                  <CheckCircle className="h-4 w-4" />
+                  <span>{roleChangeSuccess}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleVerifyRoleOtp} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5 text-center">
+                    Enter 6-Digit Master Security Code
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={6}
+                    autoFocus
+                    placeholder="123456"
+                    value={roleChangeOtp}
+                    onChange={(e) => setRoleChangeOtp(e.target.value.replace(/\D/g, ''))}
+                    className="w-full text-center text-2xl font-mono font-black tracking-[10px] bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white py-3 rounded-2xl border border-gray-200 dark:border-slate-700 focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between text-xs font-semibold text-gray-500 dark:text-gray-400">
+                  <span>Didn't receive code?</span>
+                  <button
+                    type="button"
+                    onClick={handleResendRoleOtp}
+                    disabled={roleOtpTimer > 0 || requestingRoleOtp}
+                    className="text-primary-600 dark:text-primary-400 font-bold hover:underline disabled:opacity-50 disabled:no-underline cursor-pointer"
+                  >
+                    {roleOtpTimer > 0 ? `Resend in ${roleOtpTimer}s` : 'Resend Code'}
+                  </button>
+                </div>
+
+                <div className="flex items-center space-x-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setRoleChangeOtpModalOpen(false)}
+                    className="flex-1 py-3 border border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 text-xs font-bold rounded-2xl transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={verifyingRoleOtp || roleChangeOtp.length !== 6}
+                    className="flex-1 py-3 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white text-xs font-black uppercase tracking-wider rounded-2xl shadow-lg shadow-amber-500/20 transition-all disabled:opacity-50 flex items-center justify-center space-x-1.5"
+                  >
+                    {verifyingRoleOtp ? (
+                      <span>Verifying...</span>
+                    ) : (
+                      <>
+                        <ShieldCheck className="h-4 w-4" />
+                        <span>Authorize &amp; Apply</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </form>
