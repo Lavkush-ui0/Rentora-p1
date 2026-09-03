@@ -154,7 +154,7 @@ export const Home: React.FC = () => {
       <SEO 
         title="Student Rental Marketplace"
         description="Borrow smart, belong here. The trusted peer-to-peer rental marketplace for NIET Greater Noida students to rent textbooks, calculators, drafters, and electronics safely."
-        canonical="https://rentora-test-client.vercel.app/home"
+        canonical="https://rentora.org.in/home"
       />
 
       {/* ══ 1. Hero Section ══════════════════════════════════════ */}

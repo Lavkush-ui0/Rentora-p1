@@ -9,7 +9,7 @@ export const TermsAndConditions: React.FC = () => {
       <SEO 
         title="Terms & Conditions"
         description="Official Terms and Conditions for peer-to-peer student rentals on NIET campus, including the College Caution Money Deduction clause."
-        canonical="https://rentora-test-client.vercel.app/terms"
+        canonical="https://rentora.org.in/terms"
       />
       {/* Top Breadcrumb / Back button */}
       <div className="flex items-center space-x-2 text-xs font-bold text-slate-500 dark:text-slate-400">

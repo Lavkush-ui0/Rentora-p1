@@ -28,5 +28,5 @@ Disallow: /my-requests/
 Disallow: /my-requests/*
 
 # Sitemaps
-Sitemap: https://rentora-test-client.vercel.app/sitemap.xml
 Sitemap: https://rentora.org.in/sitemap.xml
+

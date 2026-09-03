@@ -377,6 +377,10 @@ export const Login: React.FC = () => {
                 </>
               )}
             </button>
+
+            <p className="text-xs text-center text-gray-500 dark:text-gray-400 mt-2.5 font-medium leading-relaxed">
+              📩 Please check your <strong>Spam</strong> or <strong>Junk</strong> folder if you don't receive the OTP in your inbox.
+            </p>
           </form>
         ) : (
           <div className="space-y-6 animate-in fade-in duration-200">
@@ -386,6 +390,9 @@ export const Login: React.FC = () => {
               </p>
               <p className="text-sm font-bold text-gray-800 dark:text-gray-200 mt-1">
                 {email}
+              </p>
+              <p className="text-xs text-amber-700 dark:text-amber-400 mt-2.5 bg-amber-50 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-900/30 px-3 py-1.5 rounded-xl font-medium inline-block">
+                📩 Don't see the email? Please check your <strong>Spam</strong> or <strong>Junk</strong> folder.
               </p>
             </div>
 

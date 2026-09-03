@@ -254,6 +254,9 @@ export const Register: React.FC = () => {
               <p className="text-sm font-bold text-gray-800 dark:text-gray-200 mt-1">
                 {form.email}
               </p>
+              <p className="text-xs text-amber-700 dark:text-amber-400 mt-2.5 bg-amber-50 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-900/30 px-3 py-1.5 rounded-xl font-medium inline-block">
+                📩 Don't see the email? Please check your <strong>Spam</strong> or <strong>Junk</strong> folder.
+              </p>
             </div>
 
             {/* Error Alert */}

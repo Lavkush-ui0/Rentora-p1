@@ -9,7 +9,7 @@ export const PrivacyPolicy: React.FC = () => {
       <SEO 
         title="Privacy Policy"
         description="Learn how Rentora protects student data, credentials, and rental activities with zero commercial third-party data sharing across NIET campus."
-        canonical="https://rentora-test-client.vercel.app/privacy"
+        canonical="https://rentora.org.in/privacy"
       />
       {/* Top Breadcrumb / Back button */}
       <div className="flex items-center space-x-2 text-xs font-bold text-slate-500 dark:text-slate-400">
