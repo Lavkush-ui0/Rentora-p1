@@ -25,6 +25,18 @@ export default {
           border:        '#42525B',
         },
 
+        /* ── Extended Slate & Gray utility shades ── */
+        slate: {
+          250: '#cbd5e1',
+          350: '#94a3b8',
+          650: '#475569',
+          850: '#151f32',
+        },
+        gray: {
+          150: '#eceff1',
+          750: '#2d3748',
+        },
+
         /* ── Semantic & Primary Color Shades ── */
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',

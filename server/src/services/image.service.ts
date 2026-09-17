@@ -1,3 +1,4 @@
+// @ts-ignore
 import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
 import logger from '../utils/logger';
 import CustomError from '../utils/customError';
@@ -62,7 +63,7 @@ export const uploadImage = async (
             quality: 'auto:good',
             fetch_format: 'auto',
           },
-          (error, res) => {
+          (error: any, res: any) => {
             if (error || !res) return reject(error);
             resolve(res);
           }

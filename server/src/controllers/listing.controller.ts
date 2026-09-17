@@ -448,9 +448,8 @@ export const updateListing = async (req: CustomRequest, res: Response, next: Nex
 
     const { title, description, category, condition, rentalPrice, priceUnit, securityDeposit, availability, status, location, latitude, longitude } = req.body;
 
-    if (!latitude || !longitude) {
-      throw new CustomError('GPS Location Coordinates are required to edit/resubmit an item on the portal.', 400, 'COORDINATES_REQUIRED');
-    }
+    const effectiveLat = latitude ? Number(latitude) : (listing.latitude !== null && listing.latitude !== undefined ? Number(listing.latitude) : 28.4632);
+    const effectiveLng = longitude ? Number(longitude) : (listing.longitude !== null && listing.longitude !== undefined ? Number(listing.longitude) : 77.4939);
 
     const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip;
     const postIpAddress = Array.isArray(clientIp) ? clientIp[0] : clientIp;
@@ -517,8 +516,8 @@ export const updateListing = async (req: CustomRequest, res: Response, next: Nex
         submission_count: !isAdmin ? (listing.submission_count || 1) + 1 : listing.submission_count,
         location: location || listing.location,
         post_ip_address: postIpAddress,
-        latitude: Number(latitude),
-        longitude: Number(longitude),
+        latitude: effectiveLat,
+        longitude: effectiveLng,
         updated_at: new Date().toISOString()
       })
       .eq('id', req.params.id)

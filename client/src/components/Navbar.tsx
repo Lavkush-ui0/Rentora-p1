@@ -267,6 +267,15 @@ export const Navbar: React.FC = () => {
                       </Link>
 
                       <Link
+                        to="/my-listings"
+                        onClick={() => setDropdownOpen(false)}
+                        className="flex items-center space-x-2 px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                      >
+                        <Package className="h-4 w-4 text-amber-500" />
+                        <span>My Listings</span>
+                      </Link>
+
+                      <Link
                         to="/settings"
                         onClick={() => setDropdownOpen(false)}
                         className="flex items-center space-x-2 px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"

@@ -1616,7 +1616,7 @@ export const AdminDashboard: React.FC = () => {
                             </div>
                           </div>
 
-                          <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2">{listing.description}</p>
+                          <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2">{listing.description?.replace(/<!--\s*theme:\s*[\w-]+\s*-->/gi, '').trim()}</p>
 
                           <div className="flex flex-wrap gap-2">
                             <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-gray-400">

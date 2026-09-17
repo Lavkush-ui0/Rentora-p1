@@ -10,7 +10,8 @@ import { getImageUrl, getAvatarUrl } from '../utils/imageUrl';
 import { adminService } from '../services/adminService';
 import {
   Star, Eye, Repeat, ChevronLeft, ChevronRight, Calendar, MessageCircle,
-  AlertTriangle, Package, Share2, Heart, ShoppingBag, Flag, MapPin, X, BookOpen
+  AlertTriangle, Package, Share2, Heart, ShoppingBag, Flag, MapPin, X, BookOpen,
+  Edit3, Sparkles
 } from 'lucide-react';
 import { PaymentNotice } from '../components/RentoraBrand';
 
@@ -253,6 +254,7 @@ export const ListingDetails: React.FC = () => {
   const fallbackImg = '/rentora-logo.png';
   const rawImg = listing.images?.[currentImg] || listing.images?.[0];
   const displayImage = rawImg?.trim() ? getImageUrl(rawImg, fallbackImg) : fallbackImg;
+  const cleanDescription = listing.description?.replace(/<!--\s*theme:\s*[\w-]+\s*-->/gi, '').trim() || '';
 
   return (
     <div className="max-w-5xl mx-auto space-y-8 text-left">
@@ -287,7 +289,7 @@ export const ListingDetails: React.FC = () => {
       <nav className="flex items-center space-x-2 text-xs text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">
         <Link to="/explore" className="hover:text-[#9E1B1B] transition-colors font-display">Explore</Link>
         <ChevronRight className="h-3 w-3" />
-        <span className="text-slate-700 dark:text-slate-350 font-display truncate max-w-[200px]">{listing.title}</span>
+        <span className="text-slate-700 dark:text-slate-300 font-display truncate max-w-[200px]">{listing.title}</span>
       </nav>
 
       {/* Split 2-Column View */}
@@ -361,7 +363,17 @@ export const ListingDetails: React.FC = () => {
                   {listing.title}
                 </h1>
               </div>
-              <div className="flex items-center space-x-1 flex-shrink-0">
+              <div className="flex items-center space-x-2 flex-shrink-0">
+                {isOwner && (
+                  <Link
+                    to={`/edit-item/${listing._id}`}
+                    className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-[#9E1B1B]/10 hover:bg-[#9E1B1B] text-[#9E1B1B] hover:text-white dark:bg-[#9E1B1B]/20 dark:text-[#f87171] dark:hover:text-white rounded-xl font-bold text-xs transition-all shadow-sm group"
+                    title="Edit Listing Details"
+                  >
+                    <Edit3 className="h-4 w-4 transition-transform group-hover:scale-110" />
+                    <span>Edit Listing</span>
+                  </Link>
+                )}
                 <button
                   onClick={() => navigator.share?.({ title: listing.title, url: window.location.href })}
                   className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
@@ -419,8 +431,8 @@ export const ListingDetails: React.FC = () => {
           {/* Specification / Description */}
           <div className="space-y-2">
             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Item Specifications</h3>
-            <p className="text-xs md:text-sm text-slate-700 dark:text-slate-350 leading-relaxed font-sans font-medium bg-slate-50 dark:bg-slate-900/30 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
-              {listing.description || 'No detailed specifications listed for this item.'}
+            <p className="text-xs md:text-sm text-slate-700 dark:text-slate-200 leading-relaxed font-sans font-medium bg-slate-50 dark:bg-slate-900/60 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 whitespace-pre-line break-words">
+              {cleanDescription || 'No detailed specifications listed for this item.'}
             </p>
           </div>
 
@@ -432,7 +444,7 @@ export const ListingDetails: React.FC = () => {
             <img 
               src={getAvatarUrl(listing.owner.avatar, listing.owner.fullName)} 
               alt={listing.owner.fullName} 
-              className="h-10 w-10 rounded-full border border-slate-200 dark:border-slate-850 object-cover flex-shrink-0" 
+              className="h-10 w-10 rounded-full border border-slate-200 dark:border-slate-800 object-cover flex-shrink-0" 
             />
             <div className="flex-1 text-left leading-tight">
               <p className="text-xs font-black text-slate-900 dark:text-slate-100 group-hover:text-[#9E1B1B] transition-colors">
@@ -521,14 +533,14 @@ export const ListingDetails: React.FC = () => {
 
                     <button
                       onClick={handleDirectMessage}
-                      className="w-full border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-350 font-bold px-5 py-3.5 rounded-2xl flex items-center justify-center space-x-2 hover:bg-slate-50 dark:hover:bg-slate-900 transition-all text-xs"
+                      className="w-full border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 font-bold px-5 py-3.5 rounded-2xl flex items-center justify-center space-x-2 hover:bg-slate-50 dark:hover:bg-slate-900 transition-all text-xs"
                     >
                       <MessageCircle className="h-4.5 w-4.5" />
                       <span>Message Owner</span>
                     </button>
                   </div>
                 ) : (
-                  <button disabled className="w-full bg-slate-100 dark:bg-slate-850 text-slate-400 dark:text-slate-500 font-extrabold py-3.5 rounded-2xl cursor-not-allowed text-xs">
+                  <button disabled className="w-full bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 font-extrabold py-3.5 rounded-2xl cursor-not-allowed text-xs">
                     CURRENTLY UNAVAILABLE
                   </button>
                 )
@@ -536,7 +548,7 @@ export const ListingDetails: React.FC = () => {
                 <div className="flex gap-3">
                   <button
                     onClick={() => toggleWishlist(listing as ListingSummary)}
-                    className="p-3.5 rounded-2xl border border-slate-250/50 text-slate-500"
+                    className="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 text-slate-500"
                   >
                     <Heart className="h-4.5 w-4.5" />
                   </button>
@@ -550,13 +562,33 @@ export const ListingDetails: React.FC = () => {
               )}
             </div>
           ) : (
-            <div className="flex gap-3">
-              <Link 
-                to={`/my-listings`} 
-                className="flex-1 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-bold py-3 rounded-2xl text-center text-xs hover:bg-slate-50 dark:hover:bg-slate-900 transition-all"
-              >
-                Manage My Listings
-              </Link>
+            <div className="space-y-3">
+              <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 text-xs">
+                <p className="font-bold text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
+                  <Sparkles className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                  <span>You are the owner of this listing</span>
+                </p>
+                <p className="text-[11px] text-amber-700 dark:text-amber-400 mt-1 leading-normal">
+                  Want to change the price, replace photos, update location, or revise specifications?
+                </p>
+              </div>
+
+              <div className="flex gap-3">
+                <Link 
+                  to={`/edit-item/${listing._id}`} 
+                  className="flex-1 bg-[#9E1B1B] hover:bg-[#801414] text-white font-extrabold py-3.5 rounded-2xl text-center text-xs uppercase tracking-wider flex items-center justify-center space-x-2 shadow-lg shadow-[#9E1B1B]/15 transition-all active:scale-[0.98]"
+                >
+                  <Edit3 className="h-4 w-4" />
+                  <span>Edit Listing</span>
+                </Link>
+                <Link 
+                  to={`/my-listings`} 
+                  className="flex-1 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-bold py-3.5 rounded-2xl text-center text-xs hover:bg-slate-50 dark:hover:bg-slate-900 transition-all flex items-center justify-center space-x-2"
+                >
+                  <Package className="h-4 w-4" />
+                  <span>Manage All Listings</span>
+                </Link>
+              </div>
             </div>
           )}
         </div>
@@ -715,7 +747,7 @@ export const ListingDetails: React.FC = () => {
                   type="checkbox"
                   checked={acceptTerms}
                   onChange={(e) => setAcceptTerms(e.target.checked)}
-                  className="mt-0.5 border-slate-350 text-[#9E1B1B] focus:ring-[#9E1B1B] rounded h-4 w-4 shrink-0"
+                  className="mt-0.5 border-slate-300 dark:border-slate-700 text-[#9E1B1B] focus:ring-[#9E1B1B] rounded h-4 w-4 shrink-0"
                 />
                 <label htmlFor="checkout-ack" className="text-[10.5px] text-slate-600 dark:text-slate-300 font-medium leading-tight select-none">
                   I agree to the <Link to="/terms" target="_blank" className="font-bold text-[#9E1B1B] dark:text-red-400 underline">Terms & Conditions</Link>, campus offline handover rules, and acknowledge that <strong>unreturned or damaged items will be deducted directly from my NIET college security money</strong>.

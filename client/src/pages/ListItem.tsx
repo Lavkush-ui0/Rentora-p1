@@ -4,6 +4,7 @@ import { listingService } from '../services/listingService';
 import { categoryService } from '../services/categoryService';
 import { useAuth } from '../context/AuthContext';
 import { compressImagesIfNeeded } from '../utils/imageCompressor';
+import { getImageUrl } from '../utils/imageUrl';
 import { Upload, X, Image, AlertCircle, Sparkles, Camera, RefreshCw } from 'lucide-react';
 import { ArtworkTile } from '../components/RentoraBrand';
 
@@ -222,33 +223,36 @@ export const ListItem: React.FC = () => {
             const listing = res.data.listing;
             
             // Extract description and card theme if present
-            let cleanDesc = listing.description;
+            let cleanDesc = listing.description || '';
             let themeVal = 'blue';
-            const themeMatch = listing.description.match(/<!-- theme: (\w+) -->/);
+            const themeMatch = cleanDesc.match(/<!--\s*theme:\s*(\w+)\s*-->/);
             if (themeMatch) {
               themeVal = themeMatch[1];
-              cleanDesc = listing.description.replace(/<!-- theme: \w+ -->/, '').trim();
+              cleanDesc = cleanDesc.replace(/<!--\s*theme:\s*\w+\s*-->/g, '').trim();
             }
             
             setForm({
-              title: listing.title,
+              title: listing.title || '',
               description: cleanDesc,
-              category: listing.category?._id || listing.category,
-              condition: listing.condition,
-              rentalPrice: String(listing.rentalPrice),
-              priceUnit: listing.priceUnit,
-              securityDeposit: String(listing.securityDeposit),
-              location: listing.location,
+              category: listing.category?._id || listing.category || '',
+              condition: listing.condition || 'GOOD',
+              rentalPrice: String(listing.rentalPrice || ''),
+              priceUnit: listing.priceUnit || 'DAY',
+              securityDeposit: String(listing.securityDeposit ?? '0'),
+              location: listing.location || user?.collegeName || 'NIET Plot 19',
             });
             setSelectedTheme(themeVal as any);
             setExistingImageUrls(listing.images || []);
             
-            // If editing, try to load its coordinates
-            if (listing.postCoordinates?.latitude) {
+            // If editing, try to load its coordinates or fallback
+            if (listing.postCoordinates?.latitude && listing.postCoordinates?.longitude) {
               setCoordinates({
-                latitude: listing.postCoordinates.latitude,
-                longitude: listing.postCoordinates.longitude,
+                latitude: Number(listing.postCoordinates.latitude),
+                longitude: Number(listing.postCoordinates.longitude),
               });
+              setShareLocation(true);
+            } else {
+              setCoordinates(prev => prev || { latitude: 28.4632, longitude: 77.4939 });
               setShareLocation(true);
             }
           }
@@ -264,10 +268,10 @@ export const ListItem: React.FC = () => {
   }, [id]);
 
   useEffect(() => {
-    if (user?.collegeName) {
+    if (user?.collegeName && !id) {
       setForm(f => ({ ...f, location: user.collegeName }));
     }
-  }, [user]);
+  }, [user, id]);
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -581,7 +585,7 @@ export const ListItem: React.FC = () => {
                   <div className="flex flex-wrap gap-2.5">
                     {existingImageUrls.map((url, i) => (
                       <div key={i} className="relative h-20 w-20 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 flex-shrink-0 animate-in zoom-in-95 duration-200">
-                        <img src={url} alt="" className="h-full w-full object-cover" />
+                        <img src={getImageUrl(url)} alt="" className="h-full w-full object-cover" />
                         <button
                           type="button"
                           onClick={() => removeExistingImage(i)}

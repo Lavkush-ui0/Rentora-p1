@@ -1,7 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Star, Heart, MapPin } from 'lucide-react';
+import { Star, Heart, MapPin, Edit3 } from 'lucide-react';
 import { useWishlist, ListingSummary } from '../context/WishlistContext';
+import { useAuth } from '../context/AuthContext';
 import { getImageUrl, getAvatarUrl } from '../utils/imageUrl';
 
 interface ProductCardProps {
@@ -52,6 +53,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({ listing }) => {
   const location = listing.location || '';
 
   const { isInWishlist, toggleWishlist } = useWishlist();
+  const { user } = useAuth();
+  const isOwner = Boolean(user && owner?._id && (user.id === owner._id || (user as any)._id === owner._id));
 
   const isFavorited = _id ? isInWishlist(_id) : false;
 
@@ -92,6 +95,19 @@ export const ProductCard: React.FC<ProductCardProps> = ({ listing }) => {
         <span className={`absolute top-3 left-3 text-[9px] font-black px-2 py-0.5 rounded-full pointer-events-none shadow-sm ${CONDITION_STYLES[condition] || CONDITION_STYLES.GOOD} font-display uppercase tracking-wider`}>
           {CONDITION_LABELS[condition] || 'Good'}
         </span>
+
+        {/* Owner Edit Quick Action */}
+        {isOwner && (
+          <Link
+            to={`/edit-item/${_id}`}
+            onClick={(e) => e.stopPropagation()}
+            aria-label="Edit listing"
+            title="Edit listing"
+            className="absolute top-3 right-11 p-2 rounded-full backdrop-blur-md transition-all shadow-sm bg-white/85 dark:bg-slate-900/85 text-slate-600 dark:text-slate-300 hover:text-[#9E1B1B] dark:hover:text-[#E03E3E] hover:bg-white dark:hover:bg-slate-800 z-10"
+          >
+            <Edit3 size={13} />
+          </Link>
+        )}
 
         {/* Wishlist */}
         <button
