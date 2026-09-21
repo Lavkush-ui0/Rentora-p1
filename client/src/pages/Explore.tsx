@@ -1,10 +1,10 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { listingService } from '../services/listingService';
 import { categoryService } from '../services/categoryService';
 import ProductCard from '../components/ProductCard';
 import {
-  Search, SlidersHorizontal, X, ChevronLeft, ChevronRight,
+  Search, SlidersHorizontal, X,
   BookOpen, Calculator, FlaskConical, Cpu, GraduationCap, Layers, Compass
 } from 'lucide-react';
 
@@ -38,7 +38,9 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
 export const Explore: React.FC = () => {
   const [searchParams] = useSearchParams();
 
-  const [location, setLocation] = useState(localStorage.getItem('rentora_location') || 'All');
+  const [location, setLocation] = useState(
+    searchParams.get('location') || localStorage.getItem('rentora_location') || 'All'
+  );
 
   // Instant local cache initialization for 0ms initial paint
   const [listings, setListings] = useState<any[]>(() => {
@@ -63,8 +65,13 @@ export const Explore: React.FC = () => {
     return !sessionStorage.getItem('rentora_explore_listings');
   });
 
-  const [pagination, setPagination] = useState({ total: 0, page: 1, totalPages: 1 });
+  const [totalCount, setTotalCount] = useState(0);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
+
+  const observerTarget = useRef<HTMLDivElement | null>(null);
 
   const [search, setSearch] = useState(searchParams.get('search') || '');
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || '');
@@ -73,7 +80,8 @@ export const Explore: React.FC = () => {
   const [priceUnit, setPriceUnit] = useState(searchParams.get('priceUnit') || '');
   const [minPrice, setMinPrice] = useState(searchParams.get('minPrice') || '');
   const [maxPrice, setMaxPrice] = useState(searchParams.get('maxPrice') || '');
-  const [page, setPage] = useState(parseInt(searchParams.get('page') || '1'));
+
+  const hasFilters = Boolean(selectedCategory || condition || priceUnit || minPrice || maxPrice || search);
 
   useEffect(() => {
     const handleLocationChange = () => {
@@ -94,12 +102,67 @@ export const Explore: React.FC = () => {
     } catch (err) { console.error(err); }
   }, []);
 
-  const fetchListings = useCallback(async () => {
-    if (!listings.length) {
-      setLoading(true);
-    }
+  // Fetch initial batch (Page 1) when any filter or sort changes
+  useEffect(() => {
+    let isCancelled = false;
+
+    const fetchInitial = async () => {
+      if (!listings.length) {
+        setLoading(true);
+      }
+
+      try {
+        const params: any = { sort, page: 1, limit: 12 };
+        if (search) params.search = search;
+        if (selectedCategory) params.category = selectedCategory;
+        if (condition) params.condition = condition;
+        if (priceUnit) params.priceUnit = priceUnit;
+        if (minPrice) params.minPrice = minPrice;
+        if (maxPrice) params.maxPrice = maxPrice;
+        if (location && location !== 'All') params.location = location;
+
+        const res = await listingService.getListings(params);
+        if (!isCancelled && res.data?.success) {
+          const freshListings = res.data.listings || [];
+          setListings(freshListings);
+          const total = res.data.pagination?.total ?? 0;
+          const totalPages = res.data.pagination?.totalPages ?? 1;
+          setTotalCount(total);
+          setPage(1);
+          setHasMore(1 < totalPages);
+
+          if (!hasFilters) {
+            try {
+              sessionStorage.setItem('rentora_explore_listings', JSON.stringify(freshListings));
+            } catch {}
+          }
+        }
+      } catch (err) {
+        if (!isCancelled) console.error(err);
+      } finally {
+        if (!isCancelled) setLoading(false);
+      }
+    };
+
+    fetchInitial();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [search, selectedCategory, sort, condition, priceUnit, minPrice, maxPrice, location]);
+
+  useEffect(() => {
+    fetchCategories();
+  }, [fetchCategories]);
+
+  // Load next batch on scroll
+  const loadMore = useCallback(async () => {
+    if (loading || loadingMore || !hasMore) return;
+    setLoadingMore(true);
+
+    const nextPage = page + 1;
     try {
-      const params: any = { sort, page, limit: 9 };
+      const params: any = { sort, page: nextPage, limit: 12 };
       if (search) params.search = search;
       if (selectedCategory) params.category = selectedCategory;
       if (condition) params.condition = condition;
@@ -110,25 +173,50 @@ export const Explore: React.FC = () => {
 
       const res = await listingService.getListings(params);
       if (res.data?.success) {
-        setListings(res.data.listings);
-        setPagination(res.data.pagination);
-        if (!hasFilters && page === 1) {
-          try { sessionStorage.setItem('rentora_explore_listings', JSON.stringify(res.data.listings)); } catch {}
-        }
-      }
-    } catch (err) { console.error(err); }
-    finally { setLoading(false); }
-  }, [search, selectedCategory, sort, condition, priceUnit, minPrice, maxPrice, page, location]);
+        const newItems = res.data.listings || [];
+        setListings(prev => {
+          const existingIds = new Set(prev.map((item: any) => item._id));
+          const uniqueNew = newItems.filter((item: any) => !existingIds.has(item._id));
+          return [...prev, ...uniqueNew];
+        });
 
-  useEffect(() => { fetchCategories(); }, [fetchCategories]);
-  useEffect(() => { fetchListings(); }, [fetchListings]);
+        const total = res.data.pagination?.total ?? totalCount;
+        const totalPages = res.data.pagination?.totalPages ?? 1;
+        setTotalCount(total);
+        setPage(nextPage);
+        setHasMore(nextPage < totalPages);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [loading, loadingMore, hasMore, page, sort, search, selectedCategory, condition, priceUnit, minPrice, maxPrice, location, totalCount]);
+
+  useEffect(() => {
+    const target = observerTarget.current;
+    if (!target) return;
+
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0].isIntersecting && hasMore && !loading && !loadingMore) {
+          loadMore();
+        }
+      },
+      { rootMargin: '250px' }
+    );
+
+    observer.observe(target);
+    return () => {
+      observer.disconnect();
+    };
+  }, [hasMore, loading, loadingMore, loadMore]);
 
   const handleSearchSubmit = (e: React.FormEvent) => { e.preventDefault(); setPage(1); };
   const clearFilters = () => {
     setSearch(''); setSelectedCategory(''); setSort('newest');
     setCondition(''); setPriceUnit(''); setMinPrice(''); setMaxPrice(''); setPage(1);
   };
-  const hasFilters = selectedCategory || condition || priceUnit || minPrice || maxPrice || search;
 
   /* ── Render ─────────────────────────────────────────────────── */
   return (
@@ -145,7 +233,7 @@ export const Explore: React.FC = () => {
               Explore Catalog
             </h1>
             <p className="text-xs text-slate-400 mt-0.5">
-              {loading ? 'Searching...' : `${pagination.total ?? 0} listings near ${location === 'All' ? 'campus' : location}`}
+              {loading ? 'Searching...' : `${totalCount} listings near ${location === 'All' ? 'campus' : location}`}
             </p>
           </div>
         </div>
@@ -312,9 +400,31 @@ export const Explore: React.FC = () => {
           {Array.from({ length: 9 }).map((_, i) => <SkeletonCard key={i} />)}
         </div>
       ) : listings.length > 0 ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
-          {listings.map(listing => <ProductCard key={listing._id} listing={listing} />)}
-        </div>
+        <>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
+            {listings.map(listing => <ProductCard key={listing._id} listing={listing} />)}
+          </div>
+
+          {/* Sentinel for Infinite Scroll */}
+          <div ref={observerTarget} className="h-4 w-full" />
+
+          {loadingMore && (
+            <div className="py-8 flex items-center justify-center gap-2 text-xs font-bold text-slate-500">
+              <div className="w-4 h-4 rounded-full border-2 border-[#22716E] border-t-transparent animate-spin" />
+              <span>Loading more listings...</span>
+            </div>
+          )}
+
+          {!hasMore && listings.length > 0 && (
+            <div className="py-10 text-center flex items-center justify-center gap-3">
+              <span className="h-px w-16 bg-slate-200 dark:bg-slate-800" />
+              <span className="text-xs font-bold text-slate-400">
+                You've reached the end — all {totalCount} listings loaded
+              </span>
+              <span className="h-px w-16 bg-slate-200 dark:bg-slate-800" />
+            </div>
+          )}
+        </>
       ) : (
         <div className="text-center py-20 space-y-3 bg-white dark:bg-slate-900 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800">
           <div className="h-16 w-16 mx-auto bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center">
@@ -322,39 +432,6 @@ export const Explore: React.FC = () => {
           </div>
           <p className="font-display font-black text-slate-700 dark:text-slate-300 text-sm uppercase tracking-tight">No listings found</p>
           <p className="text-xs text-slate-400">Try adjusting your filters or campus location</p>
-        </div>
-      )}
-
-      {/* Pagination */}
-      {pagination.totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2 pt-4">
-          <button
-            onClick={() => setPage(p => Math.max(1, p - 1))}
-            disabled={page <= 1}
-            className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
-          >
-            <ChevronLeft size={16} />
-          </button>
-          {Array.from({ length: pagination.totalPages }).map((_, i) => (
-            <button
-              key={i}
-              onClick={() => setPage(i + 1)}
-              className={`h-9 w-9 rounded-xl text-xs font-bold transition-all border ${
-                page === i + 1
-                  ? 'bg-[#9E1B1B] text-white border-[#9E1B1B]'
-                  : 'border-slate-200 dark:border-slate-800 text-slate-600 hover:bg-slate-50'
-              }`}
-            >
-              {i + 1}
-            </button>
-          ))}
-          <button
-            onClick={() => setPage(p => Math.min(pagination.totalPages, p + 1))}
-            disabled={page >= pagination.totalPages}
-            className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
-          >
-            <ChevronRight size={16} />
-          </button>
         </div>
       )}
     </div>
