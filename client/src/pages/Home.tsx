@@ -234,21 +234,16 @@ export const Home: React.FC = () => {
 
       {/* ══ 2. "In Demand Right Now" Grid ══════════════════════ */}
       <section>
-        <div className="flex items-center justify-between mb-7">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-2xl bg-[#9E1B1B]/8 dark:bg-[#9E1B1B]/15">
-              <TrendingUp className="h-5 w-5 text-[#9E1B1B]" />
-            </div>
-            <div>
-              <h2 className="text-lg font-display font-black uppercase tracking-tight text-slate-900 dark:text-white">
-                In Demand Right Now
-              </h2>
-              <p className="text-xs text-slate-400 mt-0.5">Most-requested campus gear this week</p>
-            </div>
+        <div className="flex items-center gap-3 mb-7">
+          <div className="p-2.5 rounded-2xl bg-[#9E1B1B]/8 dark:bg-[#9E1B1B]/15">
+            <TrendingUp className="h-5 w-5 text-[#9E1B1B]" />
           </div>
-          <Link to="/explore" className="inline-flex items-center gap-1 text-xs font-bold text-[#9E1B1B] hover:text-[#801414] transition-colors">
-            See all <ChevronRight size={14} />
-          </Link>
+          <div>
+            <h2 className="text-lg font-display font-black uppercase tracking-tight text-slate-900 dark:text-white">
+              In Demand Right Now
+            </h2>
+            <p className="text-xs text-slate-400 mt-0.5">Most-requested campus gear this week</p>
+          </div>
         </div>
 
         {loading ? (
@@ -256,11 +251,21 @@ export const Home: React.FC = () => {
             {Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)}
           </div>
         ) : allListings.length > 0 ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-5">
-            {allListings.map(listing => (
-              <ProductCard key={listing._id} listing={listing} />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-5">
+              {allListings.map(listing => (
+                <ProductCard key={listing._id} listing={listing} />
+              ))}
+            </div>
+            <div className="mt-8 flex justify-center">
+              <Link
+                to="/explore"
+                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 hover:border-[#9E1B1B]/40 hover:text-[#9E1B1B] dark:hover:border-[#9E1B1B]/40 dark:hover:text-[#ff6b6b] hover:bg-slate-50 dark:hover:bg-slate-800 transition-all duration-150 shadow-sm active:scale-95"
+              >
+                See all <ChevronRight size={14} />
+              </Link>
+            </div>
+          </>
         ) : (
           <div className="text-center py-20 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800">
             <p className="text-4xl mb-3">📦</p>
@@ -339,26 +344,29 @@ export const Home: React.FC = () => {
       {/* ══ 6. Top-Rated Section (if data) ══════════════════════ */}
       {data?.topRatedProducts && data.topRatedProducts.length > 0 && (
         <section>
-          <div className="flex items-center justify-between mb-7">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-2xl bg-[#22716E]/8 dark:bg-[#22716E]/15">
-                <Zap className="h-5 w-5 text-[#22716E]" />
-              </div>
-              <div>
-                <h2 className="text-lg font-display font-black uppercase tracking-tight text-slate-900 dark:text-white">
-                  Top-Rated by Students
-                </h2>
-                <p className="text-xs text-slate-400 mt-0.5">Highest community ratings</p>
-              </div>
+          <div className="flex items-center gap-3 mb-7">
+            <div className="p-2.5 rounded-2xl bg-[#22716E]/8 dark:bg-[#22716E]/15">
+              <Zap className="h-5 w-5 text-[#22716E]" />
             </div>
-            <Link to="/explore?sort=rating" className="inline-flex items-center gap-1 text-xs font-bold text-[#9E1B1B] hover:text-[#801414] transition-colors">
-              See all <ChevronRight size={14} />
-            </Link>
+            <div>
+              <h2 className="text-lg font-display font-black uppercase tracking-tight text-slate-900 dark:text-white">
+                Top-Rated by Students
+              </h2>
+              <p className="text-xs text-slate-400 mt-0.5">Highest community ratings</p>
+            </div>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-5">
             {data.topRatedProducts.slice(0, 4).map(listing => (
               <ProductCard key={listing._id} listing={listing} />
             ))}
+          </div>
+          <div className="mt-8 flex justify-center">
+            <Link
+              to="/explore?sort=rating"
+              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 hover:border-[#22716E]/40 hover:text-[#22716E] dark:hover:border-[#22716E]/40 dark:hover:text-[#5FD2CA] hover:bg-slate-50 dark:hover:bg-slate-800 transition-all duration-150 shadow-sm active:scale-95"
+            >
+              See all <ChevronRight size={14} />
+            </Link>
           </div>
         </section>
       )}
